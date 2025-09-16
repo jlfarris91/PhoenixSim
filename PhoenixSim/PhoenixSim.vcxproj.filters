@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Private">
+      <UniqueIdentifier>{001F8D23-6CFE-0BBF-7516-9795E1747220}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Public">
+      <UniqueIdentifier>{8480F8CA-7022-23A1-59DD-36F5451EAAF1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Public\Actions.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\DLLExport.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FeatureECS.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FeaturePathfinding.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FeaturePhysics.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Features.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Hashing.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\MortonCode.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Name.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\PhoenixSim.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Session.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Worlds.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Private\Actions.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FeatureECS.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FeaturePathfinding.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FeaturePhysics.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Features.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FixedPoint.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Hashing.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\MortonCode.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Name.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Session.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Worlds.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\dllmain.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

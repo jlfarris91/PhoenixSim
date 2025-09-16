@@ -1,0 +1,4 @@
+/Build/Binaries
+/Build/Intermediate
+*.user
+/.idea
