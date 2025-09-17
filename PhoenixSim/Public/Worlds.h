@@ -19,7 +19,7 @@ namespace Phoenix
     };
 
     struct WorldChannels
-    {        
+    {
         static constexpr FName WorldInitialize = "WorldInitialize"_n;
         static constexpr FName WorldShutdown = "WorldShutdown"_n;
 

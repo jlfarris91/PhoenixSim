@@ -35,8 +35,8 @@ namespace Phoenix
     typedef uint32_t uint32;
     typedef uint64_t uint64;
 
-    typedef float dt_t;
-    typedef uint32 simtime_t;
+    typedef clock_t dt_t;
+    typedef uint64 simtime_t;
 
     constexpr int32 INDEX_NONE = -1;
 

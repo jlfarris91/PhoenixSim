@@ -84,7 +84,15 @@ project "PhoenixSimDriver"
       runtime "Debug"
       symbols "On"
 
+      postbuildcommands {
+        "xcopy /s /y \"$(ProjectDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
+      }
+
    filter "configurations:Release"
       defines { "NDEBUG" }
       runtime "Release"
       optimize "On"
+      
+      postbuildcommands {
+        "xcopy /s /y \"$(ProjectDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
+      }

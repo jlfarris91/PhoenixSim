@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Features.h"
+#include "FixedArray.h"
 #include "FixedPoint.h"
 #include "Worlds.h"
 
@@ -82,14 +83,9 @@ namespace Phoenix
         {
             static const FName StaticName;
 
-            uint16 EntitiesSize = 0;
-            Entity Entities[ECS_MAX_ENTITIES];
-
-            uint16 ComponentsSize = 0;
-            Component Components[ECS_MAX_COMPONENTS];
-
-            uint16 GroupsSize = 0;
-            EntityId Groups[ECS_MAX_ENTITIES];
+            TFixedArray<Entity, ECS_MAX_ENTITIES> Entities;
+            TFixedArray<Component, ECS_MAX_COMPONENTS> Components;
+            TFixedArray<EntityId, ECS_MAX_ENTITIES> Groups;
         };
 
         struct PHOENIXSIM_API FeatureECSCtorArgs
@@ -263,70 +259,43 @@ namespace Phoenix
             return contains_nullptr<I + 1>(t);
         }
 
-        // Primary template
-        template<typename... Args>
-        struct WrapPointers
-        {
-            using type = std::tuple<Entity*, std::add_pointer_t<Args>...>;
-        };
-
         template <class ...TComponents>
-        struct ECSComponentAccessor
+        class EntityComponentsContainer
         {
-            using EntityComponentsT = typename WrapPointers<TComponents...>::type;
+        public:
+            using ElementType = std::tuple<Entity*, std::add_pointer_t<TComponents>...>;
 
-            ECSComponentAccessor(WorldRef world) : World(world) {}
-            
-            struct Iter
+            EntityComponentsContainer() = default;
+
+            EntityComponentsContainer(WorldRef world)
             {
-                Iter(WorldRef world, uint32 index) : CurrIdx(index), World(world)
+                Refresh(world);
+            }
+
+            void Refresh(WorldRef world)
+            {
+                FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+
+                Components.Reset();
+
+                for (Entity& entity : block.Entities)
                 {
-                    FindNextSetOfComponents();
+                    if (entity.Id == EntityId::Invalid)
+                        continue;
+            
+                    auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<TComponents...>(world, entity.Id));
+                    if (contains_nullptr(components))
+                        continue;
+
+                    Components.PushBack(components);
                 }
+            }
 
-                EntityComponentsT operator*() const
-                {
-                    return CurrComponents;
-                }
-                
-                Iter& operator++()
-                {
-                    FindNextSetOfComponents();
-                    return *this;
-                }
-
-                void FindNextSetOfComponents()
-                {
-                    FeatureECSDynamicBlock& block = World.GetBlockRef<FeatureECSDynamicBlock>();
-                    while (++CurrIdx < block.EntitiesSize)
-                    {
-                        Entity& entity = block.Entities[CurrIdx];
-                        if (entity.Id == EntityId::Invalid)
-                            continue;
-
-                        CurrComponents = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<TComponents...>(World, entity.Id));
-                        if (contains_nullptr(CurrComponents))
-                            continue;
-
-                        break;
-                    }
-                }
-
-                bool operator==(const Iter& other) const { return CurrIdx == other.CurrIdx; }
-                bool operator!=(const Iter& other) const { return CurrIdx != other.CurrIdx; }
-
-            private:
-                uint32 CurrIdx = 0;
-                EntityComponentsT CurrComponents;
-                WorldRef World;
-            };
-
-            Iter begin() const { return Iter(World, 0); }
-            Iter end() const { return Iter(World, World.GetBlockRef<FeatureECSDynamicBlock>().EntitiesSize); }
+            auto begin() { return Components.begin(); }
+            auto end() { return Components.end(); }
 
         private:
-
-            WorldRef World;
+            TFixedArray<ElementType, ECS_MAX_ENTITIES> Components;
         };
     }
 }

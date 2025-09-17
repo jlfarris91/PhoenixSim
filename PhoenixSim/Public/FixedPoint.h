@@ -262,6 +262,7 @@ namespace Phoenix
     typedef Transform<Vec2, Degrees, Value> Transform2D;
     typedef Transform<Vec3, Vec3, Vec3> Transform3D;
 
+    template <>
     inline Vec2 Transform<Vec2, Degrees, Value>::RotateVector(const Vec2& vec)
     {
         return vec.Rotate(Rotation);

@@ -20,7 +20,8 @@ namespace Phoenix
 
     struct PHOENIXSIM_API SessionStepArgs
     {
-        dt_t DeltaTime = 0.0f;
+        clock_t DeltaTime = 0.0f;
+        clock_t StepHz = 1000 / 60;
 
         // Optionally only step this world.
         FName WorldName = FName::None;
@@ -36,9 +37,16 @@ namespace Phoenix
         void Initialize();
         void Shutdown();
 
-        void QueueAction(simtime_t time, const Action& action);
+        void QueueAction(const Action& action);
 
-        void Step(const SessionStepArgs& args);
+        void Tick(const SessionStepArgs& args);
+        void Step();
+
+        clock_t GetCurrTime() const;
+        clock_t GetStartTime() const;
+        clock_t GetLastStepTime() const;
+        simtime_t GetSimTime() const;
+        uint64 GetStepsPerSecond() const;
 
         FeatureSet* GetFeatureSet() const;
         WorldManager* GetWorldManager() const;
@@ -52,6 +60,17 @@ namespace Phoenix
 
         TArray<TTuple<simtime_t, Action>> ActionQueue;
         std::shared_mutex ActionQueueMutex;
+
+        clock_t StartTime = 0;
+        clock_t CurrTickTime = 0;
+        int64 AccTickTime = 0;
+        clock_t LastStepTime = 0;
+        simtime_t SimTime = 0;
+
+        // Steps per second
+        uint64 SPS = 0;
+        uint64 SPSLastSimTime = 0;
+        clock_t SPSTimer = 0;
     };
 }
 

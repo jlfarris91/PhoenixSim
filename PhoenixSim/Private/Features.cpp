@@ -171,7 +171,7 @@ void FeatureSet::RegisterFeatureChannels(const TArray<FeatureSharedPtr>& feature
                     remainingInserts.erase(remainingInserts.begin());
                     insertedAnything = true;
                 }
-                continue;
+                break;
             }
 
             // The channel exists, try to insert the feature relative to another existing in the channel

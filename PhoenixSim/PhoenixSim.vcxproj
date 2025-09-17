@@ -101,7 +101,9 @@
     <ClInclude Include="Public\FeaturePathfinding.h" />
     <ClInclude Include="Public\FeaturePhysics.h" />
     <ClInclude Include="Public\Features.h" />
+    <ClInclude Include="Public\FixedArray.h" />
     <ClInclude Include="Public\FixedPoint.h" />
+    <ClInclude Include="Public\FixedSet.h" />
     <ClInclude Include="Public\Hashing.h" />
     <ClInclude Include="Public\MortonCode.h" />
     <ClInclude Include="Public\Name.h" />

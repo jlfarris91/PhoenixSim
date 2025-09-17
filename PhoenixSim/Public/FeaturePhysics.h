@@ -1,8 +1,10 @@
 ﻿#pragma once
 
 #include "FeatureECS.h"
+#include "FixedArray.h"
 #include "PhoenixSim.h"
 #include "FixedPoint.h"
+#include "FixedSet.h"
 
 namespace Phoenix
 {
@@ -48,8 +50,6 @@ namespace Phoenix
 
             // Interpolation value between Steps.
             Value StepT = Zero<Value>();
-
-            uint64 ZCode = 0;
         };
 
         class PHOENIXSIM_API PhysicsSystem : public ECS::ISystem
@@ -57,7 +57,14 @@ namespace Phoenix
         public:
             void OnUpdate(WorldRef world) override;
         };
-        
+
+        struct EntityBody
+        {
+            ECS::EntityId EntityId;
+            BodyComponent* BodyComponent;
+            uint64 ZCode;
+        };
+
         struct Contact
         {
             BodyComponent* BodyA;
@@ -75,9 +82,10 @@ namespace Phoenix
             uint64 NumCollisions = 0;
             uint64 MaxQueryBodyCount = 0;
 
-            static constexpr uint32 ContactsCapacity = ECS_MAX_ENTITIES; 
-            Contact Contacts[ContactsCapacity];
-            uint32 ContactsSize = 0;
+            ECS::EntityComponentsContainer<BodyComponent> EntityBodies;
+            TFixedArray<EntityBody, ECS_MAX_ENTITIES> SortedEntities;
+            TFixedArray<Contact, ECS_MAX_ENTITIES> Contacts;
+            TFastSet<uint64, ECS_MAX_ENTITIES> ContactSet;
         };
 
         class PHOENIXSIM_API FeaturePhysics : public IFeature
@@ -94,9 +102,13 @@ namespace Phoenix
 
             void Initialize() override;
 
+            void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
+
+            static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<ECS::EntityId>& outEntities);
+
         private:
 
-            FeatureDefinition WorldFeatureDefinition;
+            FeatureDefinition FeatureDefinition;
         };
     }    
 }

@@ -53,7 +53,6 @@ struct EntityBodyShape
 {
     Transform2D Transform;
     Distance Radius;
-    uint64 ZCode;
 };
 
 std::vector<EntityBodyShape> entityBodies;
@@ -124,31 +123,21 @@ void UpdateSessionWorker()
     clock_t lastClockTime = 0;
     sessionThreadWantsExit = false;
 
-    uint32 sessionFPSCounter = 0;
-    clock_t sessionFPSTimer = clock();
-
     while (!sessionThreadWantsExit)
     {
         clock_t currClockTime = clock();
         clock_t deltaClockTime = currClockTime - lastClockTime;
         lastClockTime = currClockTime;
-        float deltaTime = static_cast<float>(static_cast<double>(deltaClockTime) / CLOCKS_PER_SEC);
 
-        ++sessionFPSCounter;
-        clock_t sessionFPSTimerDelta = currClockTime - sessionFPSTimer;
-        if (sessionFPSTimerDelta > 1 * CLOCKS_PER_SEC)
-        {
-            sessionFPSTimer = currClockTime;
-            sessionFPS = static_cast<float>(sessionFPSCounter);
-            sessionFPS += static_cast<float>(sessionFPSTimerDelta) / CLOCKS_PER_SEC;
-            sessionFPSCounter = 0;
-        }
-        
         SessionStepArgs stepArgs;
-        stepArgs.DeltaTime = deltaTime;
-            
-        session->Step(stepArgs);
-        Sleep(10);
+        stepArgs.DeltaTime = deltaClockTime;
+        stepArgs.StepHz = 60;
+
+        session->Tick(stepArgs);
+
+        sessionFPS = session->GetStepsPerSecond();
+
+        //Sleep(10);
     }
 }
 
@@ -177,25 +166,38 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_CONTINUE;
 }
 
+World* currWorld = nullptr;
+FeaturePhysicsScratchBlock* physicsScratchBlock = nullptr;
+
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     {
         std::lock_guard lock(worldUpdateQueueMutex);
 
-        for (size_t i = 0; i < worldUpdateQueue.size(); ++i)
+        if (!worldUpdateQueue.empty())
         {
-            World& world = worldUpdateQueue[i];
+            World& world = worldUpdateQueue[worldUpdateQueue.size() - 1];
+
+            if (!currWorld)
+            {
+                currWorld = new World(world);
+            }
+            else
+            {
+                *currWorld = world;
+            }
+
+            physicsScratchBlock = currWorld->GetBlock<FeaturePhysicsScratchBlock>();
 
             entityBodies.clear();
 
-            ECSComponentAccessor<BodyComponent> componentsAccessor(world);
+            EntityComponentsContainer<BodyComponent> bodyComponents(world);
 
-            for (auto && [entity, body] : componentsAccessor)
+            for (auto && [entity, body] : bodyComponents)
             {
                 EntityBodyShape entityBodyShape;
                 entityBodyShape.Transform = body->Transform;
                 entityBodyShape.Radius = body->Radius;
-                entityBodyShape.ZCode = body->ZCode;
 
                 if (body->Movement == EBodyMovement::Attached &&
                     body->AttachParent != EntityId::Invalid)
@@ -209,9 +211,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
                 entityBodies.push_back(entityBodyShape);
             }
-        }
 
-        worldUpdateQueue.clear();
+            worldUpdateQueue.clear();
+        }
     }
 
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
@@ -334,67 +336,75 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     RenderDebugText("%.0f, %.0f", mx, my)
 
+    if (physicsScratchBlock)
     {
-        uint32 mxmc = uint32(mx) >> MortonCodeGridBits;
-        uint32 mymc = uint32(my) >> MortonCodeGridBits;
-        uint64 mmc = MortonCode(mxmc, mymc);
-
-        RenderDebugText("MC: %llu", mmc)
-
-        // Query for overlapping morton ranges
-        static TArray<TTuple<uint64, uint64>> ranges;
-        {
-            constexpr float mouseRadius = 12.0f;
-            uint32 lox = static_cast<uint32>(mx - mouseRadius);
-            uint32 hix = static_cast<uint32>(mx + mouseRadius);
-            uint32 loy = static_cast<uint32>(my - mouseRadius);                
-            uint32 hiy = static_cast<uint32>(my + mouseRadius);
-
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-
-            SDL_FRect mouseRect(mx - mouseRadius, my - mouseRadius, mouseRadius * 2, mouseRadius * 2);
-            SDL_RenderRect(renderer, &mouseRect);
-
-            SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-
-            MortonCodeAABB aabb;
-            aabb.MinX = lox >> MortonCodeGridBits;
-            aabb.MinY = loy >> MortonCodeGridBits;
-            aabb.MaxX = hix >> MortonCodeGridBits;
-            aabb.MaxY = hiy >> MortonCodeGridBits;
-
-            RenderDebugText("(%llu, %llu, %llu, %llu)", aabb.MinX, aabb.MinY, aabb.MaxX, aabb.MaxY)
-
-            uint64 bl = MortonCode(lox >> MortonCodeGridBits, loy >> MortonCodeGridBits);
-            uint64 br = MortonCode(hix >> MortonCodeGridBits, loy >> MortonCodeGridBits);
-            uint64 tl = MortonCode(lox >> MortonCodeGridBits, hiy >> MortonCodeGridBits);
-            uint64 tr = MortonCode(hix >> MortonCodeGridBits, hiy >> MortonCodeGridBits);
-            
-            RenderDebugText("(%llu, %llu, %llu, %llu)", bl, br, tl, tr)
-
-            char mortonCodeAABBStr[256];
-            sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", bl);
-            SDL_RenderDebugText(renderer, lox * 0.5, loy * 0.5, mortonCodeAABBStr);
-            sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", br);
-            SDL_RenderDebugText(renderer, hix * 0.5, loy * 0.5, mortonCodeAABBStr);
-            sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", tl);
-            SDL_RenderDebugText(renderer, lox * 0.5, hiy * 0.5, mortonCodeAABBStr);
-            sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", tr);
-            SDL_RenderDebugText(renderer, hix * 0.5, hiy * 0.5, mortonCodeAABBStr);
-            
-            ranges.clear();
-            MortonCodeQuery(aabb, ranges);
-        }
-
-        int y = 80;
-        for (auto && [min, max] : ranges)
-        {
-            char mortonCodeRangeStr[256] = { '\0' };
-            sprintf_s(mortonCodeRangeStr, _countof(mortonCodeRangeStr), "  > %llu, %llu", min, max);
-            SDL_RenderDebugText(renderer, 10, y, mortonCodeRangeStr);
-            y += 10;
-        }
+        RenderDebugText("Num Collisions: %llu", physicsScratchBlock->NumCollisions)
+        RenderDebugText("Num Iterations: %llu", physicsScratchBlock->NumIterations)
+        RenderDebugText("Max Query Bodies: %llu", physicsScratchBlock->MaxQueryBodyCount)
+        RenderDebugText("Num Contacts: %llu", physicsScratchBlock->Contacts.Num())
     }
+
+    // {
+    //          uint32 mxmc = uint32(mx) >> MortonCodeGridBits;
+    //          uint32 mymc = uint32(my) >> MortonCodeGridBits;
+    //          uint64 mmc = MortonCode(mxmc, mymc);
+    //  
+    //          RenderDebugText("MC: %llu", mmc)
+    //  
+    //          // Query for overlapping morton ranges
+    //          static TArray<TTuple<uint64, uint64>> ranges;
+    //          {
+    //              constexpr float mouseRadius = 12.0f;
+    //              uint32 lox = static_cast<uint32>(mx - mouseRadius);
+    //              uint32 hix = static_cast<uint32>(mx + mouseRadius);
+    //              uint32 loy = static_cast<uint32>(my - mouseRadius);                
+    //              uint32 hiy = static_cast<uint32>(my + mouseRadius);
+    //  
+    //              SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    //  
+    //              SDL_FRect mouseRect(mx - mouseRadius, my - mouseRadius, mouseRadius * 2, mouseRadius * 2);
+    //              SDL_RenderRect(renderer, &mouseRect);
+    //  
+    //              SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+    //  
+    //              MortonCodeAABB aabb;
+    //              aabb.MinX = lox >> MortonCodeGridBits;
+    //              aabb.MinY = loy >> MortonCodeGridBits;
+    //              aabb.MaxX = hix >> MortonCodeGridBits;
+    //              aabb.MaxY = hiy >> MortonCodeGridBits;
+    //  
+    //              RenderDebugText("(%llu, %llu, %llu, %llu)", aabb.MinX, aabb.MinY, aabb.MaxX, aabb.MaxY)
+    //  
+    //              uint64 bl = MortonCode(lox >> MortonCodeGridBits, loy >> MortonCodeGridBits);
+    //              uint64 br = MortonCode(hix >> MortonCodeGridBits, loy >> MortonCodeGridBits);
+    //              uint64 tl = MortonCode(lox >> MortonCodeGridBits, hiy >> MortonCodeGridBits);
+    //              uint64 tr = MortonCode(hix >> MortonCodeGridBits, hiy >> MortonCodeGridBits);
+    //              
+    //              RenderDebugText("(%llu, %llu, %llu, %llu)", bl, br, tl, tr)
+    //  
+    //              char mortonCodeAABBStr[256];
+    //              sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", bl);
+    //              SDL_RenderDebugText(renderer, lox * 0.5, loy * 0.5, mortonCodeAABBStr);
+    //              sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", br);
+    //              SDL_RenderDebugText(renderer, hix * 0.5, loy * 0.5, mortonCodeAABBStr);
+    //              sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", tl);
+    //              SDL_RenderDebugText(renderer, lox * 0.5, hiy * 0.5, mortonCodeAABBStr);
+    //              sprintf_s(mortonCodeAABBStr, _countof(mortonCodeAABBStr), "%llu", tr);
+    //              SDL_RenderDebugText(renderer, hix * 0.5, hiy * 0.5, mortonCodeAABBStr);
+    //              
+    //              ranges.clear();
+    //              MortonCodeQuery(aabb, ranges);
+    //          }
+    //  
+    //          int y = 80;
+    //          for (auto && [min, max] : ranges)
+    //          {
+    //              char mortonCodeRangeStr[256] = { '\0' };
+    //              sprintf_s(mortonCodeRangeStr, _countof(mortonCodeRangeStr), "  > %llu, %llu", min, max);
+    //              SDL_RenderDebugText(renderer, 10, y, mortonCodeRangeStr);
+    //              y += 10;
+    //          }
+    //      }
 
     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
 
@@ -402,6 +412,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
+
+TMap<uint8, bool> mouseButtonStates;
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
@@ -411,18 +423,59 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         return SDL_APP_SUCCESS;
     }
 
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+    auto onMouseDownOrMoved = [](const Vec2& mousePos)
     {
-        for (int32 i = 0; i < 100; ++i)
+        // Spawn entities
+        if (mouseButtonStates.contains(SDL_BUTTON_LEFT) && mouseButtonStates[SDL_BUTTON_LEFT])
         {
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = event->button.x;
-            action.Data[2].Distance = event->button.y;
+            action.Data[1].Distance = mousePos.X;
+            action.Data[2].Distance = mousePos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
-            session->QueueAction(0, action);
+            session->QueueAction(action);
         }
+
+        // Release entities
+        if (mouseButtonStates.contains(SDL_BUTTON_RIGHT) && mouseButtonStates[SDL_BUTTON_RIGHT])
+        {
+            Action action;
+            action.Verb = "release_entities_in_range"_n;
+            action.Data[0].Distance = mousePos.X;
+            action.Data[1].Distance = mousePos.Y;
+            action.Data[2].Distance = 10.0f;
+            session->QueueAction(action);
+        }
+    };
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+    {
+        mouseButtonStates[event->button.button] = true;
+
+        Vec2 mousePos = { event->button.x, event->button.y };
+        onMouseDownOrMoved(mousePos);
+        // for (int32 i = 0; i < 100; ++i)
+        // {
+        //     Action action;
+        //     action.Verb = "spawn_entity"_n;
+        //     action.Data[0].Name = "Unit"_n;
+        //     action.Data[1].Distance = event->button.x;
+        //     action.Data[2].Distance = event->button.y;
+        //     action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
+        //     session->QueueAction(0, action);
+        // }
+    }
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
+    {
+        mouseButtonStates[event->button.button] = false;
+    }
+
+    if (event->type == SDL_EVENT_MOUSE_MOTION)
+    {
+        Vec2 mousePos = { event->button.x, event->button.y };
+        onMouseDownOrMoved(mousePos);
     }
 
     return SDL_APP_CONTINUE;

@@ -30,6 +30,12 @@ void Session::Initialize()
         feature->Session = this;
         feature->Initialize();
     }
+
+    StartTime = clock();
+    CurrTickTime = StartTime;
+    LastStepTime = StartTime;
+    SPSTimer = StartTime;
+    AccTickTime = 0;
 }
 
 void Session::Shutdown()
@@ -41,23 +47,84 @@ void Session::Shutdown()
     }
 }
 
-void Session::QueueAction(simtime_t time, const Action& action)
+void Session::QueueAction(const Action& action)
 {
     std::lock_guard lock(ActionQueueMutex);
-    ActionQueue.emplace_back(time, action);
+    ActionQueue.emplace_back(SimTime + 1, action);
 }
 
-void Session::Step(const SessionStepArgs& args)
+void Session::Tick(const SessionStepArgs& args)
 {
-    simtime_t simTime = 0;
-    
+    clock_t currTime = clock();
+    clock_t dt = currTime - CurrTickTime;
+    CurrTickTime = currTime;
+
+    auto hz = CLOCKS_PER_SEC / args.StepHz;
+
+    AccTickTime += dt;
+    while (AccTickTime >= hz)
+    {
+        clock_t startStepTime = clock();
+
+        Step();
+
+        clock_t endStepTime = clock();
+        clock_t stepElapsed = endStepTime - startStepTime;
+
+        AccTickTime -= max(hz, stepElapsed);
+        CurrTickTime = clock();
+    }
+
+    if (AccTickTime > 0)
+    {
+        Sleep(static_cast<clock_t>(AccTickTime));
+    }
+
+    if (clock() - SPSTimer > CLOCKS_PER_SEC)
+    {
+        SPSTimer = clock();
+        SPS = SimTime - SPSLastSimTime;
+        SPSLastSimTime = SimTime;
+    }
+}
+
+void Session::Step()
+{
+    LastStepTime = clock();
+    SimTime += 1;
+
     // Process actions
-    ProcessActions(simTime);
+    ProcessActions(SimTime);
 
     // Step active worlds
     WorldStepArgs worldStepArgs;
-    worldStepArgs.SimTime = simTime;
+    worldStepArgs.SimTime = SimTime;
     WorldManager->Step(worldStepArgs);
+}
+
+clock_t Session::GetCurrTime() const
+{
+    return CurrTickTime;
+}
+
+clock_t Session::GetStartTime() const
+{
+    return StartTime;
+}
+
+clock_t Session::GetLastStepTime() const
+{
+    return LastStepTime;
+}
+
+simtime_t Session::GetSimTime() const
+{
+    return SimTime;
+}
+
+uint64 Session::GetStepsPerSecond() const
+{
+    return SPS;
 }
 
 FeatureSet* Session::GetFeatureSet() const
@@ -72,16 +139,16 @@ WorldManager* Session::GetWorldManager() const
 
 void Session::ProcessActions(simtime_t time)
 {
-    // Sort action queue by sim time
-    std::sort(ActionQueue.begin(), ActionQueue.end(),
-        [](const TTuple<simtime_t, Action>& a, const TTuple<simtime_t, Action>& b)
-        {
-            return std::get<0>(a) < std::get<0>(b);
-        });
-
     // Process incoming actions
     {
         std::lock_guard lock(ActionQueueMutex);
+
+        // Sort action queue by sim time
+        std::ranges::sort(ActionQueue,
+              [](const TTuple<simtime_t, Action>& a, const TTuple<simtime_t, Action>& b)
+              {
+                  return std::get<0>(a) < std::get<0>(b);
+              });
         
         auto iter = ActionQueue.begin();
         for (; iter != ActionQueue.end(); ++iter)

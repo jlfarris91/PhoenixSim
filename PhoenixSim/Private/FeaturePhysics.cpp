@@ -12,55 +12,79 @@ using namespace Phoenix::Physics;
 
 const FName FeaturePhysics::StaticName = "Physics"_n;
 const FName FeaturePhysicsScratchBlock::StaticName = "Physics_Scratch"_n;
+//
+// void AccessComponents2(WorldRef world, TFixedArray<TTuple<Entity*, BodyComponent*>, ECS_MAX_ENTITIES>& outEntityComponents)
+// {
+//     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+//
+//     outEntityComponents.Reset();
+//
+//     for (Entity& entity : block.Entities)
+//     {
+//         if (entity.Id == EntityId::Invalid)
+//             continue;
+//
+//         auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<BodyComponent>(world, entity.Id));
+//         if (contains_nullptr(components))
+//             continue;
+//
+//         outEntityComponents.PushBack(components);
+//     }
+// }
 
 void PhysicsSystem::OnUpdate(WorldRef world)
 {
     float dt = 1 / 60.0f;
 
-    ECSComponentAccessor<BodyComponent> componentsAccessor(world);
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
-    TArray<BodyComponent*> sortedBodies;
-    sortedBodies.reserve(ECS_MAX_ENTITIES);
+    auto& sortedEntities = scratchBlock.SortedEntities;
 
-    for (auto && [entity, body] : componentsAccessor)
+    // Calculate z-codes and sort entities
     {
-        uint32 x = static_cast<uint32>(body->Transform.Position.X) >> MortonCodeGridBits;
-        uint32 y = static_cast<uint32>(body->Transform.Position.Y) >> MortonCodeGridBits;
-        uint64 zcode = MortonCode(x, y);
-        body->ZCode = zcode;
-        sortedBodies.push_back(body);
-    }
+        scratchBlock.SortedEntities.Reset();
 
-    // Sort bodies by their zcodes
-    std::ranges::sort(sortedBodies,
-        [](const BodyComponent* a, const BodyComponent* b)
+        scratchBlock.EntityBodies.Refresh(world);
+
+        for (auto && [entity, body] : scratchBlock.EntityBodies)
         {
-            return a->ZCode < b->ZCode;
-        });
+            uint32 x = static_cast<uint32>(body->Transform.Position.X) >> MortonCodeGridBits;
+            uint32 y = static_cast<uint32>(body->Transform.Position.Y) >> MortonCodeGridBits;
+            uint64 zcode = MortonCode(x, y);
+            sortedEntities.EmplaceBack(entity->Id, body, zcode);
+        }
+
+        // Sort entities by their zcodes
+        std::ranges::sort(scratchBlock.SortedEntities,
+            [](const EntityBody& a, const EntityBody& b)
+            {
+                return a.ZCode < b.ZCode;
+            });
+    }
 
     scratchBlock.NumIterations = 0;
     scratchBlock.NumCollisions = 0;
     scratchBlock.MaxQueryBodyCount = 0;
-    scratchBlock.ContactsSize = 0;
+    scratchBlock.Contacts.Reset();
+    scratchBlock.ContactSet.Reset();
 
     std::vector<TTuple<uint64, uint64>> ranges;
 
     // Determine contacts
-    for (uint32 i = 0; i < sortedBodies.size(); ++i)
+    for (const EntityBody& entityBody : sortedEntities)
     {
-        BodyComponent* bodyA = sortedBodies[i];
+        BodyComponent* bodyA = entityBody.BodyComponent;
 
         if (bodyA->Movement == EBodyMovement::Attached)
             continue;
 
         // Query for overlapping morton ranges
         {
-            Distance radius = bodyA->Radius * 1.001f;
+            Distance radius = bodyA->Radius;
             uint32 lox = static_cast<uint32>(bodyA->Transform.Position.X - radius);
             uint32 hix = static_cast<uint32>(bodyA->Transform.Position.X + radius);
-            uint32 loy = static_cast<uint32>(bodyA->Transform.Position.Y - radius);                
-            uint32 hiy = static_cast<uint32>(bodyA->Transform.Position.Y + radius);                
+            uint32 loy = static_cast<uint32>(bodyA->Transform.Position.Y - radius);
+            uint32 hiy = static_cast<uint32>(bodyA->Transform.Position.Y + radius);
 
             MortonCodeAABB aabb;
             aabb.MinX = lox >> MortonCodeGridBits;
@@ -72,19 +96,25 @@ void PhysicsSystem::OnUpdate(WorldRef world)
             MortonCodeQuery(aabb, ranges);
         }
 
-        TArray<BodyComponent*> overlappingBodies;
-        MortonCodeRangeIter<BodyComponent, &BodyComponent::ZCode>(sortedBodies, ranges, overlappingBodies);
+        TArray<const EntityBody*> overlappingBodies;
+        ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
+            sortedEntities,
+            ranges,
+            [&](const EntityBody& eb)
+            {
+                overlappingBodies.push_back(&eb);
+            });
 
         if (!overlappingBodies.empty())
         {
             scratchBlock.MaxQueryBodyCount = max(scratchBlock.MaxQueryBodyCount, overlappingBodies.size() - 1);
         }
 
-        for (uint32 j = 0; j < overlappingBodies.size(); ++j)
+        for (const EntityBody* entityBodyB : overlappingBodies)
         {
-            BodyComponent* bodyB = overlappingBodies[j];
+            BodyComponent* bodyB = entityBodyB->BodyComponent;
 
-            if (scratchBlock.ContactsSize == scratchBlock.ContactsCapacity)
+            if (scratchBlock.Contacts.IsFull())
             {
                 continue;
             }
@@ -98,6 +128,14 @@ void PhysicsSystem::OnUpdate(WorldRef world)
             {
                 continue;
             }
+
+            uint64 key = MortonCode(entityBody.EntityId, entityBodyB->EntityId);
+            if (scratchBlock.ContactSet.Contains(key))
+            {
+                continue;
+            }
+
+            scratchBlock.ContactSet.Insert(key);
             
             ++scratchBlock.NumIterations;
 
@@ -120,12 +158,12 @@ void PhysicsSystem::OnUpdate(WorldRef world)
             }
             
             const float baum = 0.3f;
-            const float slop = 0.01f;
+            const float slop = 0.1f;
             float d = rr - vLen;
             float bias = baum * max(0, d - slop) / dt;
             float effMass = 1.0f / (bodyA->InvMass + bodyB->InvMass);
 
-            Contact& contact = scratchBlock.Contacts[scratchBlock.ContactsSize++];
+            Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
             contact.BodyA = bodyA;
             contact.BodyB = bodyB;
             contact.Normal = v.Normalized();
@@ -140,10 +178,8 @@ void PhysicsSystem::OnUpdate(WorldRef world)
     // Multi-pass solver
     for (uint32 iter = 0; iter < 2; ++iter)
     {
-        for (uint32 c = 0; c < scratchBlock.ContactsSize; ++c)
+        for (Contact& contact : scratchBlock.Contacts)
         {
-            Contact& contact = scratchBlock.Contacts[c];
-            
             // Relative velocity at contact
             float relVel = Vec2::Dot(contact.Normal, contact.BodyB->Velocity - contact.BodyA->Velocity);
 
@@ -165,10 +201,8 @@ void PhysicsSystem::OnUpdate(WorldRef world)
     // Multi-pass resolve overlaps
     for (uint32 i = 0; i < 2; ++i)
     {
-        for (uint32 c = 0; c < scratchBlock.ContactsSize; ++c)
+        for (Contact& contact : scratchBlock.Contacts)
         {
-            Contact& contact = scratchBlock.Contacts[c];
-
             Vec2 v = contact.BodyB->Transform.Position - contact.BodyA->Transform.Position;
             float d = v.Length();
             float rr = contact.BodyA->Radius + contact.BodyB->Radius;
@@ -182,9 +216,9 @@ void PhysicsSystem::OnUpdate(WorldRef world)
         }
     }
 
-    for (uint32 i = 0; i < sortedBodies.size(); ++i)
+    for (const EntityBody& entityBody : sortedEntities)
     {
-        BodyComponent* body = sortedBodies[i];
+        BodyComponent* body = entityBody.BodyComponent;
 
         if (body->Movement == EBodyMovement::Attached)
         {
@@ -204,8 +238,10 @@ FeaturePhysics::FeaturePhysics()
     blockArgs.Size = sizeof(FeaturePhysicsScratchBlock);
     blockArgs.BlockType = EWorldBufferBlockType::Scratch;
 
-    WorldFeatureDefinition.Name = StaticName;
-    WorldFeatureDefinition.Blocks.push_back(blockArgs);
+    FeatureDefinition.Name = StaticName;
+    FeatureDefinition.Blocks.push_back(blockArgs);
+
+    FeatureDefinition.Channels.emplace_back(WorldChannels::HandleAction, FeatureInsertPosition::Default);
 }
 
 FName FeaturePhysics::GetName() const
@@ -215,7 +251,7 @@ FName FeaturePhysics::GetName() const
 
 FeatureDefinition FeaturePhysics::GetFeatureDefinition()
 {
-    return WorldFeatureDefinition;
+    return FeatureDefinition;
 }
 
 void FeaturePhysics::Initialize()
@@ -224,4 +260,59 @@ void FeaturePhysics::Initialize()
 
     TSharedPtr<FeatureECS> featureECS = Session->GetFeatureSet()->GetFeature<FeatureECS>();
     featureECS->RegisterSystem(physicsSystem);
+}
+
+void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
+{
+    IFeature::OnHandleAction(world, action);
+
+    if (action.Action.Verb == "release_entities_in_range"_n)
+    {
+        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
+        Distance range = action.Action.Data[2].Distance;
+
+        TArray<EntityId> outEntities;
+        QueryEntitiesInRange(world, pos, range, outEntities);
+
+        for (EntityId entityId : outEntities)
+        {
+            FeatureECS::ReleaseEntity(world, entityId);
+        }
+    }
+}
+
+void FeaturePhysics::QueryEntitiesInRange(
+    WorldConstRef world,
+    const Vec2& pos,
+    Distance range,
+    TArray<EntityId>& outEntities)
+{
+    const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+    TArray<TTuple<uint64, uint64>> ranges;
+    
+    // Query for overlapping morton ranges
+    {
+        uint32 lox = static_cast<uint32>(pos.X - range);
+        uint32 hix = static_cast<uint32>(pos.X + range);
+        uint32 loy = static_cast<uint32>(pos.Y - range);
+        uint32 hiy = static_cast<uint32>(pos.Y + range);
+
+        MortonCodeAABB aabb;
+        aabb.MinX = lox >> MortonCodeGridBits;
+        aabb.MinY = loy >> MortonCodeGridBits;
+        aabb.MaxX = hix >> MortonCodeGridBits;
+        aabb.MaxY = hiy >> MortonCodeGridBits;
+
+        MortonCodeQuery(aabb, ranges);
+    }
+
+    TArray<EntityBody*> overlappingEntities;
+    ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
+        scratchBlock.SortedEntities,
+        ranges,
+        [&](const EntityBody& entityZCode)
+        {
+            outEntities.push_back(entityZCode.EntityId);
+        });
 }

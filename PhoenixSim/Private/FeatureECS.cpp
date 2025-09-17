@@ -115,7 +115,7 @@ bool FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
 
 int32 FeatureECS::GetEntityIndex(EntityId entityId)
 {
-    return entityId % _countof(FeatureECSDynamicBlock::Entities);
+    return entityId % decltype(FeatureECSDynamicBlock::Entities)::Capacity;
 }
 
 Entity* FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
@@ -169,12 +169,15 @@ EntityId FeatureECS::AcquireEntity(WorldRef world, FName kind)
         return EntityId::Invalid;
     }
 
+    if (!block.Entities.IsValidIndex(entityIdx))
+    {
+        block.Entities.SetNum(entityIdx + 1);
+    }
+
     Entity& entity = block.Entities[entityIdx];
     entity.Id = entityIdx;
     entity.Kind = kind;
     entity.ComponentTail = INDEX_NONE;
-
-    block.EntitiesSize = max(block.EntitiesSize, entityIdx + 1);
 
     return entityIdx;
 }
@@ -290,7 +293,7 @@ uint32 FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
-    const Entity* entity = GetEntityPtr(world, entityId);
+    Entity* entity = GetEntityPtr(world, entityId);
     if (!entity)
     {
         return false;
@@ -317,6 +320,8 @@ uint32 FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
         memset(comp.Data, 0, sizeof(comp.Data));
     }
 
+    entity->ComponentTail = INDEX_NONE;
+
     return numCompsRemoved;
 }
 
@@ -329,7 +334,7 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
-    PHX_ASSERT(block.ComponentsSize < _countof(block.Components));
+    PHX_ASSERT(!block.Components.IsFull());
 
     Entity* entity = GetEntityPtr(world, entityId);
     if (!entity)
@@ -362,8 +367,6 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
         }
     }
 
-    block.ComponentsSize = max(block.ComponentsSize, compIndex + 1);
-
     // Update the linked list
     if (entity->ComponentTail != INDEX_NONE)
     {
@@ -371,6 +374,11 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
     }
 
     entity->ComponentTail = compIndex;
+
+    if (!block.Components.IsValidIndex(compIndex))
+    {
+        block.Components.SetNum(compIndex + 1);
+    }
 
     Component& comp = block.Components[compIndex];
     comp.Owner = entityId;

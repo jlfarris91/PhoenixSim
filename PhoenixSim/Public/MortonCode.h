@@ -83,25 +83,25 @@ namespace Phoenix
         TArray<TTuple<uint64, uint64>>& outRanges,
         uint32 gridBits = MortonCodeGridBits);
 
-    template <class T, uint64 T::*MemPtr>
-    void MortonCodeRangeIter(
-        const TArray<T*>& sorted,
+    template <class T, uint64 T::*MemPtr, class TRange, class TPred>
+    void ForEachInMortonCodeRanges(
+        const TRange& sorted,
         const TArray<TTuple<uint64, uint64>>& ranges,
-        TArray<T*>& outResults)
+        const TPred& predicate)
     {
         for (auto && [min, max] : ranges)
         {
             auto itrLo = std::lower_bound(sorted.begin(), sorted.end(), min, [](auto const& a, auto v)
             {
-                return a->*MemPtr < v;
+                return a.*MemPtr < v;
             });
             auto itrHi = std::upper_bound(sorted.begin(), sorted.end(), max, [](auto v, auto const& a)
             {
-                return v < a->*MemPtr;
+                return v < a.*MemPtr;
             });
             for (auto itr = itrLo; itr != itrHi; ++itr)
             {
-                outResults.push_back(*itr);
+                predicate(*itr);
             }
         }
     }

@@ -303,7 +303,7 @@ void WorldManager::UpdateWorld(WorldRef world, simtime_t time) const
     
     // Pre-update
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreUpdate);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreUpdate);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnPreUpdate(world, updateArgs);
@@ -312,7 +312,7 @@ void WorldManager::UpdateWorld(WorldRef world, simtime_t time) const
 
     // Update
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::Update);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::Update);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnUpdate(world, updateArgs);
@@ -321,7 +321,7 @@ void WorldManager::UpdateWorld(WorldRef world, simtime_t time) const
 
     // Post-update
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostUpdate);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostUpdate);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnPostUpdate(world, updateArgs);
@@ -338,7 +338,7 @@ void WorldManager::SendActionToWorld(WorldRef world, const Action& action) const
     
     // Pre handle action
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreHandleAction);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreHandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnPreHandleAction(world, actionArgs);
@@ -347,7 +347,7 @@ void WorldManager::SendActionToWorld(WorldRef world, const Action& action) const
 
     // Handle action
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::HandleAction);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::HandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnHandleAction(world, actionArgs);
@@ -356,7 +356,7 @@ void WorldManager::SendActionToWorld(WorldRef world, const Action& action) const
 
     // Post handle action
     {
-        TArray<FeatureSharedPtr> channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostHandleAction);
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostHandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
             feature->OnPostHandleAction(world, actionArgs);
