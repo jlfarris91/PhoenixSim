@@ -121,6 +121,18 @@ namespace Phoenix
             return *this; 
         }
 
+        Vec2& operator-()
+        {
+            X *= -1.0f;
+            Y *= -1.0f;
+            return *this;
+        }
+
+        Vec2 operator-() const
+        {
+            return { X * -1.0f, Y * -1.0f };
+        }
+
         Degrees AsDegrees() const
         {
             return atan2(Y, X) * (180.0f / 3.14f);
@@ -156,19 +168,27 @@ namespace Phoenix
             return abs(a.X - b.X) < threshold && abs(a.Y - b.Y) < threshold;
         }
 
-        static float Dot(const Vec2& a, const Vec2& b)
+        static Value Dot(const Vec2& a, const Vec2& b)
         {
             return a.X * b.X + a.Y * b.Y;
         }
 
-        static float DistanceSq(const Vec2& a, const Vec2& b)
+        static Distance DistanceSq(const Vec2& a, const Vec2& b)
         {
             return (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
         }
 
-        static float Distance(const Vec2& a, const Vec2& b)
+        static Distance Distance(const Vec2& a, const Vec2& b)
         {
             return sqrtf(DistanceSq(a, b));
+        }
+
+        static Vec2 Project(const Vec2& s, const Vec2& n, const Vec2& p)
+        {
+            auto a = (p.X - s.X) * n.X + (p.Y - s.Y) * n.Y;
+            auto b = n.X*n.X + n.Y*n.Y;
+            auto d = a / b;
+            return { p.X - d * n.X, p.Y - d * n.Y };
         }
 
         static Vec2 RandUnitVector()
@@ -248,6 +268,61 @@ namespace Phoenix
         Distance X = 0;
         Distance Y = 0;
         Distance Z = 0;
+    };
+
+    struct Line2
+    {
+        Vec2 Start;
+        Vec2 End;
+
+        Vec2 Lerp(Value t)
+        {
+            return Start + (End - Start) * t;
+        }
+
+        Vec2 GetVector() const
+        {
+            return End - Start;
+        }
+
+        Vec2 GetNormal() const
+        {
+            return GetVector().Normalized();
+        }
+
+        static Vec2 VectorToLine(const Line2& line, const Vec2& point)
+        {
+            // Vec2 v = line.End - line.Start;
+            // auto a = abs(v.Y * point.X - v.X * point.Y + line.End.X * line.Start.Y - line.End.Y * line.Start.X);
+            // auto b = v.Length();
+            // if (b == 0)
+            // {
+            //     return 0;
+            // }
+            // return a / b;
+            Vec2 a = point - line.Start;
+            Vec2 b = line.End - line.Start;
+            Value d = Vec2::Dot(a, b) / Vec2::Dot(b, b);
+            d = fmin(fmax(d, 0.0f), 1.0f);
+            // return (a - b * d);
+            return -(a - b * d);
+        }
+
+        static Distance DistanceToLineSq(const Line2& line, const Vec2& point)
+        {
+            return VectorToLine(line, point).LengthSq();
+        }
+        
+        static Distance DistanceToLine(const Line2& line, const Vec2& point)
+        {
+            return sqrt(DistanceToLineSq(line, point));
+        }
+    };
+
+    struct Line3
+    {
+        Vec3 Start;
+        Vec3 End;
     };
 
     template <class T> T Zero();

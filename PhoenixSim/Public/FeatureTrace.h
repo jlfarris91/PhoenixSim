@@ -13,6 +13,7 @@ namespace Phoenix
         None = 0,
         Begin = 1,
         End = 2,
+        Counter = 4,
     };
     
     struct PHOENIXSIM_API TraceEvent
@@ -21,6 +22,7 @@ namespace Phoenix
         FName Id;
         ETraceFlags Flag = ETraceFlags::None;
         clock_t Time = 0;
+        int32 Counter = 0;
     };
 
     struct PHOENIXSIM_API FeatureTraceScratchBlock
@@ -43,7 +45,7 @@ namespace Phoenix
         FeatureDefinition GetFeatureDefinition() override;
         
         // Use ScopedTrace instead
-        static void PushTrace(WorldRef world, FName name, FName id, ETraceFlags flags);
+        static void PushTrace(WorldRef world, FName name, FName id, ETraceFlags flags, int32 counter = 0);
 
     private:
 
@@ -57,14 +59,15 @@ namespace Phoenix
             , Name(name)
             , Id(id)
         {
-            FeatureTrace::PushTrace(world, name, id, ETraceFlags::Begin);
+            FeatureTrace::PushTrace(world, name, id, ETraceFlags::Begin, Counter);
         }
         ~ScopedTrace()
         {
-            FeatureTrace::PushTrace(World, Name, Id, ETraceFlags::End);
+            FeatureTrace::PushTrace(World, Name, Id, ETraceFlags::End, Counter);
         }
         WorldRef World;
         FName Name;
         FName Id;
+        int32 Counter = 0;
     };
 }

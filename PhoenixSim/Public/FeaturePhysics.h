@@ -20,13 +20,15 @@ namespace Phoenix
         PHOENIXSIM_API enum class EBodyFlags : uint8
         {
             None = 0,
-            Static = 1,
-            Awake = 2,
+            Awake = 1,
+            StaticX = 2,
+            StaticY = 4,
+            Static = StaticX | StaticY
         };
 
         struct PHOENIXSIM_API BodyComponent
         {
-            static constexpr FName StaticTypeName = "Body"_n;
+            static constexpr FName StaticName = "Body"_n;
 
             EBodyFlags Flags = EBodyFlags::None; 
 
@@ -48,6 +50,11 @@ namespace Phoenix
             Mass InvMass = 0;
 
             uint8 SleepTimer = 0;
+        };
+
+        struct PHOENIXSIM_API CollisionLine
+        {
+            Line2 Line;
         };
 
         class PHOENIXSIM_API PhysicsSystem : public ECS::ISystem
@@ -90,6 +97,11 @@ namespace Phoenix
             TFixedArray<EntityBody, ECS_MAX_ENTITIES> SortedEntities;
             TFixedArray<Contact, ECS_MAX_ENTITIES> Contacts;
             TFastSet<uint64, ECS_MAX_ENTITIES> ContactSet;
+            TFixedArray<CollisionLine, 1000> CollisionLines;
+
+            ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent, ECS::MovementComponent> MoveBodies;
+            Vec2 MapCenter = Vec2::Zero;
+            Degrees Rotation = 0;
         };
 
         class PHOENIXSIM_API FeaturePhysics : public IFeature

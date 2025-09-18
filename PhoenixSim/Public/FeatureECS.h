@@ -60,7 +60,7 @@ namespace Phoenix
 
         struct PHOENIXSIM_API TransformComponent
         {
-            static constexpr FName StaticTypeName = "Transform"_n;
+            static constexpr FName StaticName = "Transform"_n;
 
             // The id of another entity that the owning entity is attached to.
             // Note that this cannot be the entity that owns the body component.
@@ -140,6 +140,12 @@ namespace Phoenix
             uint64 ZCode = 0;
         };
 
+        struct PHOENIXSIM_API MovementComponent
+        {
+            static constexpr FName StaticName = "MoveToCenterComponent"_n;
+            Speed Speed = 0;
+        };
+
         struct PHOENIXSIM_API FeatureECSScratchBlock
         {
             static constexpr FName StaticName = "FeatureECSScratchBlock"_n;
@@ -196,7 +202,7 @@ namespace Phoenix
             template <class T>
             static T* GetComponentDataPtr(WorldRef world, EntityId entityId)
             {
-                Component* comp = GetComponentPtr(world, entityId, T::StaticTypeName);
+                Component* comp = GetComponentPtr(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 return reinterpret_cast<T*>(&comp->Data[0]);
             }
@@ -204,7 +210,7 @@ namespace Phoenix
             template <class T>
             static const T* GetComponentDataPtr(WorldConstRef world, EntityId entityId)
             {
-                Component* comp = GetComponentPtr(world, entityId, T::StaticTypeName);
+                Component* comp = GetComponentPtr(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 return reinterpret_cast<const T*>(&comp->Data[0]);
             }
@@ -213,7 +219,7 @@ namespace Phoenix
             static T* AddComponent(WorldRef world, EntityId entityId, const T& defaultValue = {})
             {
                 static_assert(sizeof(T) < ECS_MAX_COMPONENT_SIZE);
-                Component* comp = AddComponent(world, entityId, T::StaticTypeName);
+                Component* comp = AddComponent(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 *reinterpret_cast<T*>(&comp->Data[0]) = defaultValue;
                 return reinterpret_cast<T*>(&comp->Data[0]);

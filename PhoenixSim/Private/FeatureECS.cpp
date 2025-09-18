@@ -122,7 +122,7 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
     IFeature::OnHandleAction(world, action);
 
     if (action.Action.Verb == "spawn_entity"_n)
-    {
+    {   
         for (uint32 i = 0; i < action.Action.Data[4].UInt32; ++i)
         {
             EntityId entityId = AcquireEntity(world, action.Action.Data[0].Name);
@@ -136,8 +136,14 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
             bodyComp->CollisionMask = 1;
             bodyComp->Radius = 16;
             bodyComp->InvMass = 1.0f / 10.0f;
-            bodyComp->LinearDamping = 5.f;
+            bodyComp->LinearDamping = 50.f;
             SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
+
+            if (action.Action.Data[5].Speed > 0)
+            {
+                MovementComponent* moveComp = AddComponent<MovementComponent>(world, entityId);
+                moveComp->Speed = action.Action.Data[5].Speed;
+            }
         }
     }
 }

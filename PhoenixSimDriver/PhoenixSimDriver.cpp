@@ -177,6 +177,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
 
+    SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
+    Action action;
+    action.Verb = "set_map_center"_n;
+    action.Data[0].Distance = GWindowWidth >> 1;
+    action.Data[1].Distance = GWindowHeight >> 1;
+    GSession->QueueAction(action);
+
     return SDL_APP_CONTINUE;
 }
 
@@ -229,7 +236,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 entityBodyShape.Radius = bodyComp->Radius;
                 entityBodyShape.Color = SDL_Color(255, 0, 0);
 
-                if (!HasFlag(bodyComp->Flags, EBodyFlags::Awake))
+                if (!HasAnyFlags(bodyComp->Flags, EBodyFlags::Awake))
                 {
                     entityBodyShape.Color = SDL_Color(128, 0, 0);
                 }
@@ -253,6 +260,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (!GCurrWorld)
         return SDL_APP_CONTINUE;
+
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
 
     SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
 
@@ -285,6 +295,27 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
         float y = i * (1 << MortonCodeGridBits);
         SDL_RenderLine(GRenderer, 0, y, GWindowWidth, y);
+    }
+
+    SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+
+    if (GPhysicsScratchBlock)
+    {
+        for (const CollisionLine& collisionLine : GPhysicsScratchBlock->CollisionLines)
+        {
+            SDL_RenderLine(GRenderer, collisionLine.Line.Start.X, collisionLine.Line.Start.Y, collisionLine.Line.End.X, collisionLine.Line.End.Y);
+
+            // Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
+            // SDL_RenderLine(GRenderer, mx, my, mx + v.X, my + v.Y);
+        }
+
+        // for (const Contact& contact : GPhysicsScratchBlock->Contacts)
+        // {
+        //     Vec2 v = contact.Normal * contact.Bias;
+        //     Vec2 s = contact.TransformA->Transform.Position;
+        //     Vec2 e = s + v;
+        //     SDL_RenderLine(GRenderer, s.X, s.Y, e.X, e.Y);
+        // }
     }
 
     static TArray<TTuple<uint32, uint32, uint32>> queryCodeColors;
@@ -369,9 +400,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     RenderDebugText("Sim: %.2f", GSessionFPS)
     RenderDebugText("Bodies: %llu", GEntityBodies.size())
 
-    float mx, my;
-    SDL_GetMouseState(&mx, &my);
-
     RenderDebugText("%.0f, %.0f", mx, my)
 
     if (GPhysicsScratchBlock)
@@ -428,20 +456,26 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         if (traceEvent.Flag == ETraceFlags::End)
         {
+            aggEvent->Count += traceEvent.Counter;
             aggEvent->Total += traceEvent.Time - aggEvent->StartTime;
             aggEvent->Max = max(aggEvent->Total, aggEvent->Max);
             // traceEventStack.pop_back();
+        }
+
+        if (traceEvent.Flag == ETraceFlags::Counter)
+        {
+            aggEvent->Count += traceEvent.Counter;            
         }
     }
 
     for (const AggTraceEvent& traceEvent : traceEvents)
     {
-        RenderDebugText("%s %s %u %.3f %.3f",
-            traceEvent.Name.Debug,
-            traceEvent.Id.Debug,
-             traceEvent.Count,
-             (float)traceEvent.Total / CLOCKS_PER_SEC,
-             (float)traceEvent.Max / CLOCKS_PER_SEC)
+        // RenderDebugText("%s %s %u %.3f %.3f",
+        //     traceEvent.Name.Debug,
+        //     traceEvent.Id.Debug,
+        //     traceEvent.Count,
+        //     (float)traceEvent.Total / CLOCKS_PER_SEC,
+        //     (float)traceEvent.Max / CLOCKS_PER_SEC)
     }
     
     // {
@@ -536,6 +570,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         return SDL_APP_SUCCESS;
     }
 
+    if (event->type == SDL_EVENT_WINDOW_RESIZED)
+    {
+        SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
+        Action action;
+        action.Verb = "set_map_center"_n;
+        action.Data[0].Distance = GWindowWidth >> 1;
+        action.Data[1].Distance = GWindowHeight >> 1;
+        GSession->QueueAction(action);
+    }
+
     auto onMouseDownOrMoved = [](const Vec2& mousePos)
     {
         // Spawn entities
@@ -547,10 +591,24 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[1].Distance = mousePos.X;
             action.Data[2].Distance = mousePos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
-            action.Data[4].UInt32 = 10;
+            action.Data[4].UInt32 = 1;
             GSession->QueueAction(action);
         }
 
+        // Spawn moving entities
+        if (GKeyStates.contains(SDLK_S) && GKeyStates[SDLK_S])
+        {
+            Action action;
+            action.Verb = "spawn_entity"_n;
+            action.Data[0].Name = "Unit"_n;
+            action.Data[1].Distance = mousePos.X;
+            action.Data[2].Distance = mousePos.Y;
+            action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
+            action.Data[4].UInt32 = 10;
+            action.Data[5].Speed = 10;
+            GSession->QueueAction(action);
+        }
+        
         // Push entities
         if (GKeyStates.contains(SDLK_F) && GKeyStates[SDLK_F])
         {

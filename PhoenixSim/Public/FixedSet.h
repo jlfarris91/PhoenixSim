@@ -25,7 +25,7 @@ namespace Phoenix
             return Size == 0;
         }
 
-        bool Num() const
+        size_t Num() const
         {
             return Size;
         }
@@ -36,37 +36,50 @@ namespace Phoenix
             memset(&Table[0], 0, sizeof(Element) * N);
         }
 
-        bool Insert(const TKey& key)
+        bool Insert(const TKey& key, size_t* outProbeLen = nullptr)
         {
+            if (IsFull())
+            {
+                return false;
+            }
+
             size_t idx = Hash(key);
             for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
-                if (!Table[probe].Occupied || Table[probe].Key == key)
+                if (Table[probe].Key == key)
                 {
-                    Table[probe].Occupied = true;
+                    Table[probe].Occupied += 1;
+                    return true;
+                }
+                if (!Table[probe].Occupied)
+                {
+                    Table[probe].Occupied += 1;
                     Table[probe].Key = key;
                     ++Size;
                     return true;
                 }
+                if (outProbeLen) (*outProbeLen)++;
             }
+
             return false;
         }
 
-        bool Contains(const TKey& key) const
+        bool Contains(const TKey& key, size_t* outProbeLen = nullptr) const
         {
             size_t idx = Hash(key);
             for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
-                if (!Table[probe].Occupied)
-                {
-                    return false;
-                }
                 if (Table[probe].Key == key)
                 {
                     return true;
                 }
+                if (!Table[probe].Occupied)
+                {
+                    return false;
+                }
+                if (outProbeLen) (*outProbeLen)++;
             }
             return false;
         }

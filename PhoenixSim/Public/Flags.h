@@ -5,10 +5,17 @@
 namespace Phoenix
 {
     template <class T, class U>
-    constexpr bool HasFlag(T flags, U value)
+    constexpr bool HasAnyFlags(T flags, U value)
     {
         using V = std::underlying_type_t<T>;
         return (static_cast<V>(flags) & static_cast<V>(value)) != 0;
+    }
+
+    template <class T, class U>
+    constexpr bool HasAllFlags(T flags, U value)
+    {
+        using V = std::underlying_type_t<T>;
+        return (static_cast<V>(flags) & static_cast<V>(value)) == static_cast<V>(value);
     }
 
     template <class T, class U>
