@@ -3,10 +3,18 @@
 
 namespace Phoenix
 {
-    template <class TKey, size_t N>
+    template <class TKey, size_t N, class THash = std::hash<TKey>>
     class TFastSet
     {
     public:
+
+        static constexpr size_t Capacity = N;
+
+        TFastSet()
+        {
+            Reset();
+        }
+        
         bool IsFull() const
         {
             return Size == N;
@@ -15,6 +23,11 @@ namespace Phoenix
         bool IsEmpty() const
         {
             return Size == 0;
+        }
+
+        bool Num() const
+        {
+            return Size;
         }
 
         void Reset()
@@ -26,7 +39,7 @@ namespace Phoenix
         bool Insert(const TKey& key)
         {
             size_t idx = Hash(key);
-            for (int i = 0; i < N; ++i)
+            for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
                 if (!Table[probe].Occupied || Table[probe].Key == key)
@@ -43,7 +56,7 @@ namespace Phoenix
         bool Contains(const TKey& key) const
         {
             size_t idx = Hash(key);
-            for (int i = 0; i < N; ++i)
+            for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
                 if (!Table[probe].Occupied)
@@ -60,9 +73,9 @@ namespace Phoenix
 
     private:
 
-        size_t Hash(const TKey& key) const
+        static size_t Hash(const TKey& key)
         {
-            return std::hash<TKey>{}(key) % N;
+            return THash{}(key) % N;
         }
 
         struct Element

@@ -11,17 +11,18 @@
 #endif
 
 #ifndef ECS_MAX_COMPONENTS
-#define ECS_MAX_COMPONENTS MAXINT16
+#define ECS_MAX_COMPONENTS MAXINT16 << 1
 #endif
 
 #ifndef ECS_MAX_COMPONENT_SIZE
-#define ECS_MAX_COMPONENT_SIZE (32 * sizeof(uint32))
+#define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash_t) + sizeof(int32)))
 #endif
 
 namespace Phoenix
 {
     namespace ECS
     {
+        struct FeatureECSDynamicBlock;
         typedef uint32 entityid_t;
         
         struct PHOENIXSIM_API EntityId
@@ -42,13 +43,11 @@ namespace Phoenix
         {
             EntityId Id = EntityId::Invalid;
             FName Kind;
-            int32 ComponentTail = INDEX_NONE;
+            int32 ComponentHead = INDEX_NONE;
         };
 
         struct PHOENIXSIM_API Component
         {
-            EntityId Owner = EntityId::Invalid;
-
             // The name of the component type.
             FName TypeName;
 
@@ -58,34 +57,95 @@ namespace Phoenix
             // The raw data of the component.
             uint8 Data[ECS_MAX_COMPONENT_SIZE];
         };
-        
+
+        struct PHOENIXSIM_API TransformComponent
+        {
+            static constexpr FName StaticTypeName = "Transform"_n;
+
+            // The id of another entity that the owning entity is attached to.
+            // Note that this cannot be the entity that owns the body component.
+            EntityId AttachParent = EntityId::Invalid;
+
+            // The relative transform of the entity.
+            // Relative to the origin if not attached to another entity.
+            Transform2D Transform;
+
+            // Morton z-code used for spacial sorting of entities.
+            uint64 ZCode = 0;
+        };
+
+        template <class ...TComponents>
+        class EntityComponentsContainer
+        {
+        public:
+            using ElementType = std::tuple<Entity*, std::add_pointer_t<TComponents>...>;
+
+            EntityComponentsContainer() = default;
+
+            EntityComponentsContainer(WorldRef world)
+            {
+                Refresh(world);
+            }
+
+            void Refresh(WorldRef world);
+
+            auto begin() { return Components.begin(); }
+            auto end() { return Components.end(); }
+
+        private:
+            TFixedArray<ElementType, ECS_MAX_ENTITIES> Components;
+        };
+
+        struct PHOENIXSIM_API SystemUpdateArgs
+        {
+            simtime_t SimTime = 0;
+            dt_t StepHz = 0;
+        };
+
+        struct PHOENIXSIM_API SystemActionArgs
+        {
+            simtime_t SimTime = 0;
+            Action Action;
+        };
+
         class PHOENIXSIM_API ISystem
         {
         public:
             virtual ~ISystem() = default;
 
-            virtual void OnPreUpdate(WorldRef world) {}
-            virtual void OnUpdate(WorldRef world) {}
-            virtual void OnPostUpdate(WorldRef world) {}
+            virtual FName GetName() { return FName::None; };
 
-            virtual void OnPreHandleAction(WorldRef world) {}
-            virtual void OnHandleAction(WorldRef world) {}
-            virtual void OnPostHandleAction(WorldRef world) {}
-        };
+            virtual void OnPreUpdate(WorldRef world, const SystemUpdateArgs& args) {}
+            virtual void OnUpdate(WorldRef world, const SystemUpdateArgs& args) {}
+            virtual void OnPostUpdate(WorldRef world, const SystemUpdateArgs& args) {}
 
-        struct PHOENIXSIM_API ComponentType
-        {
-            FName TypeName;
-            uint32 Head = INDEX_NONE;
+            virtual void OnPreHandleAction(WorldRef world, const SystemActionArgs& args) {}
+            virtual void OnHandleAction(WorldRef world, const SystemActionArgs& args) {}
+            virtual void OnPostHandleAction(WorldRef world, const SystemActionArgs& args) {}
         };
 
         struct PHOENIXSIM_API FeatureECSDynamicBlock
         {
-            static const FName StaticName;
+            static constexpr FName StaticName = "FeatureECSDynamicBlock"_n;
 
             TFixedArray<Entity, ECS_MAX_ENTITIES> Entities;
             TFixedArray<Component, ECS_MAX_COMPONENTS> Components;
             TFixedArray<EntityId, ECS_MAX_ENTITIES> Groups;
+        };
+
+        struct PHOENIXSIM_API EntityTransform
+        {
+            EntityId EntityId;
+            TransformComponent* TransformComponent;
+            uint64 ZCode = 0;
+        };
+
+        struct PHOENIXSIM_API FeatureECSScratchBlock
+        {
+            static constexpr FName StaticName = "FeatureECSScratchBlock"_n;
+
+            EntityComponentsContainer<TransformComponent> EntityTransforms;
+            TFixedArray<EntityTransform, ECS_MAX_ENTITIES> SortedEntities;
         };
 
         struct PHOENIXSIM_API FeatureECSCtorArgs
@@ -97,7 +157,7 @@ namespace Phoenix
         {
         public:
 
-            static const FName StaticName;
+            static constexpr FName StaticName = "FeatureECS"_n;
 
             FeatureECS();
             FeatureECS(const FeatureECSCtorArgs& args);
@@ -174,21 +234,15 @@ namespace Phoenix
                     return;
                 }
 
-                uint32 compIndex = GetEntityIndex(entityId);
+                int16 compIndex = entity->ComponentHead;
 
                 while (compIndex != INDEX_NONE)
                 {
                     Component& comp = block.Components[compIndex];
-                    if (comp.Owner != entityId)
-                    {
-                        return;
-                    }
-
                     if (!callback(comp, compIndex))
                     {
                         return;
                     }
-
                     compIndex = comp.Next;
                 }
             }
@@ -204,30 +258,30 @@ namespace Phoenix
                     return;
                 }
 
-                uint32 compIndex = GetEntityIndex(entityId);
+                int16 compIndex = entity->ComponentHead;
 
                 while (compIndex != INDEX_NONE)
                 {
                     const Component& comp = block.Components[compIndex];
-                    if (comp.Owner != entityId)
-                    {
-                        return;
-                    }
-
                     if (!callback(comp, compIndex))
                     {
                         return;
                     }
-
                     compIndex = comp.Next;
                 }
             }
 
             void RegisterSystem(const TSharedPtr<ISystem>& system);
-            
+
+            static void GetWorldTransform(WorldConstRef world, EntityId entityId, Transform2D& outTransform);
+
+            static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
+
         private:
 
             static Component* AddComponent(WorldRef world, EntityId entityId, FName componentType);
+
+            static void SortEntitiesByZCode(WorldRef world);
 
             static void CompactWorldBuffer(WorldRef world);
 
@@ -258,44 +312,25 @@ namespace Phoenix
             // Recurse to the next element
             return contains_nullptr<I + 1>(t);
         }
-
-        template <class ...TComponents>
-        class EntityComponentsContainer
+        
+        template <class ... TComponents>
+        void EntityComponentsContainer<TComponents...>::Refresh(WorldRef world)
         {
-        public:
-            using ElementType = std::tuple<Entity*, std::add_pointer_t<TComponents>...>;
+            FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
-            EntityComponentsContainer() = default;
+            Components.Reset();
 
-            EntityComponentsContainer(WorldRef world)
+            for (Entity& entity : block.Entities)
             {
-                Refresh(world);
-            }
-
-            void Refresh(WorldRef world)
-            {
-                FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-
-                Components.Reset();
-
-                for (Entity& entity : block.Entities)
-                {
-                    if (entity.Id == EntityId::Invalid)
-                        continue;
+                if (entity.Id == EntityId::Invalid)
+                    continue;
             
-                    auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<TComponents...>(world, entity.Id));
-                    if (contains_nullptr(components))
-                        continue;
+                auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<TComponents>(world, entity.Id)...);
+                if (contains_nullptr(components))
+                    continue;
 
-                    Components.PushBack(components);
-                }
+                Components.PushBack(components);
             }
-
-            auto begin() { return Components.begin(); }
-            auto end() { return Components.end(); }
-
-        private:
-            TFixedArray<ElementType, ECS_MAX_ENTITIES> Components;
-        };
+        }
     }
 }

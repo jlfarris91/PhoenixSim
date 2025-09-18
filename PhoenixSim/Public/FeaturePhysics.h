@@ -17,57 +17,61 @@ namespace Phoenix
             Attached
         };
 
+        PHOENIXSIM_API enum class EBodyFlags : uint8
+        {
+            None = 0,
+            Static = 1,
+            Awake = 2,
+        };
+
         struct PHOENIXSIM_API BodyComponent
         {
             static constexpr FName StaticTypeName = "Body"_n;
 
+            EBodyFlags Flags = EBodyFlags::None; 
+
             // Collision flags.
-            uint32 CollisionMask = 0;
+            uint16 CollisionMask = 0;
 
             // The state of the body.
             EBodyMovement Movement = EBodyMovement::Idle;
-
-            // The id of the entity this body is attached to.
-            // Note that this is not the entity that owns the body component.
-            ECS::EntityId AttachParent = ECS::EntityId::Invalid;
-
-            // The relative transform of the body.
-            // Relative to the origin if not attached to another entity body.
-            Transform2D Transform;
 
             // The radius used for body separation and pathfinding.
             Distance Radius = 0;
 
             // The amount of distance applied to the relative transform each step.
-            Vec2 Velocity = Vec2::Zero;
-            float Speed = 0;
+            Vec2 LinearVelocity = Vec2::Zero;
+
+            Value LinearDamping = 0;
 
             // The mass of the body. Used when resolving body separation.
             Mass InvMass = 0;
 
-            // Start and end points used for interpolation.
-            Vec2 Steps[2];
-
-            // Interpolation value between Steps.
-            Value StepT = Zero<Value>();
+            uint8 SleepTimer = 0;
         };
 
         class PHOENIXSIM_API PhysicsSystem : public ECS::ISystem
         {
         public:
-            void OnUpdate(WorldRef world) override;
+            static constexpr FName StaticName = "Physics"_n;
+            FName GetName() override;
+            void OnPreUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
+            void OnUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
         };
 
         struct EntityBody
         {
             ECS::EntityId EntityId;
+            ECS::TransformComponent* TransformComponent;
             BodyComponent* BodyComponent;
             uint64 ZCode;
         };
 
         struct Contact
         {
+            ECS::TransformComponent* TransformA;
             BodyComponent* BodyA;
+            ECS::TransformComponent* TransformB;
             BodyComponent* BodyB;
             Vec2 Normal;
             Value EffMass;
@@ -82,7 +86,7 @@ namespace Phoenix
             uint64 NumCollisions = 0;
             uint64 MaxQueryBodyCount = 0;
 
-            ECS::EntityComponentsContainer<BodyComponent> EntityBodies;
+            ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent> EntityBodies;
             TFixedArray<EntityBody, ECS_MAX_ENTITIES> SortedEntities;
             TFixedArray<Contact, ECS_MAX_ENTITIES> Contacts;
             TFastSet<uint64, ECS_MAX_ENTITIES> ContactSet;
@@ -104,7 +108,13 @@ namespace Phoenix
 
             void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
 
-            static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<ECS::EntityId>& outEntities);
+            static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityBody>& outEntities);
+
+            static void AddExplosionForceToEntitiesInRange(
+                WorldRef& world,
+                const Vec2& pos,
+                Distance range,
+                Value force);
 
         private:
 

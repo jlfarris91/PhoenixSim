@@ -101,9 +101,11 @@
     <ClInclude Include="Public\FeaturePathfinding.h" />
     <ClInclude Include="Public\FeaturePhysics.h" />
     <ClInclude Include="Public\Features.h" />
+    <ClInclude Include="Public\FeatureTrace.h" />
     <ClInclude Include="Public\FixedArray.h" />
     <ClInclude Include="Public\FixedPoint.h" />
     <ClInclude Include="Public\FixedSet.h" />
+    <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
     <ClInclude Include="Public\MortonCode.h" />
     <ClInclude Include="Public\Name.h" />
@@ -117,6 +119,7 @@
     <ClCompile Include="Private\FeaturePathfinding.cpp" />
     <ClCompile Include="Private\FeaturePhysics.cpp" />
     <ClCompile Include="Private\Features.cpp" />
+    <ClCompile Include="Private\FeatureTrace.cpp" />
     <ClCompile Include="Private\FixedPoint.cpp" />
     <ClCompile Include="Private\Hashing.cpp" />
     <ClCompile Include="Private\MortonCode.cpp" />

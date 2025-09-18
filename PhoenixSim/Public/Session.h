@@ -40,7 +40,7 @@ namespace Phoenix
         void QueueAction(const Action& action);
 
         void Tick(const SessionStepArgs& args);
-        void Step();
+        void Step(const SessionStepArgs& args);
 
         clock_t GetCurrTime() const;
         clock_t GetStartTime() const;

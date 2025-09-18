@@ -33,6 +33,7 @@ namespace Phoenix
         hash_t Hash = 0;
 
 #if DEBUG
+    public:
         char Debug[64] = {};
 #endif
     };

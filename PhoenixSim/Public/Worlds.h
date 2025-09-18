@@ -180,13 +180,8 @@ namespace Phoenix
     struct PHOENIXSIM_API WorldStepArgs
     {
         simtime_t SimTime = 0;
+        clock_t StepHz = 0;
         FName WorldName = FName::None;
-    };
-
-    struct PHOENIXSIM_API WorldFeatureStepArgs
-    {
-        dt_t DeltaTime = 0.0f;
-        WorldPtr World = nullptr;
     };
 
     struct PHOENIXSIM_API WorldSendActionArgs
@@ -212,7 +207,7 @@ namespace Phoenix
 
         void InitializeWorld(WorldRef world) const;
         void ShutdownWorld(WorldRef world) const;
-        void UpdateWorld(WorldRef world, simtime_t time) const;
+        void UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) const;
         void SendActionToWorld(WorldRef world, const Action& action) const;
 
         TSharedPtr<FeatureSet> FeatureSet;

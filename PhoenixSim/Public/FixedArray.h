@@ -115,12 +115,17 @@ namespace Phoenix
             Size = 0;
         }
 
-        void SetNum(int32 newSize, const T& value = {})
+        void SetNum(size_t newSize, const T& value = {})
         {
             while (Size < newSize)
                 Add_GetRef(value);
             while (Size > newSize)
                 PopBack();
+        }
+
+        void Fill(const T& value = {})
+        {
+            SetNum(Capacity, value);
         }
 
         struct Iter

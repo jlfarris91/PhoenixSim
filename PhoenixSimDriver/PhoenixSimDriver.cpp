@@ -7,11 +7,14 @@
 #include "../PhoenixSim/Public/Name.h"
 #include "../PhoenixSim/Public/FeaturePhysics.h"
 #include "../PhoenixSim/Public/MortonCode.h"
+#include "../PhoenixSim/Public/FeatureTrace.h"
+#include "../PhoenixSim/Public/Flags.h"
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <queue>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -32,49 +35,57 @@ static Vertex vertices[]
     {0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f}     // bottom right vertex
 };
 
-SDL_Window* window = nullptr;
-SDL_Renderer *renderer = nullptr;
-int32 windowWidth = 800;
-int32 windowHeight = 600;
+SDL_Window* GWindow = nullptr;
+SDL_Renderer *GRenderer = nullptr;
+int32 GWindowWidth = 800;
+int32 GWindowHeight = 600;
 
-uint32 rendererFPSCounter = 0;
-uint64 rendererFPSTimer = 0;
-float rendererFPS = 0.0f;
+uint32 GRendererFPSCounter = 0;
+uint64 GRendererFPSTimer = 0;
+float GRendererFPS = 0.0f;
 
-Session* session;
-bool sessionThreadWantsExit = false;
-std::thread* sessionThread = nullptr;
-std::vector<World> worldUpdateQueue;
-std::mutex worldUpdateQueueMutex;
+Session* GSession;
+bool GSessionThreadWantsExit = false;
+std::thread* GSessionThread = nullptr;
+std::vector<World> GWorldUpdateQueue;
+std::mutex GWorldUpdateQueueMutex;
+float GSessionFPS = 0;
 
-float sessionFPS = 0;
+World* GCurrWorld = nullptr;
+FeaturePhysicsScratchBlock* GPhysicsScratchBlock = nullptr;
+
+TMap<uint8, bool> GMouseButtonStates;
+TMap<SDL_Keycode, bool> GKeyStates;
 
 struct EntityBodyShape
 {
     Transform2D Transform;
     Distance Radius;
+    SDL_Color Color;
 };
 
-std::vector<EntityBodyShape> entityBodies;
+std::vector<EntityBodyShape> GEntityBodies;
 
 void UpdateSessionWorker();
 void OnPostWorldUpdate(WorldConstRef world);
 
 void InitSession()
 {
+    TSharedPtr<FeatureTrace> traceFeature = std::make_shared<FeatureTrace>();
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     
     SessionCtorArgs sessionArgs;
+    sessionArgs.FeatureSetArgs.Features.push_back(traceFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 
-    session = new Session(sessionArgs);
+    GSession = new Session(sessionArgs);
 
-    session->Initialize();
+    GSession->Initialize();
 
-    WorldManager* worldManager = session->GetWorldManager();
+    WorldManager* worldManager = GSession->GetWorldManager();
 
     auto primaryWorld = worldManager->NewWorld("TestWorld"_n);
 
@@ -98,12 +109,15 @@ void InitSession()
     for (int32 i = 0; i < 00; ++i)
     {
         EntityId entityId = ecsFeature->AcquireEntity(*primaryWorld, "Unit"_n);
-        BodyComponent* bodyComponent = ecsFeature->AddComponent<BodyComponent>(*primaryWorld, entityId);
-        bodyComponent->CollisionMask = 1;
-        bodyComponent->Radius = 16.0f;
-        bodyComponent->Transform.Position.X = 2000;
-        bodyComponent->Transform.Position.Y = 1000;
-        bodyComponent->Transform.Rotation = Vec2::RandUnitVector().AsDegrees();
+
+        TransformComponent* transformComp = ecsFeature->AddComponent<TransformComponent>(*primaryWorld, entityId);
+        transformComp->Transform.Position.X = 2000;
+        transformComp->Transform.Position.Y = 1000;
+        transformComp->Transform.Rotation = Vec2::RandUnitVector().AsDegrees();
+        
+        BodyComponent* bodyComp = ecsFeature->AddComponent<BodyComponent>(*primaryWorld, entityId);
+        bodyComp->CollisionMask = 1;
+        bodyComp->Radius = 16.0f;
         // bodyComponent->Mass = (rand() % 1000) / 1000.0f * 1.0f;
 
         // ECS::EntityId entityId2 = ecs->AcquireEntity(*primaryWorld, "Unit"_n);
@@ -115,15 +129,15 @@ void InitSession()
         // bodyComponent2->Transform.Rotation = bodyComponent->Transform.Rotation + 180.0f;
     }
 
-    sessionThread = new std::thread(UpdateSessionWorker);
+    GSessionThread = new std::thread(UpdateSessionWorker);
 }
 
 void UpdateSessionWorker()
 {
     clock_t lastClockTime = 0;
-    sessionThreadWantsExit = false;
+    GSessionThreadWantsExit = false;
 
-    while (!sessionThreadWantsExit)
+    while (!GSessionThreadWantsExit)
     {
         clock_t currClockTime = clock();
         clock_t deltaClockTime = currClockTime - lastClockTime;
@@ -133,9 +147,9 @@ void UpdateSessionWorker()
         stepArgs.DeltaTime = deltaClockTime;
         stepArgs.StepHz = 60;
 
-        session->Tick(stepArgs);
+        GSession->Tick(stepArgs);
 
-        sessionFPS = session->GetStepsPerSecond();
+        GSessionFPS = GSession->GetStepsPerSecond();
 
         //Sleep(10);
     }
@@ -143,8 +157,8 @@ void UpdateSessionWorker()
 
 void OnPostWorldUpdate(WorldConstRef world)
 {
-    std::lock_guard lock(worldUpdateQueueMutex);
-    worldUpdateQueue.push_back(world);
+    std::lock_guard lock(GWorldUpdateQueueMutex);
+    GWorldUpdateQueue.push_back(world);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
@@ -156,9 +170,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
 
-    rendererFPSTimer = SDL_GetTicks();
+    GRendererFPSTimer = SDL_GetTicks();
 
-    if (!SDL_CreateWindowAndRenderer("Phoenix", windowWidth, windowHeight, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("Phoenix", GWindowWidth, GWindowHeight, SDL_WINDOW_RESIZABLE, &GWindow, &GRenderer)) {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -166,66 +180,90 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     return SDL_APP_CONTINUE;
 }
 
-World* currWorld = nullptr;
-FeaturePhysicsScratchBlock* physicsScratchBlock = nullptr;
+void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, int32 segments = 32)
+{
+    std::vector<SDL_FPoint> points;
+    points.reserve(32);
+
+    for (int32 i = 0; i < segments - 1; ++i)
+    {
+        float angle = i * (2.0f * 3.14f) / 32;
+        float x = x1 + cos(angle) * radius; 
+        float y = y1 + sin(angle) * radius;
+        points.emplace_back(x, y);
+    }
+
+    points.push_back(points[0]);
+    
+    SDL_RenderLines(renderer, points.data(), segments);
+}
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     {
-        std::lock_guard lock(worldUpdateQueueMutex);
+        std::lock_guard lock(GWorldUpdateQueueMutex);
 
-        if (!worldUpdateQueue.empty())
+        if (!GWorldUpdateQueue.empty())
         {
-            World& world = worldUpdateQueue[worldUpdateQueue.size() - 1];
+            World& world = GWorldUpdateQueue[GWorldUpdateQueue.size() - 1];
 
-            if (!currWorld)
+            if (!GCurrWorld)
             {
-                currWorld = new World(world);
+                GCurrWorld = new World(world);
             }
             else
             {
-                *currWorld = world;
+                *GCurrWorld = world;
             }
 
-            physicsScratchBlock = currWorld->GetBlock<FeaturePhysicsScratchBlock>();
+            GPhysicsScratchBlock = GCurrWorld->GetBlock<FeaturePhysicsScratchBlock>();
 
-            entityBodies.clear();
+            GEntityBodies.clear();
 
-            EntityComponentsContainer<BodyComponent> bodyComponents(world);
+            EntityComponentsContainer<TransformComponent, BodyComponent> bodyComponents(world);
 
-            for (auto && [entity, body] : bodyComponents)
+            for (auto && [entity, transformComp, bodyComp] : bodyComponents)
             {
                 EntityBodyShape entityBodyShape;
-                entityBodyShape.Transform = body->Transform;
-                entityBodyShape.Radius = body->Radius;
+                entityBodyShape.Transform = transformComp->Transform;
+                entityBodyShape.Radius = bodyComp->Radius;
+                entityBodyShape.Color = SDL_Color(255, 0, 0);
 
-                if (body->Movement == EBodyMovement::Attached &&
-                    body->AttachParent != EntityId::Invalid)
+                if (!HasFlag(bodyComp->Flags, EBodyFlags::Awake))
                 {
-                    if (BodyComponent* parentBody = FeatureECS::GetComponentDataPtr<BodyComponent>(world, body->AttachParent))
+                    entityBodyShape.Color = SDL_Color(128, 0, 0);
+                }
+
+                if (bodyComp->Movement == EBodyMovement::Attached &&
+                    transformComp->AttachParent != EntityId::Invalid)
+                {
+                    if (TransformComponent* parentTransformComp = FeatureECS::GetComponentDataPtr<TransformComponent>(world, transformComp->AttachParent))
                     {
-                        entityBodyShape.Transform.Position = parentBody->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentBody->Transform.Rotation);
-                        entityBodyShape.Transform.Rotation += parentBody->Transform.Rotation;
+                        entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
+                        entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
                     }
                 }
 
-                entityBodies.push_back(entityBodyShape);
+                GEntityBodies.push_back(entityBodyShape);
             }
 
-            worldUpdateQueue.clear();
+            GWorldUpdateQueue.clear();
         }
     }
 
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    if (!GCurrWorld)
+        return SDL_APP_CONTINUE;
+
+    SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
 
     /* as you can see from this, rendering draws over whatever was drawn before it. */
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);  /* black, full alpha */
-    SDL_RenderClear(renderer);  /* start with a blank canvas. */
+    SDL_SetRenderDrawColor(GRenderer, 0, 0, 0, SDL_ALPHA_OPAQUE);  /* black, full alpha */
+    SDL_RenderClear(GRenderer);  /* start with a blank canvas. */
 
     /* Let's draw a single rectangle (square, really). */
 
     Vec2 mapSize(512, 512);
-    Vec2 windowCenter(windowWidth / 2.0f, windowHeight / 2.0f);
+    Vec2 windowCenter(GWindowWidth / 2.0f, GWindowHeight / 2.0f);
 
     SDL_FRect mapRect;
     mapRect.x = mapSize.X / 2;
@@ -235,18 +273,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     // SDL_RenderRect(renderer, &mapRect);
 
-    SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(GRenderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
 
-    for (int32 i = 0; i < ceil(windowWidth / 10); ++i)
+    for (int32 i = 0; i < ceil(GWindowWidth / 10); ++i)
     {
         float x = i * (1 << MortonCodeGridBits);
-        SDL_RenderLine(renderer, x, 0, x, windowHeight);
+        SDL_RenderLine(GRenderer, x, 0, x, GWindowHeight);
     }
     
-    for (int32 i = 0; i < ceil(windowHeight / 10); ++i)
+    for (int32 i = 0; i < ceil(GWindowHeight / 10); ++i)
     {
         float y = i * (1 << MortonCodeGridBits);
-        SDL_RenderLine(renderer, 0, y, windowWidth, y);
+        SDL_RenderLine(GRenderer, 0, y, GWindowWidth, y);
     }
 
     static TArray<TTuple<uint32, uint32, uint32>> queryCodeColors;
@@ -254,9 +292,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
     }
 
-    for (const EntityBodyShape& entityBodyShape : entityBodies)
+    for (const EntityBodyShape& entityBodyShape : GEntityBodies)
     {
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_SetRenderDrawColor(GRenderer, entityBodyShape.Color.r, entityBodyShape.Color.g, entityBodyShape.Color.b, SDL_ALPHA_OPAQUE);
 
         Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
         Vec2 pt2 = pt1.Rotate(-135);
@@ -272,7 +310,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         points[1] = { pt2.X, pt2.Y };
         points[2] = { pt3.X, pt3.Y };
         points[3] = { pt1.X, pt1.Y };
-        SDL_RenderLines(renderer, points, 4);
+        SDL_RenderLines(GRenderer, points, 4);
     }
 
     // {
@@ -303,15 +341,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // SDL_SetRenderViewport(renderer, &viewport);
     // SDL_SetRenderClipRect(renderer, &viewport);
 
-    ++rendererFPSCounter;
+    ++GRendererFPSCounter;
     Uint64 currTicks = SDL_GetTicks();
-    unsigned long long tickDelta = currTicks - rendererFPSTimer;
+    unsigned long long tickDelta = currTicks - GRendererFPSTimer;
     if (tickDelta > CLOCKS_PER_SEC)
     {
-        rendererFPSTimer = currTicks;
-        rendererFPS = static_cast<float>(rendererFPSCounter);
-        rendererFPS += static_cast<float>(tickDelta) / CLOCKS_PER_SEC;
-        rendererFPSCounter = 0;
+        GRendererFPSTimer = currTicks;
+        GRendererFPS = static_cast<float>(GRendererFPSCounter);
+        GRendererFPS += static_cast<float>(tickDelta) / CLOCKS_PER_SEC;
+        GRendererFPSCounter = 0;
     }
 
     float textY = 10;
@@ -320,30 +358,92 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     { \
         char __str[256] = { '\0' }; \
         sprintf_s(__str, _countof(__str), format, __VA_ARGS__); \
-        SDL_RenderDebugText(renderer, 10, textY, __str); \
+        SDL_RenderDebugText(GRenderer, 10, textY, __str); \
         textY += 10; \
     }
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);  /* white, full alpha */
-    SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+    SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);  /* white, full alpha */
+    SDL_SetRenderScale(GRenderer, 2.0f, 2.0f);
 
-    RenderDebugText("FPS: %.2f", rendererFPS)
-    RenderDebugText("Sim: %.2f", sessionFPS)
-    RenderDebugText("Bodies: %llu", entityBodies.size())
+    RenderDebugText("FPS: %.2f", GRendererFPS)
+    RenderDebugText("Sim: %.2f", GSessionFPS)
+    RenderDebugText("Bodies: %llu", GEntityBodies.size())
 
     float mx, my;
     SDL_GetMouseState(&mx, &my);
 
     RenderDebugText("%.0f, %.0f", mx, my)
 
-    if (physicsScratchBlock)
+    if (GPhysicsScratchBlock)
     {
-        RenderDebugText("Num Collisions: %llu", physicsScratchBlock->NumCollisions)
-        RenderDebugText("Num Iterations: %llu", physicsScratchBlock->NumIterations)
-        RenderDebugText("Max Query Bodies: %llu", physicsScratchBlock->MaxQueryBodyCount)
-        RenderDebugText("Num Contacts: %llu", physicsScratchBlock->Contacts.Num())
+        RenderDebugText("Num Collisions: %llu", GPhysicsScratchBlock->NumCollisions)
+        RenderDebugText("Num Iterations: %llu", GPhysicsScratchBlock->NumIterations)
+        RenderDebugText("Max Query Bodies: %llu", GPhysicsScratchBlock->MaxQueryBodyCount)
+        RenderDebugText("Num Contacts: %llu", GPhysicsScratchBlock->Contacts.Num())
     }
 
+    FeatureTraceScratchBlock& traceBlock = GCurrWorld->GetBlockRef<FeatureTraceScratchBlock>();
+
+    struct AggTraceEvent
+    {
+        FName Name;
+        FName Id;
+        uint32 Count = 0;
+        clock_t Total = 0;
+        clock_t Max = 0;
+        clock_t StartTime = 0;
+    };
+    
+    std::vector<AggTraceEvent> traceEvents;
+
+    RenderDebugText("Trace: %llu events", traceBlock.Events.Num())
+    
+    uint32 indent = 0;
+    std::vector<FName> traceEventStack;
+    char indentStr[32];
+    for (const TraceEvent& traceEvent : traceBlock.Events)
+    {
+        AggTraceEvent* aggEvent = nullptr;
+        for (AggTraceEvent& asdf : traceEvents)
+        {
+            if (asdf.Name == traceEvent.Name && asdf.Id == traceEvent.Id)
+            {
+                aggEvent = &asdf;
+                break;
+            }
+        }
+
+        if (!aggEvent)
+        {
+            traceEvents.push_back({ traceEvent.Name, traceEvent.Id});
+            aggEvent = &traceEvents.back();
+        }
+        
+        if (traceEvent.Flag == ETraceFlags::Begin)
+        {
+            aggEvent->Count++;
+            aggEvent->StartTime = traceEvent.Time;
+            // traceEventStack.push_back(traceEvent.Name);
+        }
+
+        if (traceEvent.Flag == ETraceFlags::End)
+        {
+            aggEvent->Total += traceEvent.Time - aggEvent->StartTime;
+            aggEvent->Max = max(aggEvent->Total, aggEvent->Max);
+            // traceEventStack.pop_back();
+        }
+    }
+
+    for (const AggTraceEvent& traceEvent : traceEvents)
+    {
+        RenderDebugText("%s %s %u %.3f %.3f",
+            traceEvent.Name.Debug,
+            traceEvent.Id.Debug,
+             traceEvent.Count,
+             (float)traceEvent.Total / CLOCKS_PER_SEC,
+             (float)traceEvent.Max / CLOCKS_PER_SEC)
+    }
+    
     // {
     //          uint32 mxmc = uint32(mx) >> MortonCodeGridBits;
     //          uint32 mymc = uint32(my) >> MortonCodeGridBits;
@@ -406,14 +506,27 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     //          }
     //      }
 
-    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 
-    SDL_RenderPresent(renderer);  /* put it all on the screen! */
+    if (GMouseButtonStates.contains(SDL_BUTTON_RIGHT) && GMouseButtonStates[SDL_BUTTON_RIGHT])
+    {
+        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+    }
+
+    if (GKeyStates.contains(SDLK_X) && GKeyStates[SDLK_X])
+    {
+        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+    }
+
+    if (GKeyStates.contains(SDLK_F) && GKeyStates[SDLK_F])
+    {
+        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+    }
+
+    SDL_RenderPresent(GRenderer);  /* put it all on the screen! */
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
-
-TMap<uint8, bool> mouseButtonStates;
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
@@ -426,7 +539,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     auto onMouseDownOrMoved = [](const Vec2& mousePos)
     {
         // Spawn entities
-        if (mouseButtonStates.contains(SDL_BUTTON_LEFT) && mouseButtonStates[SDL_BUTTON_LEFT])
+        if (GMouseButtonStates.contains(SDL_BUTTON_LEFT) && GMouseButtonStates[SDL_BUTTON_LEFT])
         {
             Action action;
             action.Verb = "spawn_entity"_n;
@@ -434,42 +547,59 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[1].Distance = mousePos.X;
             action.Data[2].Distance = mousePos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
-            session->QueueAction(action);
+            action.Data[4].UInt32 = 10;
+            GSession->QueueAction(action);
+        }
+
+        // Push entities
+        if (GKeyStates.contains(SDLK_F) && GKeyStates[SDLK_F])
+        {
+            Action action;
+            action.Verb = "push_entities_in_range"_n;
+            action.Data[0].Distance = mousePos.X;
+            action.Data[1].Distance = mousePos.Y;
+            action.Data[2].Distance = 64.0f;
+            action.Data[3].Value = 100.0f;
+            GSession->QueueAction(action);
         }
 
         // Release entities
-        if (mouseButtonStates.contains(SDL_BUTTON_RIGHT) && mouseButtonStates[SDL_BUTTON_RIGHT])
+        if (GKeyStates.contains(SDLK_X) && GKeyStates[SDLK_X])
         {
             Action action;
             action.Verb = "release_entities_in_range"_n;
             action.Data[0].Distance = mousePos.X;
             action.Data[1].Distance = mousePos.Y;
-            action.Data[2].Distance = 10.0f;
-            session->QueueAction(action);
+            action.Data[2].Distance = 64.0f;
+            GSession->QueueAction(action);
         }
     };
 
+    if (event->type == SDL_EVENT_KEY_DOWN)
+    {
+        GKeyStates[event->key.key] = true;
+
+        Vec2 mousePos;
+        SDL_GetMouseState(&mousePos.X, &mousePos.Y);
+        onMouseDownOrMoved(mousePos);
+    }
+
+    if (event->type == SDL_EVENT_KEY_UP)
+    {
+        GKeyStates[event->key.key] = false;
+    }
+    
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
     {
-        mouseButtonStates[event->button.button] = true;
+        GMouseButtonStates[event->button.button] = true;
 
         Vec2 mousePos = { event->button.x, event->button.y };
         onMouseDownOrMoved(mousePos);
-        // for (int32 i = 0; i < 100; ++i)
-        // {
-        //     Action action;
-        //     action.Verb = "spawn_entity"_n;
-        //     action.Data[0].Name = "Unit"_n;
-        //     action.Data[1].Distance = event->button.x;
-        //     action.Data[2].Distance = event->button.y;
-        //     action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
-        //     session->QueueAction(0, action);
-        // }
     }
 
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
     {
-        mouseButtonStates[event->button.button] = false;
+        GMouseButtonStates[event->button.button] = false;
     }
 
     if (event->type == SDL_EVENT_MOUSE_MOTION)
@@ -483,9 +613,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
-    sessionThreadWantsExit = true;
-    sessionThread->join();
+    GSessionThreadWantsExit = true;
+    GSessionThread->join();
 
     // destroy the window
-    SDL_DestroyWindow(window);
+    SDL_DestroyWindow(GWindow);
 }

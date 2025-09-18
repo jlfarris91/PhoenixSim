@@ -66,7 +66,7 @@ void Session::Tick(const SessionStepArgs& args)
     {
         clock_t startStepTime = clock();
 
-        Step();
+        Step(args);
 
         clock_t endStepTime = clock();
         clock_t stepElapsed = endStepTime - startStepTime;
@@ -88,7 +88,7 @@ void Session::Tick(const SessionStepArgs& args)
     }
 }
 
-void Session::Step()
+void Session::Step(const SessionStepArgs& args)
 {
     LastStepTime = clock();
     SimTime += 1;
@@ -99,6 +99,7 @@ void Session::Step()
     // Step active worlds
     WorldStepArgs worldStepArgs;
     worldStepArgs.SimTime = SimTime;
+    worldStepArgs.StepHz = args.StepHz;
     WorldManager->Step(worldStepArgs);
 }
 

@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+#include "FeatureTrace.h"
+#include "Flags.h"
 #include "MortonCode.h"
 #include "Session.h"
 
@@ -12,46 +14,40 @@ using namespace Phoenix::Physics;
 
 const FName FeaturePhysics::StaticName = "Physics"_n;
 const FName FeaturePhysicsScratchBlock::StaticName = "Physics_Scratch"_n;
-//
-// void AccessComponents2(WorldRef world, TFixedArray<TTuple<Entity*, BodyComponent*>, ECS_MAX_ENTITIES>& outEntityComponents)
-// {
-//     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-//
-//     outEntityComponents.Reset();
-//
-//     for (Entity& entity : block.Entities)
-//     {
-//         if (entity.Id == EntityId::Invalid)
-//             continue;
-//
-//         auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<BodyComponent>(world, entity.Id));
-//         if (contains_nullptr(components))
-//             continue;
-//
-//         outEntityComponents.PushBack(components);
-//     }
-// }
 
-void PhysicsSystem::OnUpdate(WorldRef world)
+constexpr uint8 SLEEP_TIMER = 1;
+
+FName PhysicsSystem::GetName()
 {
-    float dt = 1 / 60.0f;
+    return StaticName;
+}
 
+void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
+{
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
-    auto& sortedEntities = scratchBlock.SortedEntities;
+    scratchBlock.NumIterations = 0;
+    scratchBlock.NumCollisions = 0;
+    scratchBlock.MaxQueryBodyCount = 0;
+    scratchBlock.Contacts.Reset();
+    scratchBlock.ContactSet.Reset();
+    
+    // Gather all transform + body component pairs
+    {
+        ScopedTrace trace(world, "GatherBodyComponents"_n);
+        scratchBlock.EntityBodies.Refresh(world);
+    }
 
     // Calculate z-codes and sort entities
     {
+        ScopedTrace trace(world, "CalculateAndSortZCodes"_n);
         scratchBlock.SortedEntities.Reset();
-
-        scratchBlock.EntityBodies.Refresh(world);
-
-        for (auto && [entity, body] : scratchBlock.EntityBodies)
+        for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
         {
-            uint32 x = static_cast<uint32>(body->Transform.Position.X) >> MortonCodeGridBits;
-            uint32 y = static_cast<uint32>(body->Transform.Position.Y) >> MortonCodeGridBits;
+            uint32 x = static_cast<uint32>(transformComp->Transform.Position.X) >> MortonCodeGridBits;
+            uint32 y = static_cast<uint32>(transformComp->Transform.Position.Y) >> MortonCodeGridBits;
             uint64 zcode = MortonCode(x, y);
-            sortedEntities.EmplaceBack(entity->Id, body, zcode);
+            scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, zcode);
         }
 
         // Sort entities by their zcodes
@@ -62,171 +58,227 @@ void PhysicsSystem::OnUpdate(WorldRef world)
             });
     }
 
-    scratchBlock.NumIterations = 0;
-    scratchBlock.NumCollisions = 0;
-    scratchBlock.MaxQueryBodyCount = 0;
-    scratchBlock.Contacts.Reset();
-    scratchBlock.ContactSet.Reset();
+}
+
+void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
+{
+    Value dt = 1.0f / args.StepHz;
+
+    FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
     std::vector<TTuple<uint64, uint64>> ranges;
 
     // Determine contacts
-    for (const EntityBody& entityBody : sortedEntities)
     {
-        BodyComponent* bodyA = entityBody.BodyComponent;
-
-        if (bodyA->Movement == EBodyMovement::Attached)
-            continue;
-
-        // Query for overlapping morton ranges
+        ScopedTrace trace(world, "CalculateContacts"_n);
+        for (const EntityBody& entityBodyA : scratchBlock.SortedEntities)
         {
-            Distance radius = bodyA->Radius;
-            uint32 lox = static_cast<uint32>(bodyA->Transform.Position.X - radius);
-            uint32 hix = static_cast<uint32>(bodyA->Transform.Position.X + radius);
-            uint32 loy = static_cast<uint32>(bodyA->Transform.Position.Y - radius);
-            uint32 hiy = static_cast<uint32>(bodyA->Transform.Position.Y + radius);
+            TransformComponent* transformCompA = entityBodyA.TransformComponent;
+            BodyComponent* bodyCompA = entityBodyA.BodyComponent;
 
-            MortonCodeAABB aabb;
-            aabb.MinX = lox >> MortonCodeGridBits;
-            aabb.MinY = loy >> MortonCodeGridBits;
-            aabb.MaxX = hix >> MortonCodeGridBits;
-            aabb.MaxY = hiy >> MortonCodeGridBits;
+            if (!HasFlag(bodyCompA->Flags, EBodyFlags::Awake))
+            {
+                continue;
+            }
+
+            // Query for overlapping morton ranges
+            TArray<const EntityBody*> overlappingBodies;
+            {
+                ScopedTrace trace2(world, "OverlapQuery"_n);
+
+                Distance radius = bodyCompA->Radius;
+                uint32 lox = static_cast<uint32>(transformCompA->Transform.Position.X - radius);
+                uint32 hix = static_cast<uint32>(transformCompA->Transform.Position.X + radius);
+                uint32 loy = static_cast<uint32>(transformCompA->Transform.Position.Y - radius);
+                uint32 hiy = static_cast<uint32>(transformCompA->Transform.Position.Y + radius);
+
+                MortonCodeAABB aabb;
+                aabb.MinX = lox >> MortonCodeGridBits;
+                aabb.MinY = loy >> MortonCodeGridBits;
+                aabb.MaxX = hix >> MortonCodeGridBits;
+                aabb.MaxY = hiy >> MortonCodeGridBits;
         
-            ranges.clear();
-            MortonCodeQuery(aabb, ranges);
-        }
+                ranges.clear();
+                MortonCodeQuery(aabb, ranges);
 
-        TArray<const EntityBody*> overlappingBodies;
-        ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
-            sortedEntities,
-            ranges,
-            [&](const EntityBody& eb)
-            {
-                overlappingBodies.push_back(&eb);
-            });
-
-        if (!overlappingBodies.empty())
-        {
-            scratchBlock.MaxQueryBodyCount = max(scratchBlock.MaxQueryBodyCount, overlappingBodies.size() - 1);
-        }
-
-        for (const EntityBody* entityBodyB : overlappingBodies)
-        {
-            BodyComponent* bodyB = entityBodyB->BodyComponent;
-
-            if (scratchBlock.Contacts.IsFull())
-            {
-                continue;
+                ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
+                    scratchBlock.SortedEntities,
+                    ranges,
+                    [&](const EntityBody& eb)
+                    {
+                        overlappingBodies.push_back(&eb);
+                    });
             }
 
-            if (bodyA == bodyB)
+            if (!overlappingBodies.empty())
             {
-                continue;
+                scratchBlock.MaxQueryBodyCount = max(scratchBlock.MaxQueryBodyCount, overlappingBodies.size() - 1);
             }
 
-            if ((bodyA->CollisionMask & bodyB->CollisionMask) == 0)
+            for (const EntityBody* entityBodyB : overlappingBodies)
             {
-                continue;
-            }
+                TransformComponent* transformCompB = entityBodyB->TransformComponent;
+                BodyComponent* bodyCompB = entityBodyB->BodyComponent;
 
-            uint64 key = MortonCode(entityBody.EntityId, entityBodyB->EntityId);
-            if (scratchBlock.ContactSet.Contains(key))
-            {
-                continue;
-            }
+                if (scratchBlock.Contacts.IsFull())
+                {
+                    continue;
+                }
 
-            scratchBlock.ContactSet.Insert(key);
+                if (bodyCompA == bodyCompB)
+                {
+                    continue;
+                }
+
+                if ((bodyCompA->CollisionMask & bodyCompB->CollisionMask) == 0)
+                {
+                    continue;
+                }
+
+                EntityId loId = min(entityBodyA.EntityId, entityBodyB->EntityId);
+                EntityId hiId = max(entityBodyA.EntityId, entityBodyB->EntityId);
+
+                uint64 key = MortonCode(loId, hiId);
+                if (scratchBlock.ContactSet.Contains(key))
+                {
+                    continue;
+                }
+
+                {
+                    ScopedTrace trace2(world, "ContactSetQuery"_n);
+                    scratchBlock.ContactSet.Insert(key);
+                }
             
-            ++scratchBlock.NumIterations;
+                ++scratchBlock.NumIterations;
 
-            Vec2 v;
-            if (Vec2::Equals(bodyA->Transform.Position, bodyB->Transform.Position))
-            {
-                v = Vec2::RandUnitVector();
-                float correction = 1.0f / (bodyA->InvMass + bodyB->InvMass);
-                bodyA->Transform.Position -= v * correction;
-                bodyB->Transform.Position += v * correction;
-            }
+                Vec2 v;
+                if (Vec2::Equals(transformCompA->Transform.Position, transformCompB->Transform.Position))
+                {
+                    v = Vec2::RandUnitVector();
+                    float correction = 1.0f / (bodyCompA->InvMass + bodyCompB->InvMass);
+                    transformCompA->Transform.Position -= v * correction;
+                    transformCompB->Transform.Position += v * correction;
+                }
 
-            v = bodyB->Transform.Position - bodyA->Transform.Position;
+                v = transformCompB->Transform.Position - transformCompA->Transform.Position;
             
-            float vLen = v.Length();
-            float rr = bodyA->Radius + bodyB->Radius;
-            if (vLen > rr)
-            {
-                continue;
-            }
+                float vLen = v.Length();
+                float rr = bodyCompA->Radius + bodyCompB->Radius;
+                if (vLen > rr)
+                {
+                    continue;
+                }
             
-            const float baum = 0.3f;
-            const float slop = 0.1f;
-            float d = rr - vLen;
-            float bias = baum * max(0, d - slop) / dt;
-            float effMass = 1.0f / (bodyA->InvMass + bodyB->InvMass);
+                const float baum = 0.3f;
+                const float slop = 0.5f;
+                float d = rr - vLen;
+                float bias = baum * max(0, d - slop) / dt;
+                float effMass = 1.0f / (bodyCompA->InvMass + bodyCompB->InvMass);
 
-            Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
-            contact.BodyA = bodyA;
-            contact.BodyB = bodyB;
-            contact.Normal = v.Normalized();
-            contact.Bias = bias;
-            contact.EffMass = effMass;
-            contact.Impulse = 0;
+                Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
+                contact.TransformA = transformCompA;
+                contact.BodyA = bodyCompA;
+                contact.TransformB = transformCompB;
+                contact.BodyB = bodyCompB;
+                contact.Normal = v.Normalized();
+                contact.Bias = bias;
+                contact.EffMass = effMass;
+                contact.Impulse = 0;
 
-            ++scratchBlock.NumCollisions;
+                SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
+                SetFlagRef(bodyCompB->Flags, EBodyFlags::Awake, true);
+
+                ++scratchBlock.NumCollisions;
+            }
         }
     }
 
     // Multi-pass solver
-    for (uint32 iter = 0; iter < 2; ++iter)
     {
-        for (Contact& contact : scratchBlock.Contacts)
+        ScopedTrace trace(world, "PGS"_n);
+        for (uint32 iter = 0; iter < 2; ++iter)
         {
-            // Relative velocity at contact
-            float relVel = Vec2::Dot(contact.Normal, contact.BodyB->Velocity - contact.BodyA->Velocity);
+            for (Contact& contact : scratchBlock.Contacts)
+            {
+                // Relative velocity at contact
+                float relVel = Vec2::Dot(contact.Normal, contact.BodyB->LinearVelocity - contact.BodyA->LinearVelocity);
 
-            // Compute corrective impulse
-            float lambda = -(relVel + contact.Bias) * contact.EffMass;
+                // Compute corrective impulse
+                float lambda = -(relVel + contact.Bias) * contact.EffMass;
 
-            // Accumulate and project (no negative normal impulses)
-            float oldImpulse = contact.Impulse;
-            contact.Impulse = max(oldImpulse + lambda, 0.0f);
-            float change = contact.Impulse - oldImpulse;
+                // Accumulate and project (no negative normal impulses)
+                float oldImpulse = contact.Impulse;
+                contact.Impulse = max(oldImpulse + lambda, 0.0f);
+                float change = contact.Impulse - oldImpulse;
 
-            // Apply impulse
-            Vec2 p = contact.Normal * change;
-            contact.BodyA->Velocity -= p * contact.BodyA->InvMass;
-            contact.BodyB->Velocity += p * contact.BodyB->InvMass;
-        }   
+                // Apply impulse
+                Vec2 p = contact.Normal * change;
+                contact.BodyA->LinearVelocity -= p * contact.BodyA->InvMass;
+                contact.BodyB->LinearVelocity += p * contact.BodyB->InvMass;
+            }   
+        }
     }
 
     // Multi-pass resolve overlaps
-    for (uint32 i = 0; i < 2; ++i)
     {
-        for (Contact& contact : scratchBlock.Contacts)
+        ScopedTrace trace(world, "ResolveOverlaps"_n);
+        for (uint32 i = 0; i < 2; ++i)
         {
-            Vec2 v = contact.BodyB->Transform.Position - contact.BodyA->Transform.Position;
-            float d = v.Length();
-            float rr = contact.BodyA->Radius + contact.BodyB->Radius;
-            float pen = rr - d;
-            if (pen > 0.01)
+            for (Contact& contact : scratchBlock.Contacts)
             {
-                float correction = 0.3f * pen;
-                contact.BodyA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
-                contact.BodyB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+                Vec2 v = contact.TransformB->Transform.Position - contact.TransformA->Transform.Position;
+                float d = v.Length();
+                float rr = contact.BodyA->Radius + contact.BodyB->Radius;
+                float pen = rr - d;
+                if (pen > 0.01)
+                {
+                    float correction = 0.3f * pen;
+                    contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+                    contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+
+                    SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
+                    SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
+
+                    contact.BodyA->SleepTimer = SLEEP_TIMER;
+                    contact.BodyB->SleepTimer = SLEEP_TIMER;
+                }
             }
         }
     }
 
-    for (const EntityBody& entityBody : sortedEntities)
+    // Integrate velocities
     {
-        BodyComponent* body = entityBody.BodyComponent;
+        ScopedTrace trace(world, "Integrate"_n);
+        for (const EntityBody& entityBody : scratchBlock.SortedEntities)
+        {
+            BodyComponent* bodyComp = entityBody.BodyComponent;
+            TransformComponent* transformComp = entityBody.TransformComponent;
 
-        if (body->Movement == EBodyMovement::Attached)
-        {
-            body->Transform.Rotation += 10.0f;
-        }
-        else
-        {
-            body->Transform.Position += body->Velocity * dt;
+            if (bodyComp->Movement == EBodyMovement::Attached)
+            {
+                transformComp->Transform.Rotation += 10.0f;
+            }
+            else
+            {
+                bool isMoving = bodyComp->LinearVelocity.LengthSq() > (0.01f * 0.01f);
+                if (isMoving)
+                {
+                    bodyComp->SleepTimer = SLEEP_TIMER;
+                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
+                }
+                else if (bodyComp->SleepTimer > 0)
+                {
+                    --bodyComp->SleepTimer;
+                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
+                }
+                else
+                {
+                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, false);
+                }
+                
+                transformComp->Transform.Position += bodyComp->LinearVelocity * dt;
+                bodyComp->LinearVelocity *= (1.0f - bodyComp->LinearDamping * dt);
+            }
         }
     }
 }
@@ -270,14 +322,27 @@ void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& act
     {
         Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
         Distance range = action.Action.Data[2].Distance;
+        Distance rangeSq = range * range;
 
-        TArray<EntityId> outEntities;
+        TArray<EntityBody> outEntities;
         QueryEntitiesInRange(world, pos, range, outEntities);
 
-        for (EntityId entityId : outEntities)
+        for (const EntityBody& entityBody : outEntities)
         {
-            FeatureECS::ReleaseEntity(world, entityId);
+            const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
+            if (Vec2::DistanceSq(pos, entityPos) < rangeSq)
+            {
+                FeatureECS::ReleaseEntity(world, entityBody.EntityId);
+            }
         }
+    }
+
+    if (action.Action.Verb == "push_entities_in_range"_n)
+    {
+        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
+        Distance range = action.Action.Data[2].Distance;
+        Value force = action.Action.Data[3].Distance;
+        AddExplosionForceToEntitiesInRange(world, pos, range, force);
     }
 }
 
@@ -285,7 +350,7 @@ void FeaturePhysics::QueryEntitiesInRange(
     WorldConstRef world,
     const Vec2& pos,
     Distance range,
-    TArray<EntityId>& outEntities)
+    TArray<EntityBody>& outEntities)
 {
     const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
@@ -311,8 +376,29 @@ void FeaturePhysics::QueryEntitiesInRange(
     ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
         scratchBlock.SortedEntities,
         ranges,
-        [&](const EntityBody& entityZCode)
+        [&](const EntityBody& entityBody)
         {
-            outEntities.push_back(entityZCode.EntityId);
+            outEntities.push_back(entityBody);
         });
+}
+
+void FeaturePhysics::AddExplosionForceToEntitiesInRange(WorldRef world, const Vec2& pos, Distance range, Value force)
+{
+    Distance rangeSq = range * range;
+
+    TArray<EntityBody> outEntities;
+    QueryEntitiesInRange(world, pos, range, outEntities);
+
+    for (const EntityBody& entityBody : outEntities)
+    {
+        const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
+        Vec2 dir = entityPos - pos;
+        Distance distSq = dir.LengthSq();
+        if (distSq < rangeSq)
+        {
+            Value t = 1.0f - distSq / rangeSq;
+            Value f = force / entityBody.BodyComponent->InvMass;
+            entityBody.BodyComponent->LinearVelocity += dir.Normalized() * f * t;
+        }
+    }
 }

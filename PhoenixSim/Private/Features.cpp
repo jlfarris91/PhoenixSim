@@ -149,8 +149,10 @@ void FeatureSet::RegisterFeatureChannels(const TArray<FeatureSharedPtr>& feature
     {
         bool insertedAnything = false;
 
-        for (const FeatureChannelInsert& featureInsert : remainingInserts)
+        for (uint32 i = 0; i < remainingInserts.size(); ++i)
         {
+            const FeatureChannelInsert& featureInsert = remainingInserts[i];
+
             auto&& featureIter = Features.find(featureInsert.Feature);
             if (featureIter == Features.end())
             {
@@ -168,10 +170,10 @@ void FeatureSet::RegisterFeatureChannels(const TArray<FeatureSharedPtr>& feature
                 if (featureInsert.InsertPosition.RelativePosition == EFeatureInsertPosition::Default)
                 {
                     Channels[featureInsert.Channel] = { featureIter->second };
-                    remainingInserts.erase(remainingInserts.begin());
+                    remainingInserts.erase(remainingInserts.begin() + i--);
                     insertedAnything = true;
                 }
-                break;
+                continue;
             }
 
             // The channel exists, try to insert the feature relative to another existing in the channel
@@ -186,7 +188,7 @@ void FeatureSet::RegisterFeatureChannels(const TArray<FeatureSharedPtr>& feature
             }
 
             channel.insert(channel.begin() + insertIndex, featureIter->second);
-            remainingInserts.erase(remainingInserts.begin());
+            remainingInserts.erase(remainingInserts.begin() + i--);
             insertedAnything = true;
         }
 

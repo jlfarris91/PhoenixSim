@@ -5,12 +5,12 @@
 
 // REMOVE ME!
 #include "FeaturePhysics.h"
+#include "FeatureTrace.h"
+#include "Flags.h"
+#include "MortonCode.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
-
-PHOENIXSIM_API const FName FeatureECS::StaticName = "ECS"_n;
-PHOENIXSIM_API const FName FeatureECSDynamicBlock::StaticName = "ECS_Dynamic"_n;
 
 PHOENIXSIM_API const EntityId EntityId::Invalid = 0;
 
@@ -27,16 +27,32 @@ EntityId& EntityId::operator=(const entityid_t& id)
 
 FeatureECS::FeatureECS()
 {
-    WorldBufferBlockArgs blockArgs;
-    blockArgs.Name = FeatureECSDynamicBlock::StaticName;
-    blockArgs.Size = sizeof(FeatureECSDynamicBlock);
-    blockArgs.BlockType = EWorldBufferBlockType::Dynamic;
-
     FeatureDefinition.Name = StaticName;
-    FeatureDefinition.Blocks.push_back(blockArgs);
 
+    // Dynamic block
+    {
+        WorldBufferBlockArgs blockArgs;
+        blockArgs.Name = FeatureECSDynamicBlock::StaticName;
+        blockArgs.Size = sizeof(FeatureECSDynamicBlock);
+        blockArgs.BlockType = EWorldBufferBlockType::Dynamic;
+        FeatureDefinition.Blocks.push_back(blockArgs);
+    }
+
+    // Scratch block
+    {
+        WorldBufferBlockArgs blockArgs;
+        blockArgs.Name = FeatureECSScratchBlock::StaticName;
+        blockArgs.Size = sizeof(FeatureECSScratchBlock);
+        blockArgs.BlockType = EWorldBufferBlockType::Scratch;
+        FeatureDefinition.Blocks.push_back(blockArgs);
+    }
+
+    FeatureDefinition.Channels.emplace_back(WorldChannels::PreUpdate, FeatureInsertPosition::Default);
     FeatureDefinition.Channels.emplace_back(WorldChannels::Update, FeatureInsertPosition::Default);
+    FeatureDefinition.Channels.emplace_back(WorldChannels::PostUpdate, FeatureInsertPosition::Default);
+    FeatureDefinition.Channels.emplace_back(WorldChannels::PreHandleAction, FeatureInsertPosition::Default);
     FeatureDefinition.Channels.emplace_back(WorldChannels::HandleAction, FeatureInsertPosition::Default);
+    FeatureDefinition.Channels.emplace_back(WorldChannels::PostHandleAction, FeatureInsertPosition::Default);
 }
 
 FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
@@ -60,31 +76,42 @@ FeatureDefinition FeatureECS::GetFeatureDefinition()
 
 void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
-    IFeature::OnPreUpdate(world, args);
+    SortEntitiesByZCode(world);
+
+    SystemUpdateArgs systemUpdateArgs;
+    systemUpdateArgs.SimTime = args.SimTime;
+    systemUpdateArgs.StepHz = args.StepHz;
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        system->OnPreUpdate(world);
+        ScopedTrace trace(world, "SysPreUpdate"_n, system->GetName());
+        system->OnPreUpdate(world, systemUpdateArgs);
     }
 }
 
 void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
-    IFeature::OnUpdate(world, args);
+    SystemUpdateArgs systemUpdateArgs;
+    systemUpdateArgs.SimTime = args.SimTime;
+    systemUpdateArgs.StepHz = args.StepHz;
     
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        system->OnUpdate(world);
+        ScopedTrace trace(world, "SysUpdate"_n, system->GetName());
+        system->OnUpdate(world, systemUpdateArgs);
     }
 }
 
 void FeatureECS::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
-    IFeature::OnPostUpdate(world, args);
+    SystemUpdateArgs systemUpdateArgs;
+    systemUpdateArgs.SimTime = args.SimTime;
+    systemUpdateArgs.StepHz = args.StepHz;
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        system->OnPostUpdate(world);
+        ScopedTrace trace(world, "SysPostUpdate"_n, system->GetName());
+        system->OnPostUpdate(world, systemUpdateArgs);
     }
 
     CompactWorldBuffer(world);
@@ -96,15 +123,22 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
 
     if (action.Action.Verb == "spawn_entity"_n)
     {
-        EntityId entityId = AcquireEntity(world, action.Action.Data[0].Name);
-        Physics::BodyComponent* bodyComponent = AddComponent<Physics::BodyComponent>(world, entityId);
-        bodyComponent->CollisionMask = 1;
-        bodyComponent->Radius = 16;
-        bodyComponent->Transform.Position.X = action.Action.Data[1].Distance;
-        bodyComponent->Transform.Position.Y = action.Action.Data[2].Distance;
-        bodyComponent->Transform.Rotation = action.Action.Data[3].Degrees;
-        bodyComponent->InvMass = 1.0f;
-        bodyComponent->Speed = (rand() % 1000) / 1000.0f * 1.0f;
+        for (uint32 i = 0; i < action.Action.Data[4].UInt32; ++i)
+        {
+            EntityId entityId = AcquireEntity(world, action.Action.Data[0].Name);
+
+            TransformComponent* transformComp = AddComponent<TransformComponent>(world, entityId);
+            transformComp->Transform.Position.X = action.Action.Data[1].Distance;
+            transformComp->Transform.Position.Y = action.Action.Data[2].Distance;
+            transformComp->Transform.Rotation = action.Action.Data[3].Degrees;
+
+            Physics::BodyComponent* bodyComp = AddComponent<Physics::BodyComponent>(world, entityId);
+            bodyComp->CollisionMask = 1;
+            bodyComp->Radius = 16;
+            bodyComp->InvMass = 1.0f / 10.0f;
+            bodyComp->LinearDamping = 5.f;
+            SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
+        }
     }
 }
 
@@ -177,7 +211,7 @@ EntityId FeatureECS::AcquireEntity(WorldRef world, FName kind)
     Entity& entity = block.Entities[entityIdx];
     entity.Id = entityIdx;
     entity.Kind = kind;
-    entity.ComponentTail = INDEX_NONE;
+    entity.ComponentHead = INDEX_NONE;
 
     return entityIdx;
 }
@@ -197,7 +231,7 @@ bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
     Entity& entity = block.Entities[index];
     entity.Id = EntityId::Invalid;
     entity.Kind = FName::None;
-    entity.ComponentTail = INDEX_NONE;
+    entity.ComponentHead = INDEX_NONE;
 
     return true;
 }
@@ -250,7 +284,7 @@ bool FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, FName compon
     int32 compIndex = INDEX_NONE;
     ForEachComponent(world, entityId, [&, componentType](const Component& comp, uint32 index)
     {
-        compIndex = static_cast<int32>(index);
+        compIndex = index;
         if (comp.TypeName == componentType)
         {
             return false;
@@ -270,18 +304,16 @@ bool FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, FName compon
     if (prevCompIndex != INDEX_NONE)
     {
         Component& prevComp = block.Components[prevCompIndex];
-        PHX_ASSERT(prevComp.Owner == entityId);
         prevComp.Next = compToRemove.Next;
     }
 
     Entity& entity = GetEntityRef(world, entityId);
-    if (entity.ComponentTail == compIndex)
+    if (entity.ComponentHead == compIndex)
     {
-        entity.ComponentTail = prevCompIndex;
+        entity.ComponentHead = prevCompIndex;
     }
 
     // Reset component data
-    compToRemove.Owner = EntityId::Invalid;
     compToRemove.TypeName = FName::None;
     compToRemove.Next = INDEX_NONE;
     memset(compToRemove.Data, 0, sizeof(compToRemove.Data));
@@ -299,28 +331,23 @@ uint32 FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
         return false;
     }
 
-    int32 compIndex = GetEntityIndex(entityId);
+    int32 compIndex = entity->ComponentHead;
 
     uint32 numCompsRemoved = 0;
     while (compIndex != INDEX_NONE)
     {
         Component& comp = block.Components[compIndex];
-        if (comp.Owner != entityId)
-        {
-            break;
-        }
 
         compIndex = comp.Next;
         numCompsRemoved++;
 
         // Reset component data
-        comp.Owner = EntityId::Invalid;
         comp.TypeName = FName::None;
         comp.Next = INDEX_NONE;
         memset(comp.Data, 0, sizeof(comp.Data));
     }
 
-    entity->ComponentTail = INDEX_NONE;
+    entity->ComponentHead = INDEX_NONE;
 
     return numCompsRemoved;
 }
@@ -342,46 +369,47 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
         return nullptr;
     }
 
-    int32 compIndex = entity->ComponentTail;
+    int32 newCompIndex = INDEX_NONE;
 
     // Find the next available component index
-    if (compIndex == INDEX_NONE)
     {
-        compIndex = GetEntityIndex(entityId);
-    }
-    else
-    {
-        compIndex = INDEX_NONE;
         for (int32 i = 1; i < ECS_MAX_COMPONENTS; ++i)
         {
-            if (block.Components[i].Owner == EntityId::Invalid)
+            if (block.Components[i].TypeName == FName::None)
             {
-                compIndex = i;
+                newCompIndex = i;
                 break;
             }
         }
 
-        if (compIndex == INDEX_NONE)
+        if (newCompIndex == INDEX_NONE)
         {
             return nullptr;
         }
     }
 
-    // Update the linked list
-    if (entity->ComponentTail != INDEX_NONE)
+    if (entity->ComponentHead == INDEX_NONE)
     {
-        block.Components[entity->ComponentTail].Next = compIndex;
+        entity->ComponentHead = newCompIndex;
+    }
+    else
+    {
+        // Find the tail component and update it's next
+        int32 compIter = entity->ComponentHead;
+        while (block.Components[compIter].Next != INDEX_NONE)
+        {
+            compIter = block.Components[compIter].Next;
+        }
+        block.Components[compIter].Next = newCompIndex;
     }
 
-    entity->ComponentTail = compIndex;
-
-    if (!block.Components.IsValidIndex(compIndex))
+    // Make room for the new component if necessary
+    if (!block.Components.IsValidIndex(newCompIndex))
     {
-        block.Components.SetNum(compIndex + 1);
+        block.Components.SetNum(newCompIndex + 1);
     }
 
-    Component& comp = block.Components[compIndex];
-    comp.Owner = entityId;
+    Component& comp = block.Components[newCompIndex];
     comp.Next = INDEX_NONE;
     comp.TypeName = componentType;
 
@@ -389,6 +417,71 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
     std::memset(&comp.Data[0], 0, sizeof(Component::Data));
     
     return &comp;
+}
+
+void FeatureECS::GetWorldTransform(WorldConstRef world, EntityId entityId, Transform2D& outTransform)
+{
+    
+}
+
+void FeatureECS::QueryEntitiesInRange(
+    WorldConstRef world,
+    const Vec2& pos,
+    Distance range,
+    TArray<EntityTransform>& outEntities)
+{
+    const FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
+
+    TArray<TTuple<uint64, uint64>> ranges;
+    
+    // Query for overlapping morton ranges
+    {
+        uint32 lox = static_cast<uint32>(pos.X - range);
+        uint32 hix = static_cast<uint32>(pos.X + range);
+        uint32 loy = static_cast<uint32>(pos.Y - range);
+        uint32 hiy = static_cast<uint32>(pos.Y + range);
+
+        MortonCodeAABB aabb;
+        aabb.MinX = lox >> MortonCodeGridBits;
+        aabb.MinY = loy >> MortonCodeGridBits;
+        aabb.MaxX = hix >> MortonCodeGridBits;
+        aabb.MaxY = hiy >> MortonCodeGridBits;
+
+        MortonCodeQuery(aabb, ranges);
+    }
+
+    TArray<EntityTransform*> overlappingEntities;
+    ForEachInMortonCodeRanges<EntityTransform, &EntityTransform::ZCode>(
+        scratchBlock.SortedEntities,
+        ranges,
+        [&](const EntityTransform& entityBody)
+        {
+            outEntities.push_back(entityBody);
+        });
+    
+}
+
+void FeatureECS::SortEntitiesByZCode(WorldRef world)
+{
+    ScopedTrace trace(world, "SortEntitiesByZCode"_n);
+    
+    FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
+    
+    // Gather all entities with transform components
+    {
+        ScopedTrace trace2(world, "GatherEntityTransformComps"_n);
+        scratchBlock.EntityTransforms.Refresh(world);
+    }
+
+    // Calculate z-codes and sort entities
+    scratchBlock.SortedEntities.Reset();
+    for (auto && [entity, transformComp] : scratchBlock.EntityTransforms)
+    {
+        uint32 x = static_cast<uint32>(transformComp->Transform.Position.X) >> MortonCodeGridBits;
+        uint32 y = static_cast<uint32>(transformComp->Transform.Position.Y) >> MortonCodeGridBits;
+        transformComp->ZCode = MortonCode(x, y);
+        scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, transformComp->ZCode);
+    }
 }
 
 void FeatureECS::CompactWorldBuffer(WorldRef world)

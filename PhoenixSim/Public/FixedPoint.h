@@ -161,14 +161,24 @@ namespace Phoenix
             return a.X * b.X + a.Y * b.Y;
         }
 
+        static float DistanceSq(const Vec2& a, const Vec2& b)
+        {
+            return (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
+        }
+
+        static float Distance(const Vec2& a, const Vec2& b)
+        {
+            return sqrtf(DistanceSq(a, b));
+        }
+
         static Vec2 RandUnitVector()
         {
             Degrees deg = static_cast<float>(rand() % 1440) / 4.0f;
             return XAxis.Rotate(deg);
         }
 
-        Distance X = 0;
-        Distance Y = 0;
+        Phoenix::Distance X = 0;
+        Phoenix::Distance Y = 0;
     };
 
     struct PHOENIXSIM_API Vec3

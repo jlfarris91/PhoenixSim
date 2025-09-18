@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "Features.h"
+#include "FeatureTrace.h"
 
 
 using namespace Phoenix;
@@ -251,7 +252,7 @@ void WorldManager::Step(const WorldStepArgs& args)
     // TODO (jfarris): parallelize
     for (const WorldSharedPtr& world : worlds)
     {
-        UpdateWorld(*world, args.SimTime);
+        UpdateWorld(*world, args.SimTime, args.StepHz);
     }
 }
 
@@ -296,34 +297,44 @@ void WorldManager::ShutdownWorld(WorldRef world) const
     }
 }
 
-void WorldManager::UpdateWorld(WorldRef world, simtime_t time) const
+void WorldManager::UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) const
 {
+    FeatureTraceScratchBlock& block = world.GetBlockRef<FeatureTraceScratchBlock>();
+    block.Events.Reset();
+
     FeatureUpdateArgs updateArgs;
     updateArgs.SimTime = time;
+    updateArgs.StepHz = stepHz;
     
     // Pre-update
     {
+        ScopedTrace trace(world, WorldChannels::PreUpdate);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreUpdate);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::PreUpdate, feature->GetName());
             feature->OnPreUpdate(world, updateArgs);
         }
     }
 
     // Update
     {
+        ScopedTrace trace(world, WorldChannels::Update);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::Update);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::Update, feature->GetName());
             feature->OnUpdate(world, updateArgs);
         }
     }
 
     // Post-update
     {
+        ScopedTrace trace(world, WorldChannels::PostUpdate);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostUpdate);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::PostUpdate, feature->GetName());
             feature->OnPostUpdate(world, updateArgs);
         }
     }
@@ -338,27 +349,33 @@ void WorldManager::SendActionToWorld(WorldRef world, const Action& action) const
     
     // Pre handle action
     {
+        ScopedTrace trace(world, WorldChannels::PreHandleAction);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PreHandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::PreHandleAction, feature->GetName());
             feature->OnPreHandleAction(world, actionArgs);
         }
     }
 
     // Handle action
     {
+        ScopedTrace trace(world, WorldChannels::HandleAction);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::HandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::HandleAction, feature->GetName());
             feature->OnHandleAction(world, actionArgs);
         }
     }
 
     // Post handle action
     {
+        ScopedTrace trace(world, WorldChannels::PostHandleAction);
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(WorldChannels::PostHandleAction);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
+            ScopedTrace trace2(world, WorldChannels::PostHandleAction, feature->GetName());
             feature->OnPostHandleAction(world, actionArgs);
         }
     }
