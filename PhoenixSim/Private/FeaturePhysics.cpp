@@ -92,7 +92,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     size_t maxProbeLen = 0;
 
-    Value margin = 0.75f;
+    Value margin = 0.5f;
     Distance mapMinDim = min(scratchBlock.MapCenter.X, scratchBlock.MapCenter.Y);
     Vec2 offset = Vec2(mapMinDim) * margin;
     
@@ -101,13 +101,14 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     Vec2 tl = Vec2(-offset.X, offset.Y);
     Vec2 tr = Vec2(offset.X, offset.Y);
 
-
-    bl = scratchBlock.MapCenter + bl;//.Rotate(scratchBlock.Rotation);
-    br = scratchBlock.MapCenter + br;//.Rotate(scratchBlock.Rotation);
-    tl = scratchBlock.MapCenter + tl;//.Rotate(scratchBlock.Rotation);
-    tr = scratchBlock.MapCenter + tr;//.Rotate(scratchBlock.Rotation);
-
     scratchBlock.Rotation += 0.1f;
+
+    bl = scratchBlock.MapCenter + bl.Rotate(scratchBlock.Rotation);
+    br = scratchBlock.MapCenter + br.Rotate(scratchBlock.Rotation);
+    tl = scratchBlock.MapCenter + tl.Rotate(scratchBlock.Rotation);
+    tr = scratchBlock.MapCenter + tr.Rotate(scratchBlock.Rotation);
+
+    // scratchBlock.Rotation += 0.1f;
 
     scratchBlock.CollisionLines.Reset();
     scratchBlock.CollisionLines.EmplaceBack(Line2(bl, br));
@@ -119,6 +120,13 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     Vec2 a2 = Vec2(offset.X, offset.Y) * -0.25f;
     a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation);
     a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation);
+    
+    scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
+
+    a1 = Vec2(offset.X, offset.Y) * 0.25f;
+    a2 = Vec2(offset.X, offset.Y) * -0.25f;
+    a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + 90.0f);
+    a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + 90.0f);
     
     scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
     
@@ -385,33 +393,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
         }
     }
 
-    // Multi-pass resolve overlaps
-    // {
-    //     ScopedTrace trace(world, "ResolveOverlaps"_n);
-    //     for (uint32 i = 0; i < 4; ++i)
-    //     {
-    //         for (Contact& contact : scratchBlock.Contacts)
-    //         {                
-    //             Vec2 v = contact.TransformB->Transform.Position - contact.TransformA->Transform.Position;
-    //             float d = v.Length();
-    //             float rr = contact.BodyA->Radius + contact.BodyB->Radius;
-    //             float pen = rr - d;
-    //             if (pen > 0.01)
-    //             {
-    //                 float correction = 0.01f * pen;
-    //                 contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
-    //                 contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
-    //
-    //                 SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
-    //                 SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
-    //
-    //                 contact.BodyA->SleepTimer = SLEEP_TIMER;
-    //                 contact.BodyB->SleepTimer = SLEEP_TIMER;
-    //             }
-    //         }
-    //     }
-    // }
-
+    // Multi-pass overlap separation
+    for (uint32 i = 0; i < 4; ++i)
     {
         for (auto entityBody : scratchBlock.SortedEntities)
         {
@@ -424,14 +407,45 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
                     Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    if (v.LengthSq() < radiusSq)
+                    Distance vLenSq = v.LengthSq();
+                    if (vLenSq != 0.0f && vLenSq < radiusSq)
                     {
-                        Vec2 n = v.Normalized();
-                        transformCompA->Transform.Position += n * (v.Length() - bodyCompA->Radius);
-                        // bodyCompA->LinearVelocity = Vec2::Project(Vec2::Zero, n, bodyCompA->LinearVelocity);
+                        Distance vLen = sqrt(vLenSq);
+                        Vec2 n = -(v / vLen);
+                        Vec2 d = n * (bodyCompA->Radius - vLen);
+                        transformCompA->Transform.Position += d;
+                        if (Vec2::Dot(bodyCompA->LinearVelocity, n) < 0)
+                        {
+                            bodyCompA->LinearVelocity = Vec2::Reflect(line.Line.GetDirection(), bodyCompA->LinearVelocity);
+                        }
                         SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
                     }
                 }
+            }
+        }
+
+        for (const Contact& contact : scratchBlock.Contacts)
+        {
+            if (contact.BodyA == nullptr || contact.BodyB == nullptr)
+            {
+                continue;
+            }
+        
+            Vec2 v = contact.TransformB->Transform.Position - contact.TransformA->Transform.Position;
+            float d = v.Length();
+            float rr = contact.BodyA->Radius + contact.BodyB->Radius;
+            float pen = rr - d;
+            if (pen > 0.01)
+            {
+                float correction = 0.01f * pen;
+                contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+                contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+            
+                SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
+                SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
+            
+                contact.BodyA->SleepTimer = SLEEP_TIMER;
+                contact.BodyB->SleepTimer = SLEEP_TIMER;
             }
         }
     }

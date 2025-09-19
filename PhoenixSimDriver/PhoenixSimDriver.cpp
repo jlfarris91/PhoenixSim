@@ -604,7 +604,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[1].Distance = mousePos.X;
             action.Data[2].Distance = mousePos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
-            action.Data[4].UInt32 = 10;
+            action.Data[4].UInt32 = 1;
             action.Data[5].Speed = 10;
             GSession->QueueAction(action);
         }

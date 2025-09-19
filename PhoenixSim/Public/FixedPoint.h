@@ -83,6 +83,11 @@ namespace Phoenix
             return { X * rhs, Y * rhs }; 
         }
 
+        friend Vec2 operator*(Value lhs, const Vec2& rhs)
+        {
+            return { lhs * rhs.X, lhs * rhs.Y }; 
+        }
+
         Vec2& operator*=(const Vec2& rhs)
         {
             X *= rhs.X;
@@ -152,7 +157,7 @@ namespace Phoenix
         {
             Value m = Length();
             Vec2 result = *this;
-            return m == 0 ? result : result / m;
+            return m == 0.0f ? result : result / m;
         }
 
         Vec2 Rotate(Degrees degrees) const
@@ -186,9 +191,19 @@ namespace Phoenix
         static Vec2 Project(const Vec2& s, const Vec2& n, const Vec2& p)
         {
             auto a = (p.X - s.X) * n.X + (p.Y - s.Y) * n.Y;
-            auto b = n.X*n.X + n.Y*n.Y;
+            auto b = n.X * n.X + n.Y * n.Y;
             auto d = a / b;
             return { p.X - d * n.X, p.Y - d * n.Y };
+        }
+
+        static Vec2 Reflect(const Vec2& n, const Vec2& v)
+        {
+            return v - 2 * (Dot(v, n) / Dot(n, n)) * n;
+        }
+
+        static Value Cross(const Vec2& a, const Vec2& b)
+        {
+            return a.X*b.Y - a.Y*b.X;
         }
 
         static Vec2 RandUnitVector()
@@ -270,49 +285,47 @@ namespace Phoenix
         Distance Z = 0;
     };
 
+    // Represents a line between 2 points.
     struct Line2
     {
         Vec2 Start;
         Vec2 End;
 
+        // Linearly interpolates between Start and End by the parameter t.
         Vec2 Lerp(Value t)
         {
             return Start + (End - Start) * t;
         }
 
+        // Returns the vector between Start and End.
         Vec2 GetVector() const
         {
             return End - Start;
         }
 
-        Vec2 GetNormal() const
+        // Returns the normalized vector between Start and End.
+        Vec2 GetDirection() const
         {
             return GetVector().Normalized();
         }
 
+        // Returns the vector from a Vec2 point to a Line. 
         static Vec2 VectorToLine(const Line2& line, const Vec2& point)
         {
-            // Vec2 v = line.End - line.Start;
-            // auto a = abs(v.Y * point.X - v.X * point.Y + line.End.X * line.Start.Y - line.End.Y * line.Start.X);
-            // auto b = v.Length();
-            // if (b == 0)
-            // {
-            //     return 0;
-            // }
-            // return a / b;
             Vec2 a = point - line.Start;
             Vec2 b = line.End - line.Start;
             Value d = Vec2::Dot(a, b) / Vec2::Dot(b, b);
             d = fmin(fmax(d, 0.0f), 1.0f);
-            // return (a - b * d);
             return -(a - b * d);
         }
 
+        // Returns the squared distance from a Vec2 point to a Line. 
         static Distance DistanceToLineSq(const Line2& line, const Vec2& point)
         {
             return VectorToLine(line, point).LengthSq();
         }
-        
+
+        // Returns the distance from a Vec2 point to a Line.
         static Distance DistanceToLine(const Line2& line, const Vec2& point)
         {
             return sqrt(DistanceToLineSq(line, point));
