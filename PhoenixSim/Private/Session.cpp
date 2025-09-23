@@ -59,6 +59,12 @@ void Session::Tick(const SessionStepArgs& args)
     clock_t dt = currTime - CurrTickTime;
     CurrTickTime = currTime;
 
+    // Skip frames during debug break
+    if (dt > CLOCKS_PER_SEC * 3)
+    {
+        return;
+    }
+
     auto hz = CLOCKS_PER_SEC / args.StepHz;
 
     AccTickTime += dt;
@@ -70,6 +76,11 @@ void Session::Tick(const SessionStepArgs& args)
 
         clock_t endStepTime = clock();
         clock_t stepElapsed = endStepTime - startStepTime;
+
+        if (stepElapsed > CLOCKS_PER_SEC * 3)
+        {
+            break;
+        }
 
         AccTickTime -= max(hz, stepElapsed);
         CurrTickTime = clock();

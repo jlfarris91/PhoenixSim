@@ -3,7 +3,7 @@
 #include "FeatureECS.h"
 #include "FixedArray.h"
 #include "PhoenixSim.h"
-#include "FixedPoint.h"
+#include "FixedPoint/FixedPoint.h"
 #include "FixedSet.h"
 
 namespace Phoenix
@@ -47,7 +47,7 @@ namespace Phoenix
             Value LinearDamping = 0;
 
             // The mass of the body. Used when resolving body separation.
-            Mass InvMass = 0;
+            Value InvMass = 0;
 
             uint8 SleepTimer = 0;
         };
@@ -101,7 +101,7 @@ namespace Phoenix
 
             ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent, ECS::MovementComponent> MoveBodies;
             Vec2 MapCenter = Vec2::Zero;
-            Degrees Rotation = 0;
+            Angle Rotation = 0;
         };
 
         class PHOENIXSIM_API FeaturePhysics : public IFeature

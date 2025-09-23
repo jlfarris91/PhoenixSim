@@ -442,10 +442,10 @@ void FeatureECS::QueryEntitiesInRange(
     
     // Query for overlapping morton ranges
     {
-        uint32 lox = static_cast<uint32>(pos.X - range);
-        uint32 hix = static_cast<uint32>(pos.X + range);
-        uint32 loy = static_cast<uint32>(pos.Y - range);
-        uint32 hiy = static_cast<uint32>(pos.Y + range);
+        uint32 lox = (pos.X - range).Value;
+        uint32 hix = (pos.X + range).Value;
+        uint32 loy = (pos.Y - range).Value;
+        uint32 hiy = (pos.Y + range).Value;
 
         MortonCodeAABB aabb;
         aabb.MinX = lox >> MortonCodeGridBits;
@@ -483,8 +483,8 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
     scratchBlock.SortedEntities.Reset();
     for (auto && [entity, transformComp] : scratchBlock.EntityTransforms)
     {
-        uint32 x = static_cast<uint32>(transformComp->Transform.Position.X) >> MortonCodeGridBits;
-        uint32 y = static_cast<uint32>(transformComp->Transform.Position.Y) >> MortonCodeGridBits;
+        uint32 x = transformComp->Transform.Position.X.Value >> MortonCodeGridBits;
+        uint32 y = transformComp->Transform.Position.Y.Value >> MortonCodeGridBits;
         transformComp->ZCode = MortonCode(x, y);
         scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, transformComp->ZCode);
     }

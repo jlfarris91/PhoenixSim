@@ -46,8 +46,8 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
         scratchBlock.SortedEntities.Reset();
         for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
         {
-            uint32 x = static_cast<uint32>(transformComp->Transform.Position.X) >> MortonCodeGridBits;
-            uint32 y = static_cast<uint32>(transformComp->Transform.Position.Y) >> MortonCodeGridBits;
+            uint32 x = transformComp->Transform.Position.X.Value >> MortonCodeGridBits;
+            uint32 y = transformComp->Transform.Position.Y.Value >> MortonCodeGridBits;
             uint64 zcode = MortonCode(x, y);
             scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, zcode);
         }
@@ -67,16 +67,16 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
         for (auto && [entity, transComp, bodyComp, moveComp] : scratchBlock.MoveBodies)
         {
             Vec2 dir = scratchBlock.MapCenter - transComp->Transform.Position;
-            if (dir.LengthSq() < 0.1f * 0.1f)
+            if (dir.Length() < 0.1f)
             {
                 continue;
             }
 
             dir = dir.Normalized();
-            bodyComp->LinearVelocity += dir * moveComp->Speed / bodyComp->InvMass;
+            bodyComp->LinearVelocity += dir * moveComp->Speed * bodyComp->InvMass;
 
-            Degrees targetRot = dir.AsDegrees();
-            Degrees deltaRot = targetRot - transComp->Transform.Rotation;
+            Angle targetRot = dir.AsDegrees();
+            Angle deltaRot = targetRot - transComp->Transform.Rotation;
             transComp->Transform.Rotation += deltaRot * dt;
         }
     }
@@ -94,7 +94,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     Value margin = 0.5f;
     Distance mapMinDim = min(scratchBlock.MapCenter.X, scratchBlock.MapCenter.Y);
-    Vec2 offset = Vec2(mapMinDim) * margin;
+    Vec2 offset = Vec2(mapMinDim, mapMinDim) * margin;
     
     Vec2 bl = Vec2(-offset.X, -offset.Y);
     Vec2 br = Vec2(offset.X, -offset.Y);
@@ -103,10 +103,15 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     scratchBlock.Rotation += 0.1f;
 
-    bl = scratchBlock.MapCenter + bl.Rotate(scratchBlock.Rotation);
-    br = scratchBlock.MapCenter + br.Rotate(scratchBlock.Rotation);
-    tl = scratchBlock.MapCenter + tl.Rotate(scratchBlock.Rotation);
-    tr = scratchBlock.MapCenter + tr.Rotate(scratchBlock.Rotation);
+    Vec2 bl1 = bl.Rotate(scratchBlock.Rotation);
+    Vec2 br1 = br.Rotate(scratchBlock.Rotation);
+    Vec2 tl1 = tl.Rotate(scratchBlock.Rotation);
+    Vec2 tr1 = tr.Rotate(scratchBlock.Rotation);
+
+    bl = scratchBlock.MapCenter + bl1;
+    br = scratchBlock.MapCenter + br1;
+    tl = scratchBlock.MapCenter + tl1;
+    tr = scratchBlock.MapCenter + tr1;
 
     // scratchBlock.Rotation += 0.1f;
 
@@ -147,11 +152,12 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             // Collide with lines
             {
-                Distance radiusSq = bodyCompA->Radius * bodyCompA->Radius;
+                Distance radius = bodyCompA->Radius;// * bodyCompA->Radius;
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
                     Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    if (v.LengthSq() < radiusSq)
+                    auto vLen2 = v.Length();
+                    if (vLen2 < radius)
                     {
                         Vec2 n = v.Normalized();
                         Value s = Vec2::Dot(bodyCompA->LinearVelocity * dt, n);
@@ -177,10 +183,10 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 ScopedTrace trace2(world, "OverlapQuery"_n);
 
                 Distance radius = bodyCompA->Radius;
-                uint32 lox = static_cast<uint32>(projectedPos.X - radius);
-                uint32 hix = static_cast<uint32>(projectedPos.X + radius);
-                uint32 loy = static_cast<uint32>(projectedPos.Y - radius);
-                uint32 hiy = static_cast<uint32>(projectedPos.Y + radius);
+                uint32 lox = (projectedPos.X - radius).Value;
+                uint32 hix = (projectedPos.X + radius).Value;
+                uint32 loy = (projectedPos.Y - radius).Value;
+                uint32 hiy = (projectedPos.Y + radius).Value;
 
                 MortonCodeAABB aabb;
                 aabb.MinX = lox >> MortonCodeGridBits;
@@ -246,15 +252,15 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 if (Vec2::Equals(transformCompA->Transform.Position, transformCompB->Transform.Position))
                 {
                     v = Vec2::RandUnitVector();
-                    float correction = 1.0f / (bodyCompA->InvMass + bodyCompB->InvMass);
+                    Value correction = 1.0f / (bodyCompA->InvMass + bodyCompB->InvMass);
                     transformCompA->Transform.Position -= v * correction * 0.01f;
                     transformCompB->Transform.Position += v * correction * 0.01f;
                 }
 
                 v = transformCompB->Transform.Position - transformCompA->Transform.Position;
             
-                float vLen = v.Length();
-                float rr = bodyCompA->Radius + bodyCompB->Radius;
+                Distance vLen = v.Length();
+                Distance rr = bodyCompA->Radius + bodyCompB->Radius;
                 if (vLen > rr)
                 {
                     continue;
@@ -270,16 +276,16 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                     invMassComb += bodyCompB->InvMass;
                 }
                 
-                float effMass = 1.0f;
+                Value effMass = 1.0f;
                 if (invMassComb == 0.0f)
                 {
                     effMass /= invMassComb;
                 }
             
-                const float baum = 0.3f;
-                const float slop = 0.01f * rr;
-                float d = rr - vLen;
-                float bias = -baum * max(0, d - slop) / dt;
+                const Value baum = 0.3f;
+                const Value slop = 0.01f * rr;
+                Distance d = rr - vLen;
+                Value bias = -baum * max(0, d - slop) / dt;
 
                 Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
                 contact.TransformA = transformCompA;
@@ -310,14 +316,15 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     FeatureTrace::PushTrace(world, "MaxProbeLen"_n, {}, ETraceFlags::Counter, maxProbeLen);
 
     // Multi-pass solver
+    if (1)
     {        
         ScopedTrace trace(world, "PGS"_n);
-        for (uint32 iter = 0; iter < 100; ++iter)
+        for (uint32 iter = 0; iter < 10; ++iter)
         {
             for (Contact& contact : scratchBlock.Contacts)
             {
                 // Relative velocity at contact
-                Vec2 velA = 0.0f;
+                Vec2 velA = Vec2::Zero;
                 if (contact.BodyA)
                 {
                     velA = contact.BodyA->LinearVelocity;
@@ -354,6 +361,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 
     // Integrate velocities
+    if (1)
     {
         ScopedTrace trace(world, "Integrate"_n);
         for (const EntityBody& entityBody : scratchBlock.SortedEntities)
@@ -367,7 +375,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                bool isMoving = bodyComp->LinearVelocity.LengthSq() > (0.01f * 0.01f);
+                bool isMoving = bodyComp->LinearVelocity.Length() > 0.01f;
                 if (isMoving)
                 {
                     bodyComp->SleepTimer = SLEEP_TIMER;
@@ -394,58 +402,60 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 
     // Multi-pass overlap separation
-    for (uint32 i = 0; i < 4; ++i)
+    if (0)
     {
-        for (auto entityBody : scratchBlock.SortedEntities)
+        for (uint32 i = 0; i < 4; ++i)
         {
-            auto bodyCompA = entityBody.BodyComponent;
-            auto transformCompA = entityBody.TransformComponent;
-
-            // Collide with lines
+            for (auto entityBody : scratchBlock.SortedEntities)
             {
-                Distance radiusSq = bodyCompA->Radius * bodyCompA->Radius;
-                for (const CollisionLine& line : scratchBlock.CollisionLines)
+                auto bodyCompA = entityBody.BodyComponent;
+                auto transformCompA = entityBody.TransformComponent;
+
+                // Collide with lines
                 {
-                    Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    Distance vLenSq = v.LengthSq();
-                    if (vLenSq != 0.0f && vLenSq < radiusSq)
+                    Distance radius = bodyCompA->Radius;// * bodyCompA->Radius;
+                    for (const CollisionLine& line : scratchBlock.CollisionLines)
                     {
-                        Distance vLen = sqrt(vLenSq);
-                        Vec2 n = -(v / vLen);
-                        Vec2 d = n * (bodyCompA->Radius - vLen);
-                        transformCompA->Transform.Position += d;
-                        if (Vec2::Dot(bodyCompA->LinearVelocity, n) < 0)
+                        Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
+                        Distance vLen = v.Length();
+                        if (vLen != 0.0f && vLen < radius)
                         {
-                            bodyCompA->LinearVelocity = Vec2::Reflect(line.Line.GetDirection(), bodyCompA->LinearVelocity);
+                            Vec2 n = -(v / vLen);
+                            Vec2 d = n * (bodyCompA->Radius - vLen);
+                            transformCompA->Transform.Position += d;
+                            if (Vec2::Dot(bodyCompA->LinearVelocity, n) < 0)
+                            {
+                                bodyCompA->LinearVelocity = Vec2::Reflect(line.Line.GetDirection(), bodyCompA->LinearVelocity);
+                            }
+                            SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
                         }
-                        SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
                     }
                 }
             }
-        }
 
-        for (const Contact& contact : scratchBlock.Contacts)
-        {
-            if (contact.BodyA == nullptr || contact.BodyB == nullptr)
+            for (const Contact& contact : scratchBlock.Contacts)
             {
-                continue;
-            }
+                if (contact.BodyA == nullptr || contact.BodyB == nullptr)
+                {
+                    continue;
+                }
         
-            Vec2 v = contact.TransformB->Transform.Position - contact.TransformA->Transform.Position;
-            float d = v.Length();
-            float rr = contact.BodyA->Radius + contact.BodyB->Radius;
-            float pen = rr - d;
-            if (pen > 0.01)
-            {
-                float correction = 0.01f * pen;
-                contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
-                contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+                Vec2 v = contact.TransformB->Transform.Position - contact.TransformA->Transform.Position;
+                Distance d = v.Length();
+                Distance rr = contact.BodyA->Radius + contact.BodyB->Radius;
+                Distance pen = rr - d;
+                if (pen > 0.01)
+                {
+                    Value correction = 0.01f * pen;
+                    contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
+                    contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
             
-                SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
-                SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
+                    SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
+                    SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
             
-                contact.BodyA->SleepTimer = SLEEP_TIMER;
-                contact.BodyB->SleepTimer = SLEEP_TIMER;
+                    contact.BodyA->SleepTimer = SLEEP_TIMER;
+                    contact.BodyB->SleepTimer = SLEEP_TIMER;
+                }
             }
         }
     }
@@ -532,10 +542,10 @@ void FeaturePhysics::QueryEntitiesInRange(
     
     // Query for overlapping morton ranges
     {
-        uint32 lox = static_cast<uint32>(pos.X - range);
-        uint32 hix = static_cast<uint32>(pos.X + range);
-        uint32 loy = static_cast<uint32>(pos.Y - range);
-        uint32 hiy = static_cast<uint32>(pos.Y + range);
+        uint32 lox = (pos.X - range).Value;
+        uint32 hix = (pos.X + range).Value;
+        uint32 loy = (pos.Y - range).Value;
+        uint32 hiy = (pos.Y + range).Value;
 
         MortonCodeAABB aabb;
         aabb.MinX = lox >> MortonCodeGridBits;
@@ -558,7 +568,7 @@ void FeaturePhysics::QueryEntitiesInRange(
 
 void FeaturePhysics::AddExplosionForceToEntitiesInRange(WorldRef world, const Vec2& pos, Distance range, Value force)
 {
-    Distance rangeSq = range * range;
+    // Distance rangeSq = range * range;
 
     TArray<EntityBody> outEntities;
     QueryEntitiesInRange(world, pos, range, outEntities);
@@ -567,10 +577,10 @@ void FeaturePhysics::AddExplosionForceToEntitiesInRange(WorldRef world, const Ve
     {
         const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
         Vec2 dir = entityPos - pos;
-        Distance distSq = dir.LengthSq();
-        if (distSq < rangeSq)
+        Distance dist = dir.Length();
+        if (dist < range)
         {
-            Value t = 1.0f - distSq / rangeSq;
+            Value t = 1.0f - dist / range;
             Value f = force / entityBody.BodyComponent->InvMass;
             entityBody.BodyComponent->LinearVelocity += dir.Normalized() * f * t;
         }

@@ -1,19 +1,11 @@
-﻿#pragma once
+﻿
+#pragma once
 
-#include <cmath>
-
-#include "DLLExport.h"
+#include "FixedMath.h"
+#include "FixedPoint/FixedPoint.h"
 
 namespace Phoenix
 {
-    // TODO (jfarris): implement fixed point someday
-
-    PHOENIXSIM_API typedef float Value;
-    PHOENIXSIM_API typedef float Distance;
-    PHOENIXSIM_API typedef float Speed;
-    PHOENIXSIM_API typedef float Mass;
-    PHOENIXSIM_API typedef float Degrees;
-
     struct PHOENIXSIM_API Vec2
     {
         static const Vec2 Zero;
@@ -21,16 +13,15 @@ namespace Phoenix
         static const Vec2 XAxis;
         static const Vec2 YAxis;
 
-        Vec2() = default;
-        Vec2(Distance xy) : X(xy), Y(xy) {}
-        Vec2(Distance x, Distance y) : X(x), Y(y) {}
+        constexpr Vec2() = default;
+        constexpr Vec2(Distance x, Distance y) : X(x), Y(y) {}
 
-        Vec2 operator+(Distance rhs) const
+        constexpr Vec2 operator+(Distance rhs) const
         {
             return { X + rhs, Y + rhs };
         }
 
-        Vec2 operator+(const Vec2& rhs) const
+        constexpr Vec2 operator+(const Vec2& rhs) const
         {
             return { X + rhs.X, Y + rhs.Y };
         }
@@ -49,12 +40,12 @@ namespace Phoenix
             return *this;
         }
 
-        Vec2 operator-(Distance rhs) const
+        constexpr Vec2 operator-(Distance rhs) const
         {
             return { X - rhs, Y - rhs };
         }
 
-        Vec2 operator-(const Vec2& rhs) const
+        constexpr Vec2 operator-(const Vec2& rhs) const
         {
             return { X - rhs.X, Y - rhs.Y };
         }
@@ -73,12 +64,12 @@ namespace Phoenix
             return *this;
         }
 
-        Vec2 operator*(const Vec2& rhs) const
+        constexpr Vec2 operator*(const Vec2& rhs) const
         {
             return { X * rhs.X, Y * rhs.Y }; 
         }
 
-        Vec2 operator*(Value rhs) const
+        constexpr Vec2 operator*(Value rhs) const
         {
             return { X * rhs, Y * rhs }; 
         }
@@ -102,12 +93,12 @@ namespace Phoenix
             return *this; 
         }
 
-        Vec2 operator/(const Vec2& rhs) const
+        constexpr Vec2 operator/(const Vec2& rhs) const
         {
             return { X / rhs.X, Y / rhs.Y }; 
         }
 
-        Vec2 operator/(Value rhs) const
+        constexpr Vec2 operator/(Value rhs) const
         {
             return { X / rhs, Y / rhs }; 
         }
@@ -126,89 +117,99 @@ namespace Phoenix
             return *this; 
         }
 
-        Vec2& operator-()
+        constexpr Vec2& operator-()
         {
-            X *= -1.0f;
-            Y *= -1.0f;
+            X = -X;
+            Y = -Y;
             return *this;
         }
 
-        Vec2 operator-() const
+        constexpr Vec2 operator-() const
         {
             return { X * -1.0f, Y * -1.0f };
         }
 
-        Degrees AsDegrees() const
+        constexpr Angle AsDegrees() const
         {
-            return atan2(Y, X) * (180.0f / 3.14f);
+            return FixedMath::Rad2Deg(FixedMath::Atan2(Y, X));
         }
 
-        Distance Length() const
+        constexpr Distance Length() const
         {
-            return sqrtf(LengthSq());
+            auto a = LengthSq();
+            return FixedMath::Sqrt(a);
         }
 
-        Distance LengthSq() const
+        constexpr Distance2 LengthSq() const
         {
-            return X * X + Y * Y;
+            Distance2 x = X * X;
+            Distance2 y = Y * Y;
+            return x + y;
         }
 
-        Vec2 Normalized() const
+        constexpr Vec2 Normalized() const
         {
             Value m = Length();
             Vec2 result = *this;
             return m == 0.0f ? result : result / m;
         }
 
-        Vec2 Rotate(Degrees degrees) const
+        constexpr Vec2 Rotate(Angle degrees) const
         {
-            float theta = degrees * (3.14f / 180.0f);
-            float cs = cos(theta);
-            float sn = sin(theta);
-            return { X * cs - Y * sn, X * sn + Y * cs };
+            Angle theta = FixedMath::Deg2Rad(degrees);
+            auto cs = FixedMath::Cos(theta);
+            auto sn = FixedMath::Sin(theta);
+            Phoenix::Distance x = X * cs;
+            x -= Y * sn;
+            Phoenix::Distance y = X * sn;
+            y += Y * cs;
+            return { x, y };
+            // return { X * cs - Y * sn, X * sn + Y * cs };
         }
 
-        static bool Equals(const Vec2& a, const Vec2& b, Distance threshold = 1E-3f)
+        constexpr static bool Equals(const Vec2& a, const Vec2& b, Distance threshold = 1E-3f)
         {
-            return abs(a.X - b.X) < threshold && abs(a.Y - b.Y) < threshold;
+            return FixedMath::Abs(a.X - b.X) < threshold && FixedMath::Abs(a.Y - b.Y) < threshold;
         }
 
-        static Value Dot(const Vec2& a, const Vec2& b)
+        constexpr static Value Dot(const Vec2& a, const Vec2& b)
         {
-            return a.X * b.X + a.Y * b.Y;
+            auto a1 = a.X * b.X;
+            auto a2 = a.Y * b.Y;
+            return a1 + a2;
         }
 
-        static Distance DistanceSq(const Vec2& a, const Vec2& b)
+        constexpr static Distance DistanceSq(const Vec2& a, const Vec2& b)
         {
             return (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
         }
 
-        static Distance Distance(const Vec2& a, const Vec2& b)
+        constexpr static Distance Distance(const Vec2& a, const Vec2& b)
         {
-            return sqrtf(DistanceSq(a, b));
+            return FixedMath::Sqrt(DistanceSq(a, b));
         }
 
-        static Vec2 Project(const Vec2& s, const Vec2& n, const Vec2& p)
+        constexpr static Vec2 Project(const Vec2& s, const Vec2& n, const Vec2& p)
         {
-            auto a = (p.X - s.X) * n.X + (p.Y - s.Y) * n.Y;
-            auto b = n.X * n.X + n.Y * n.Y;
-            auto d = a / b;
+            Phoenix::Distance a = (p.X - s.X) * n.X + (p.Y - s.Y) * n.Y;
+            Phoenix::Distance b = n.X * n.X + n.Y * n.Y;
+            Phoenix::Distance d = a / b;
             return { p.X - d * n.X, p.Y - d * n.Y };
         }
 
-        static Vec2 Reflect(const Vec2& n, const Vec2& v)
+        constexpr static Vec2 Reflect(const Vec2& n, const Vec2& v)
         {
             return v - 2 * (Dot(v, n) / Dot(n, n)) * n;
         }
 
-        static Value Cross(const Vec2& a, const Vec2& b)
+        constexpr static Value Cross(const Vec2& a, const Vec2& b)
         {
             return a.X*b.Y - a.Y*b.X;
         }
 
         static Vec2 RandUnitVector()
         {
-            Degrees deg = static_cast<float>(rand() % 1440) / 4.0f;
+            Angle deg = static_cast<float>(rand() % 1440) / 4.0f;
             return XAxis.Rotate(deg);
         }
 
@@ -224,16 +225,16 @@ namespace Phoenix
         static const Vec3 YAxis;
         static const Vec3 ZAxis;
 
-        Vec3() = default;
-        Vec3(Distance xyz) : X(xyz), Y(xyz), Z(xyz) {}
-        Vec3(Distance x, Distance y, Distance z = 0) : X(x), Y(y), Z(z) {}
+        constexpr Vec3() = default;
+        constexpr Vec3(Distance xyz) : X(xyz), Y(xyz), Z(xyz) {}
+        constexpr Vec3(Distance x, Distance y, Distance z = 0) : X(x), Y(y), Z(z) {}
 
-        Vec3 operator+(Distance rhs) const
+        constexpr Vec3 operator+(Distance rhs) const
         {
             return { X + rhs, Y + rhs, Z + rhs };
         }
 
-        Vec3 operator+(const Vec3& rhs) const
+        constexpr Vec3 operator+(const Vec3& rhs) const
         {
             return { X + rhs.X, Y + rhs.Y, Z + rhs.Z };
         }
@@ -254,12 +255,12 @@ namespace Phoenix
             return *this;
         }
 
-        Vec3 operator-(Distance rhs) const
+        constexpr Vec3 operator-(Distance rhs) const
         {
             return { X + rhs, Y + rhs, Z + rhs };
         }
 
-        Vec3 operator-(const Vec3& rhs) const
+        constexpr Vec3 operator-(const Vec3& rhs) const
         {
             return { X + rhs.X, Y + rhs.Y, Z + rhs.Z };
         }
@@ -286,83 +287,73 @@ namespace Phoenix
     };
 
     // Represents a line between 2 points.
-    struct Line2
+    struct PHOENIXSIM_API Line2
     {
+        constexpr Line2() = default;
+        constexpr Line2(const Vec2& start, const Vec2& end) : Start(start), End(end) {}
+        
         Vec2 Start;
         Vec2 End;
 
         // Linearly interpolates between Start and End by the parameter t.
-        Vec2 Lerp(Value t)
+        constexpr Vec2 Lerp(Value t)
         {
             return Start + (End - Start) * t;
         }
 
         // Returns the vector between Start and End.
-        Vec2 GetVector() const
+        constexpr Vec2 GetVector() const
         {
             return End - Start;
         }
 
         // Returns the normalized vector between Start and End.
-        Vec2 GetDirection() const
+        constexpr Vec2 GetDirection() const
         {
             return GetVector().Normalized();
         }
 
         // Returns the vector from a Vec2 point to a Line. 
-        static Vec2 VectorToLine(const Line2& line, const Vec2& point)
+        constexpr static Vec2 VectorToLine(const Line2& line, const Vec2& point)
         {
             Vec2 a = point - line.Start;
             Vec2 b = line.End - line.Start;
-            Value d = Vec2::Dot(a, b) / Vec2::Dot(b, b);
-            d = fmin(fmax(d, 0.0f), 1.0f);
+            auto bb = Vec2::Dot(b, b);
+            if (bb == 0) return Vec2::Zero;
+            Value d = Vec2::Dot(a, b) / bb;
+            d = FixedMath::Min(FixedMath::Max(d, Value(0.0f)), Value(1.0f));
             return -(a - b * d);
         }
 
         // Returns the squared distance from a Vec2 point to a Line. 
-        static Distance DistanceToLineSq(const Line2& line, const Vec2& point)
+        constexpr static Distance DistanceToLineSq(const Line2& line, const Vec2& point)
         {
             return VectorToLine(line, point).LengthSq();
         }
 
         // Returns the distance from a Vec2 point to a Line.
-        static Distance DistanceToLine(const Line2& line, const Vec2& point)
+        constexpr static Distance DistanceToLine(const Line2& line, const Vec2& point)
         {
-            return sqrt(DistanceToLineSq(line, point));
+            return FixedMath::Sqrt(DistanceToLineSq(line, point));
         }
     };
 
-    struct Line3
+    struct PHOENIXSIM_API Line3
     {
+        constexpr Line3() = default;
+        constexpr Line3(const Vec3& start, const Vec3& end) : Start(start), End(end) {}
+
         Vec3 Start;
         Vec3 End;
     };
 
-    template <class T> T Zero();
-    template <> inline Value Zero() { return 0; }
-    template <> inline Vec2 Zero() { return Vec2::Zero; }
-    template <> inline Vec3 Zero() { return Vec3::Zero; }
+    template <class> struct TZero {};
+    template <uint32 Td, class T> struct TZero<TFixed<Td, T>> { static constexpr TFixed<Td, T> Value = 0; };
+    template <> struct TZero<Vec2> { static constexpr Vec2 Value = Vec2(0, 0); };
+    template <> struct TZero<Vec3> { static constexpr Vec3 Value = Vec3(0, 0); };
 
-    template <class T> T One();
-    template <> inline Value One() { return 1; }
-    template <> inline Vec2 One() { return Vec2::One; }
-    template <> inline Vec3 One() { return Vec3::One; }
-
-    template <class TVec, class TRot, class TScale>
-    struct PHOENIXSIM_API Transform
-    {
-        TVec Position = Zero<TVec>();
-        TRot Rotation = Zero<TRot>();
-        TScale Scale = One<TScale>();
-        TVec RotateVector(const TVec& vec);
-    };
-
-    typedef Transform<Vec2, Degrees, Value> Transform2D;
-    typedef Transform<Vec3, Vec3, Vec3> Transform3D;
-
-    template <>
-    inline Vec2 Transform<Vec2, Degrees, Value>::RotateVector(const Vec2& vec)
-    {
-        return vec.Rotate(Rotation);
-    }
+    template <class> struct TOne {};
+    template <uint32 Td, class T> struct TOne<TFixed<Td, T>> { static constexpr TFixed<Td, T> Value = 1; };
+    template <> struct TOne<Vec2> { static constexpr Vec2 Value = Vec2(1, 1); };
+    template <> struct TOne<Vec3> { static constexpr Vec3 Value = Vec3(1, 1); };
 }

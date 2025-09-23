@@ -165,6 +165,42 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
     InitSession();
 
+    auto cos0 = FixedMath::Cos(FixedMath::Deg2Rad(-360));
+    auto cos1 = FixedMath::Cos(FixedMath::Deg2Rad(-315));
+    auto cos2 = FixedMath::Cos(FixedMath::Deg2Rad(-270));
+    auto cos3 = FixedMath::Cos(FixedMath::Deg2Rad(-225));
+    auto cos4 = FixedMath::Cos(FixedMath::Deg2Rad(-180));
+    auto cos5 = FixedMath::Cos(FixedMath::Deg2Rad(-135));
+    auto cos6 = FixedMath::Cos(FixedMath::Deg2Rad(-90));
+    auto cos7 = FixedMath::Cos(FixedMath::Deg2Rad(-45));
+    auto cos8 = FixedMath::Cos(FixedMath::Deg2Rad(0));
+    auto cos9 = FixedMath::Cos(FixedMath::Deg2Rad(45));
+    auto cos10 = FixedMath::Cos(FixedMath::Deg2Rad(90));
+    auto cos11 = FixedMath::Cos(FixedMath::Deg2Rad(135));
+    auto cos12 = FixedMath::Cos(FixedMath::Deg2Rad(180));
+    auto cos13 = FixedMath::Cos(FixedMath::Deg2Rad(225));
+    auto cos14 = FixedMath::Cos(FixedMath::Deg2Rad(270));
+    auto cos15 = FixedMath::Cos(FixedMath::Deg2Rad(315));
+    auto cos16 = FixedMath::Cos(FixedMath::Deg2Rad(360));
+
+    auto sin0 = FixedMath::Sin(FixedMath::Deg2Rad(-360));
+    auto sin1 = FixedMath::Sin(FixedMath::Deg2Rad(-315));
+    auto sin2 = FixedMath::Sin(FixedMath::Deg2Rad(-270));
+    auto sin3 = FixedMath::Sin(FixedMath::Deg2Rad(-225));
+    auto sin4 = FixedMath::Sin(FixedMath::Deg2Rad(-180));
+    auto sin5 = FixedMath::Sin(FixedMath::Deg2Rad(-135));
+    auto sin6 = FixedMath::Sin(FixedMath::Deg2Rad(-90));
+    auto sin7 = FixedMath::Sin(FixedMath::Deg2Rad(-45));
+    auto sin8 = FixedMath::Sin(FixedMath::Deg2Rad(0));
+    auto sin9 = FixedMath::Sin(FixedMath::Deg2Rad(45));
+    auto sin10 = FixedMath::Sin(FixedMath::Deg2Rad(90));
+    auto sin11 = FixedMath::Sin(FixedMath::Deg2Rad(135));
+    auto sin12 = FixedMath::Sin(FixedMath::Deg2Rad(180));
+    auto sin13 = FixedMath::Sin(FixedMath::Deg2Rad(225));
+    auto sin14 = FixedMath::Sin(FixedMath::Deg2Rad(270));
+    auto sin15 = FixedMath::Sin(FixedMath::Deg2Rad(315));
+    auto sin16 = FixedMath::Sin(FixedMath::Deg2Rad(360));
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -276,10 +312,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     Vec2 windowCenter(GWindowWidth / 2.0f, GWindowHeight / 2.0f);
 
     SDL_FRect mapRect;
-    mapRect.x = mapSize.X / 2;
-    mapRect.y = mapSize.Y / 2;
-    mapRect.w = mapSize.X;
-    mapRect.h = mapSize.Y;
+    mapRect.x = (float)mapSize.X / 2;
+    mapRect.y = (float)mapSize.Y / 2;
+    mapRect.w = (float)mapSize.X;
+    mapRect.h = (float)mapSize.Y;
     // SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     // SDL_RenderRect(renderer, &mapRect);
 
@@ -303,10 +339,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
         for (const CollisionLine& collisionLine : GPhysicsScratchBlock->CollisionLines)
         {
-            SDL_RenderLine(GRenderer, collisionLine.Line.Start.X, collisionLine.Line.Start.Y, collisionLine.Line.End.X, collisionLine.Line.End.Y);
+            SDL_RenderLine(GRenderer,
+                (float)collisionLine.Line.Start.X,
+                (float)collisionLine.Line.Start.Y,
+                (float)collisionLine.Line.End.X,
+                (float)collisionLine.Line.End.Y);
 
-            // Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
-            // SDL_RenderLine(GRenderer, mx, my, mx + v.X, my + v.Y);
+            Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
+            int32 vX = (int32)v.X;
+            int32 vY = (int32)v.Y;
+            SDL_RenderLine(GRenderer, mx, my, mx + vX, my + vY);
         }
 
         // for (const Contact& contact : GPhysicsScratchBlock->Contacts)
@@ -337,10 +379,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         pt3 = entityBodyShape.Transform.Position + transform.RotateVector(pt3);
 
         SDL_FPoint points[4];
-        points[0] = { pt1.X, pt1.Y };
-        points[1] = { pt2.X, pt2.Y };
-        points[2] = { pt3.X, pt3.Y };
-        points[3] = { pt1.X, pt1.Y };
+        points[0] = { (float)pt1.X, (float)pt1.Y };
+        points[1] = { (float)pt2.X, (float)pt2.Y };
+        points[2] = { (float)pt3.X, (float)pt3.Y };
+        points[3] = { (float)pt1.X, (float)pt1.Y };
         SDL_RenderLines(GRenderer, points, 4);
     }
 
@@ -580,7 +622,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         GSession->QueueAction(action);
     }
 
-    auto onMouseDownOrMoved = [](const Vec2& mousePos)
+    auto onMouseDownOrMoved = [](const SDL_FPoint& mousePos)
     {
         // Spawn entities
         if (GMouseButtonStates.contains(SDL_BUTTON_LEFT) && GMouseButtonStates[SDL_BUTTON_LEFT])
@@ -588,8 +630,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.X;
-            action.Data[2].Distance = mousePos.Y;
+            action.Data[1].Distance = mousePos.x;
+            action.Data[2].Distance = mousePos.y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
             action.Data[4].UInt32 = 1;
             GSession->QueueAction(action);
@@ -601,8 +643,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.X;
-            action.Data[2].Distance = mousePos.Y;
+            action.Data[1].Distance = mousePos.x;
+            action.Data[2].Distance = mousePos.y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
             action.Data[4].UInt32 = 1;
             action.Data[5].Speed = 10;
@@ -614,8 +656,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "push_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.X;
-            action.Data[1].Distance = mousePos.Y;
+            action.Data[0].Distance = mousePos.x;
+            action.Data[1].Distance = mousePos.y;
             action.Data[2].Distance = 64.0f;
             action.Data[3].Value = 100.0f;
             GSession->QueueAction(action);
@@ -626,8 +668,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "release_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.X;
-            action.Data[1].Distance = mousePos.Y;
+            action.Data[0].Distance = mousePos.x;
+            action.Data[1].Distance = mousePos.y;
             action.Data[2].Distance = 64.0f;
             GSession->QueueAction(action);
         }
@@ -637,8 +679,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         GKeyStates[event->key.key] = true;
 
-        Vec2 mousePos;
-        SDL_GetMouseState(&mousePos.X, &mousePos.Y);
+        SDL_FPoint mousePos;
+        SDL_GetMouseState(&mousePos.x, &mousePos.y);
         onMouseDownOrMoved(mousePos);
     }
 
@@ -651,7 +693,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         GMouseButtonStates[event->button.button] = true;
 
-        Vec2 mousePos = { event->button.x, event->button.y };
+        SDL_FPoint mousePos = { event->button.x, event->button.y };
         onMouseDownOrMoved(mousePos);
     }
 
@@ -662,7 +704,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
     if (event->type == SDL_EVENT_MOUSE_MOTION)
     {
-        Vec2 mousePos = { event->button.x, event->button.y };
+        SDL_FPoint mousePos = { event->button.x, event->button.y };
         onMouseDownOrMoved(mousePos);
     }
 

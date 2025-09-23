@@ -3,8 +3,9 @@
 
 #include "Features.h"
 #include "FixedArray.h"
-#include "FixedPoint.h"
+#include "FixedPoint/FixedPoint.h"
 #include "Worlds.h"
+#include "FixedPoint/Transform.h"
 
 #ifndef ECS_MAX_ENTITIES
 #define ECS_MAX_ENTITIES MAXINT16
@@ -15,7 +16,7 @@
 #endif
 
 #ifndef ECS_MAX_COMPONENT_SIZE
-#define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash_t) + sizeof(int32)))
+#define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash_t) + sizeof(int32))) + 64
 #endif
 
 namespace Phoenix

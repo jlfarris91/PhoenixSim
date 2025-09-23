@@ -1,23 +1,22 @@
 ﻿#pragma once
 
-#include "FixedPoint.h"
+#include "FixedPoint/FixedPoint.h"
 #include "PhoenixSim.h"
 
 namespace Phoenix
 {
-    PHOENIXSIM_API union Data
+    union PHOENIXSIM_API  Data
     {
         int32 Int32;
         uint32 UInt32;
         FName Name;
         Value Value;
         Distance Distance;
-        Degrees Degrees;
+        Angle Degrees;
         Speed Speed;
-        Mass Mass;
     };
     
-    PHOENIXSIM_API struct Action
+    struct PHOENIXSIM_API  Action
     {
         Action() = default;
 
