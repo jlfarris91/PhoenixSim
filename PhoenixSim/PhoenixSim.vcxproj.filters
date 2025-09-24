@@ -24,10 +24,19 @@
     <ClInclude Include="Public\FeaturePhysics.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\FeatureTrace.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Features.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\FixedPoint.h">
+    <ClInclude Include="Public\FixedArray.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedSet.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Flags.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\Hashing.h">
@@ -62,10 +71,10 @@
     <ClCompile Include="Private\FeaturePhysics.cpp">
       <Filter>Private</Filter>
     </ClCompile>
-    <ClCompile Include="Private\Features.cpp">
+    <ClCompile Include="Private\FeatureTrace.cpp">
       <Filter>Private</Filter>
     </ClCompile>
-    <ClCompile Include="Private\FixedPoint.cpp">
+    <ClCompile Include="Private\Features.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Hashing.cpp">

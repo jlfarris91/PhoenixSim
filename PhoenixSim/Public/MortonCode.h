@@ -33,51 +33,6 @@ namespace Phoenix
         uint64 MaxX = 0, MaxY = 0;
     };
 
-    // constexpr void MortonCodeQuery(
-    //     const MortonCodeAABB& query,
-    //     const MortonCodeNode& node,
-    //     TArray<TTuple<uint64, uint64>>& outRanges,
-    //     uint32 level = 0)
-    // {
-    //     constexpr uint64 MAX_LEVEL = 10;
-    //
-    //     // Compute bounds of this Morton cell in 2D
-    //     uint64 cellSize = 1u << (MAX_LEVEL - level);
-    //     uint64 cellMinX = node.X * cellSize;
-    //     uint64 cellMinY = node.Y * cellSize;
-    //     uint64 cellMaxX = cellMinX + cellSize - 1;
-    //     uint64 cellMaxY = cellMinY + cellSize - 1;
-    //
-    //     // Check outside
-    //     if (cellMaxX < query.MinX || cellMinX > query.MaxX ||
-    //         cellMaxY < query.MinY || cellMinY > query.MaxY)
-    //     {
-    //         return;
-    //     }
-    //
-    //     // Fully inside
-    //     if (cellMinX >= query.MinX && cellMaxX <= query.MaxX &&
-    //         cellMinY >= query.MinY && cellMaxY <= query.MaxY)
-    //     {
-    //         outRanges.emplace_back(node.CodeMin, node.CodeMax);
-    //         return;
-    //     }
-    //
-    //     // Otherwise, recurse into 4 children (like quadtree)
-    //     if (level < MAX_LEVEL)
-    //     {
-    //         for (int32 child = 0; child < 4; ++child)
-    //         {
-    //             uint64 childMin = node.CodeMin | (child << (2 * (MAX_LEVEL - level - 1)));
-    //             uint64 childMax = childMin | ((1ULL << (2 * (MAX_LEVEL - level - 1))) - 1);
-    //             uint64 childX = node.X * 2 + (child & 1);
-    //             uint64 childY = node.Y * 2 + ((child >> 1) & 1);
-    //             MortonCodeNode childNode = { childX, childY, childMin, childMax };
-    //             MortonCodeQuery(query, childNode, outRanges, level + 1);
-    //         }
-    //     }
-    // }
-
     PHOENIXSIM_API void MortonCodeQuery(
         const MortonCodeAABB& query,
         TArray<TTuple<uint64, uint64>>& outRanges,

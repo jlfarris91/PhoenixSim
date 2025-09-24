@@ -3,9 +3,8 @@
 
 #include "Features.h"
 #include "FixedArray.h"
-#include "FixedPoint/FixedPoint.h"
 #include "Worlds.h"
-#include "FixedPoint/Transform.h"
+#include "Transform.h"
 
 #ifndef ECS_MAX_ENTITIES
 #define ECS_MAX_ENTITIES MAXINT16
@@ -100,7 +99,7 @@ namespace Phoenix
         struct PHOENIXSIM_API SystemUpdateArgs
         {
             simtime_t SimTime = 0;
-            dt_t StepHz = 0;
+            DeltaTime DeltaTime;
         };
 
         struct PHOENIXSIM_API SystemActionArgs
@@ -114,7 +113,7 @@ namespace Phoenix
         public:
             virtual ~ISystem() = default;
 
-            virtual FName GetName() { return FName::None; };
+            virtual FName GetName() { return FName::None; }
 
             virtual void OnPreUpdate(WorldRef world, const SystemUpdateArgs& args) {}
             virtual void OnUpdate(WorldRef world, const SystemUpdateArgs& args) {}

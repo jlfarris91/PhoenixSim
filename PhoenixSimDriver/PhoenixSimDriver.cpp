@@ -2,13 +2,14 @@
 #include <ctime>
 #include <windows.h>
 
-#include "../PhoenixSim/Public/FeatureECS.h"
-#include "../PhoenixSim/Public/Session.h"
-#include "../PhoenixSim/Public/Name.h"
-#include "../PhoenixSim/Public/FeaturePhysics.h"
-#include "../PhoenixSim/Public/MortonCode.h"
-#include "../PhoenixSim/Public/FeatureTrace.h"
-#include "../PhoenixSim/Public/Flags.h"
+#include "FeatureECS.h"
+#include "Session.h"
+#include "Name.h"
+#include "FeaturePhysics.h"
+#include "MortonCode.h"
+#include "FeatureTrace.h"
+#include "Flags.h"
+#include "Transform.h"
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <queue>
@@ -62,6 +63,8 @@ struct EntityBodyShape
     Transform2D Transform;
     Distance Radius;
     SDL_Color Color;
+    uint64 ZCode;
+    Distance VelLen;
 };
 
 std::vector<EntityBodyShape> GEntityBodies;
@@ -271,6 +274,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 entityBodyShape.Transform = transformComp->Transform;
                 entityBodyShape.Radius = bodyComp->Radius;
                 entityBodyShape.Color = SDL_Color(255, 0, 0);
+                entityBodyShape.ZCode = transformComp->ZCode;
+                entityBodyShape.VelLen = bodyComp->LinearVelocity.Length();
 
                 if (!HasAnyFlags(bodyComp->Flags, EBodyFlags::Awake))
                 {
@@ -345,10 +350,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 (float)collisionLine.Line.End.X,
                 (float)collisionLine.Line.End.Y);
 
-            Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
-            int32 vX = (int32)v.X;
-            int32 vY = (int32)v.Y;
-            SDL_RenderLine(GRenderer, mx, my, mx + vX, my + vY);
+            // Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
+            // int32 vX = (int32)v.X;
+            // int32 vY = (int32)v.Y;
+            // SDL_RenderLine(GRenderer, mx, my, mx + vX, my + vY);
         }
 
         // for (const Contact& contact : GPhysicsScratchBlock->Contacts)
@@ -386,24 +391,26 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_RenderLines(GRenderer, points, 4);
     }
 
-    // {
-    //     constexpr float scale = 2.0f;
-    //     SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-    //     SDL_SetRenderScale(renderer, scale, scale);
-    //
-    //     for (const EntityBodyShape& entityBodyShape : entityBodies)
-    //     {
-    //         Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
-    //         Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
-    //         pt1 = entityBodyShape.Transform.Position + transform.RotateVector(pt1);
-    //
-    //         char zcodeStr[256] = { '\0' };
-    //         sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", entityBodyShape.NumQueryBodies);
-    //         SDL_RenderDebugText(renderer, pt1.X / scale, pt1.Y / scale, zcodeStr);
-    //     }
-    //
-    //     SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-    // }
+    // Render some debug text for each body
+    if (1)
+    {
+        constexpr float scale = 2.0f;
+        SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+        SDL_SetRenderScale(GRenderer, scale, scale);
+    
+        for (const EntityBodyShape& entityBodyShape : GEntityBodies)
+        {
+            Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
+            Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
+            pt1 = entityBodyShape.Transform.Position + transform.RotateVector(pt1);
+    
+            char zcodeStr[256] = { '\0' };
+            sprintf_s(zcodeStr, _countof(zcodeStr), "%f", (float)entityBodyShape.VelLen);
+            SDL_RenderDebugText(GRenderer, (float)pt1.X / scale, (float)pt1.Y / scale, zcodeStr);
+        }
+    
+        SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
+    }
     
     /* top right quarter of the window. */
     // SDL_Rect viewport;
@@ -436,7 +443,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);  /* white, full alpha */
-    SDL_SetRenderScale(GRenderer, 2.0f, 2.0f);
+    SDL_SetRenderScale(GRenderer, 1.5f, 1.5f);
 
     RenderDebugText("FPS: %.2f", GRendererFPS)
     RenderDebugText("Sim: %.2f", GSessionFPS)
@@ -512,12 +519,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     for (const AggTraceEvent& traceEvent : traceEvents)
     {
-        // RenderDebugText("%s %s %u %.3f %.3f",
-        //     traceEvent.Name.Debug,
-        //     traceEvent.Id.Debug,
-        //     traceEvent.Count,
-        //     (float)traceEvent.Total / CLOCKS_PER_SEC,
-        //     (float)traceEvent.Max / CLOCKS_PER_SEC)
+#if DEBUG
+        RenderDebugText("%s %s %u %.3f %.3f",
+            traceEvent.Name.Debug,
+            traceEvent.Id.Debug,
+            traceEvent.Count,
+            (float)traceEvent.Total / CLOCKS_PER_SEC,
+            (float)traceEvent.Max / CLOCKS_PER_SEC)
+#endif
     }
     
     // {

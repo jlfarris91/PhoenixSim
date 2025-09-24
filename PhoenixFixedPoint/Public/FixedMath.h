@@ -1,6 +1,8 @@
 ﻿
 #pragma once
 
+#include <climits>
+
 #include "FixedPoint.h"
 #include "CosTable.h"
 #include "FixedMath.h"
@@ -148,29 +150,37 @@ namespace Phoenix
         // static_assert(Atan2_<1024, int32>(-1, 0) == TFixed<1024>::ToFixedValue(-1.5708));
         // static_assert(Atan2_<1024, int32>(-1, 1) == TFixed<1024>::ToFixedValue(-0.785398));
 
-        template <uint32 Td>
+        template <int32 B>
         constexpr int32 isqrt(int32 x)
         {
-            if (x == 0) return 0;
+            if (x <= 0) return 0;
 
-            // Initial guess: shift until msb ~ middle
-            int64_t r = x / Td;
-            
-            // Newton–Raphson iterations
-            for (int i = 0; i < 4; i++)
+            // Guess half of x + 1
+            int32 r = (x + 1) >> 1;
+            int32 iterations = bit_width(x) >> 1;
+
+            for (int i = 0; i < iterations; i++)
             {
-                r = (r + (int64_t)x / r) >> 1;
+                int32 div = int32((int64(x) << B) / r);
+                r = (r + div) >> 1;
             }
 
             return r;
         }
 
-        static_assert(isqrt<Value::D>(Value(64).Value) == Value(8).Value);
-        static_assert(isqrt<Value::D>(Value(16).Value) == Value(4).Value);
+        static_assert(isqrt<Value::B>(Value(1.0).Value) == Value(1.0).Value);
+        static_assert(isqrt<Value::B>(Value(4.0).Value) == Value(2.0).Value);
+        static_assert(isqrt<Value::B>(Value(16.0).Value) == Value(4.0).Value);
+        static_assert(isqrt<Value::B>(Value(8.0*8.0).Value) == Value(8.0).Value);
+        static_assert(isqrt<Value::B>(Value(16.0*16.0).Value) == Value(16.0).Value);
+        static_assert(isqrt<Value::B>(Value(32.0*32.0).Value) == Value(32.0).Value);
+        static_assert(isqrt<Value::B>(Value(64.0*64.0).Value) == Value(64.0).Value);
+        static_assert(isqrt<Value::B>(Value(128.0*128.0).Value) == Value(128.0).Value);
+        static_assert(isqrt<Value::B>(Value(1024.0*1024.0).Value) == Value(1024.0).Value);
 
         constexpr Value Sqrt(Value value)
         {
-            return Q32(isqrt<Value::D>(value.Value));
+            return Q32(isqrt<Value::B>(value.Value));
         }
 
         constexpr int32 modp(int32 a, int32 s)
@@ -214,6 +224,16 @@ namespace Phoenix
                 case 3:  return Q32(-COS_TABLE[idx]);
                 default: return 0;
             }
+        }
+
+        constexpr Angle AngleBetween(Angle a, Angle b)
+        {
+            Angle d = Abs(a - b);
+            if (d > PI)
+            {
+                d = TWO_PI - d;
+            }
+            return d;
         }
 
         template <uint32 Td, class T>

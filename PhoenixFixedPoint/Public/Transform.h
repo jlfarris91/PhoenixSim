@@ -6,7 +6,7 @@
 namespace Phoenix
 {
     template <class TVec, class TRot, class TScale>
-    struct PHOENIXSIM_API TTransform
+    struct TTransform
     {
         TVec Position = TZero<TVec>::Value;
         TRot Rotation = TZero<TRot>::Value;

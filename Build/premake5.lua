@@ -6,6 +6,40 @@ workspace "Phoenix"
    startproject "PhoenixSimDriver"
    location "../"
 
+project "PhoenixFixedPoint"
+   kind "StaticLib"
+   language "C++"
+   cppdialect "C++20"
+   staticruntime "off"
+   location "../PhoenixFixedPoint"
+   
+   targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+   objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+
+   files {
+      "../PhoenixFixedPoint/Public/**.h",
+      "../PhoenixFixedPoint/Private/**.h",
+      "../PhoenixFixedPoint/Private/**.cpp"
+   }
+
+   includedirs {
+      "../PhoenixFixedPoint/Public"
+   }
+
+   filter "system:windows"
+      systemversion "latest"
+      defines { "DLL_EXPORTS" }
+
+   filter "configurations:Debug"
+      defines { "DEBUG" }
+      runtime "Debug"
+      symbols "On"
+
+   filter "configurations:Release"
+      defines { "NDEBUG" }
+      runtime "Release"
+      optimize "On"
+
 project "PhoenixSim"
    kind "SharedLib"
    language "C++"
@@ -24,6 +58,14 @@ project "PhoenixSim"
 
    includedirs {
       "../PhoenixSim/Public"
+   }
+
+   externalincludedirs {
+      "../PhoenixFixedPoint/Public/"
+   }
+
+   links {
+      "PhoenixFixedPoint"
    }
 
    filter "system:windows"
@@ -64,6 +106,8 @@ project "PhoenixSimDriver"
    }
 
    externalincludedirs {
+      "../PhoenixFixedPoint/Public/",
+      "../PhoenixSim/Public/",
       "../PhoenixSimDriver/External/"
    }
 
@@ -72,6 +116,7 @@ project "PhoenixSimDriver"
    }
 
    links {
+      "PhoenixFixedPoint",
       "PhoenixSim",
       "SDL3"
    }

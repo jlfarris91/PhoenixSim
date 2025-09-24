@@ -80,7 +80,7 @@ void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
     SystemUpdateArgs systemUpdateArgs;
     systemUpdateArgs.SimTime = args.SimTime;
-    systemUpdateArgs.StepHz = args.StepHz;
+    systemUpdateArgs.DeltaTime = OneDivBy(Time(args.StepHz));
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
@@ -93,7 +93,7 @@ void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     SystemUpdateArgs systemUpdateArgs;
     systemUpdateArgs.SimTime = args.SimTime;
-    systemUpdateArgs.StepHz = args.StepHz;
+    systemUpdateArgs.DeltaTime = OneDivBy(Time(args.StepHz));
     
     for (const TSharedPtr<ISystem>& system : Systems)
     {
@@ -106,7 +106,7 @@ void FeatureECS::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     SystemUpdateArgs systemUpdateArgs;
     systemUpdateArgs.SimTime = args.SimTime;
-    systemUpdateArgs.StepHz = args.StepHz;
+    systemUpdateArgs.DeltaTime = OneDivBy(Time(args.StepHz));
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
@@ -135,7 +135,7 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
             Physics::BodyComponent* bodyComp = AddComponent<Physics::BodyComponent>(world, entityId);
             bodyComp->CollisionMask = 1;
             bodyComp->Radius = 16;
-            bodyComp->InvMass = 1.0f / 10.0f;
+            bodyComp->InvMass = OneDivBy<Value>(1.0f);
             bodyComp->LinearDamping = 50.f;
             SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
 
@@ -442,10 +442,10 @@ void FeatureECS::QueryEntitiesInRange(
     
     // Query for overlapping morton ranges
     {
-        uint32 lox = (pos.X - range).Value;
-        uint32 hix = (pos.X + range).Value;
-        uint32 loy = (pos.Y - range).Value;
-        uint32 hiy = (pos.Y + range).Value;
+        uint32 lox = (uint32)(pos.X - range);
+        uint32 hix = (uint32)(pos.X + range);
+        uint32 loy = (uint32)(pos.Y - range);
+        uint32 hiy = (uint32)(pos.Y + range);
 
         MortonCodeAABB aabb;
         aabb.MinX = lox >> MortonCodeGridBits;
@@ -483,8 +483,8 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
     scratchBlock.SortedEntities.Reset();
     for (auto && [entity, transformComp] : scratchBlock.EntityTransforms)
     {
-        uint32 x = transformComp->Transform.Position.X.Value >> MortonCodeGridBits;
-        uint32 y = transformComp->Transform.Position.Y.Value >> MortonCodeGridBits;
+        uint32 x = (uint32)transformComp->Transform.Position.X >> MortonCodeGridBits;
+        uint32 y = (uint32)transformComp->Transform.Position.Y >> MortonCodeGridBits;
         transformComp->ZCode = MortonCode(x, y);
         scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, transformComp->ZCode);
     }

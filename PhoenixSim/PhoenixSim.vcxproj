@@ -46,6 +46,7 @@
     <IntDir>..\Build\Intermediate\Debug-windows-x86_64\Debug\PhoenixSim\</IntDir>
     <TargetName>PhoenixSim</TargetName>
     <TargetExt>.dll</TargetExt>
+    <ExternalIncludePath>..\PhoenixFixedPoint\Public;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -53,6 +54,7 @@
     <IntDir>..\Build\Intermediate\Release-windows-x86_64\Release\PhoenixSim\</IntDir>
     <TargetName>PhoenixSim</TargetName>
     <TargetExt>.dll</TargetExt>
+    <ExternalIncludePath>..\PhoenixFixedPoint\Public;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -100,14 +102,9 @@
     <ClInclude Include="Public\FeatureECS.h" />
     <ClInclude Include="Public\FeaturePathfinding.h" />
     <ClInclude Include="Public\FeaturePhysics.h" />
-    <ClInclude Include="Public\Features.h" />
     <ClInclude Include="Public\FeatureTrace.h" />
+    <ClInclude Include="Public\Features.h" />
     <ClInclude Include="Public\FixedArray.h" />
-    <ClInclude Include="Public\FixedPoint\CosTable.h" />
-    <ClInclude Include="Public\FixedPoint\FixedMath.h" />
-    <ClInclude Include="Public\FixedPoint\FixedPoint.h" />
-    <ClInclude Include="Public\FixedPoint\Transform.h" />
-    <ClInclude Include="Public\FixedPoint\Vector.h" />
     <ClInclude Include="Public\FixedSet.h" />
     <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
@@ -122,15 +119,19 @@
     <ClCompile Include="Private\FeatureECS.cpp" />
     <ClCompile Include="Private\FeaturePathfinding.cpp" />
     <ClCompile Include="Private\FeaturePhysics.cpp" />
-    <ClCompile Include="Private\Features.cpp" />
     <ClCompile Include="Private\FeatureTrace.cpp" />
-    <ClCompile Include="Private\FixedPoint\Vector.cpp" />
+    <ClCompile Include="Private\Features.cpp" />
     <ClCompile Include="Private\Hashing.cpp" />
     <ClCompile Include="Private\MortonCode.cpp" />
     <ClCompile Include="Private\Name.cpp" />
     <ClCompile Include="Private\Session.cpp" />
     <ClCompile Include="Private\Worlds.cpp" />
     <ClCompile Include="Private\dllmain.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PhoenixFixedPoint\PhoenixFixedPoint.vcxproj">
+      <Project>{DA0B031E-4622-01B4-8F99-8CD5FBEED13B}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

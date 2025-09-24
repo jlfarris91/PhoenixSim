@@ -1,8 +1,6 @@
 ﻿
 #pragma once
 
-#include "PhoenixSim.h"
-
 namespace Phoenix
 {
     constexpr uint32 COS_TABLE_LEN = 1024;

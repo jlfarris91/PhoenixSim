@@ -24,7 +24,7 @@ FName PhysicsSystem::GetName()
 
 void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
-    Value dt = 1.0f / args.StepHz;
+    DeltaTime dt = args.DeltaTime;
 
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
@@ -46,8 +46,8 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
         scratchBlock.SortedEntities.Reset();
         for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
         {
-            uint32 x = transformComp->Transform.Position.X.Value >> MortonCodeGridBits;
-            uint32 y = transformComp->Transform.Position.Y.Value >> MortonCodeGridBits;
+            uint32 x = (uint32)transformComp->Transform.Position.X >> MortonCodeGridBits;
+            uint32 y = (uint32)transformComp->Transform.Position.Y >> MortonCodeGridBits;
             uint64 zcode = MortonCode(x, y);
             scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, zcode);
         }
@@ -76,7 +76,7 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
             bodyComp->LinearVelocity += dir * moveComp->Speed * bodyComp->InvMass;
 
             Angle targetRot = dir.AsDegrees();
-            Angle deltaRot = targetRot - transComp->Transform.Rotation;
+            Angle deltaRot = FixedMath::AngleBetween(transComp->Transform.Rotation, targetRot);
             transComp->Transform.Rotation += deltaRot * dt;
         }
     }
@@ -84,7 +84,7 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 
 void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
-    Value dt = 1.0f / args.StepHz;
+    auto dt = args.DeltaTime;
 
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
@@ -152,11 +152,11 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             // Collide with lines
             {
-                Distance radius = bodyCompA->Radius;// * bodyCompA->Radius;
+                Distance radius = bodyCompA->Radius;
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
                     Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    auto vLen2 = v.Length();
+                    Distance vLen2 = v.Length();
                     if (vLen2 < radius)
                     {
                         Vec2 n = v.Normalized();
@@ -169,7 +169,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                         contact.BodyB = nullptr;
                         contact.Normal = n;
                         contact.Bias = (v.Length() - bodyCompA->Radius) / dt;
-                        contact.EffMass = 1.0f / bodyCompA->InvMass;
+                        contact.EffMass = OneDivBy(bodyCompA->InvMass);
                         contact.Impulse = 0;
 
                         SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
@@ -183,10 +183,10 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 ScopedTrace trace2(world, "OverlapQuery"_n);
 
                 Distance radius = bodyCompA->Radius;
-                uint32 lox = (projectedPos.X - radius).Value;
-                uint32 hix = (projectedPos.X + radius).Value;
-                uint32 loy = (projectedPos.Y - radius).Value;
-                uint32 hiy = (projectedPos.Y + radius).Value;
+                uint32 lox = (uint32)(projectedPos.X - radius);
+                uint32 hix = (uint32)(projectedPos.X + radius);
+                uint32 loy = (uint32)(projectedPos.Y - radius);
+                uint32 hiy = (uint32)(projectedPos.Y + radius);
 
                 MortonCodeAABB aabb;
                 aabb.MinX = lox >> MortonCodeGridBits;
@@ -252,7 +252,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 if (Vec2::Equals(transformCompA->Transform.Position, transformCompB->Transform.Position))
                 {
                     v = Vec2::RandUnitVector();
-                    Value correction = 1.0f / (bodyCompA->InvMass + bodyCompB->InvMass);
+                    auto correction = OneDivBy(bodyCompA->InvMass + bodyCompB->InvMass);
                     transformCompA->Transform.Position -= v * correction * 0.01f;
                     transformCompB->Transform.Position += v * correction * 0.01f;
                 }
@@ -266,22 +266,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                     continue;
                 }
 
-                Value invMassComb = 0;
-                if (!HasAnyFlags(bodyCompA->Flags, EBodyFlags::Static))
-                {
-                    invMassComb += bodyCompA->InvMass;
-                }
-                if (!HasAnyFlags(bodyCompB->Flags, EBodyFlags::Static))
-                {
-                    invMassComb += bodyCompB->InvMass;
-                }
-                
-                Value effMass = 1.0f;
-                if (invMassComb == 0.0f)
-                {
-                    effMass /= invMassComb;
-                }
-            
                 const Value baum = 0.3f;
                 const Value slop = 0.01f * rr;
                 Distance d = rr - vLen;
@@ -294,7 +278,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 contact.BodyB = bodyCompB;
                 contact.Normal = v.Normalized();
                 contact.Bias = bias;
-                contact.EffMass = effMass;
+                contact.EffMass = OneDivBy(bodyCompA->InvMass + bodyCompB->InvMass);
                 contact.Impulse = 0;
 
                 SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
@@ -393,10 +377,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 
                 transformComp->Transform.Position += bodyComp->LinearVelocity * dt;
 
-                //if (bodyComp->Movement != EBodyMovement::Moving)
-                {
-                    bodyComp->LinearVelocity *= (1.0f - bodyComp->LinearDamping * dt);
-                }
+                bodyComp->LinearVelocity *= (1.0f - bodyComp->LinearDamping * dt);
             }
         }
     }
@@ -542,10 +523,10 @@ void FeaturePhysics::QueryEntitiesInRange(
     
     // Query for overlapping morton ranges
     {
-        uint32 lox = (pos.X - range).Value;
-        uint32 hix = (pos.X + range).Value;
-        uint32 loy = (pos.Y - range).Value;
-        uint32 hiy = (pos.Y + range).Value;
+        uint32 lox = (uint32)(pos.X - range);
+        uint32 hix = (uint32)(pos.X + range);
+        uint32 loy = (uint32)(pos.Y - range);
+        uint32 hiy = (uint32)(pos.Y + range);
 
         MortonCodeAABB aabb;
         aabb.MinX = lox >> MortonCodeGridBits;

@@ -1,12 +1,13 @@
 ﻿
 #pragma once
 
+#include <cstdlib> // for rand(), remove once we have a deterministic rand
+
 #include "FixedMath.h"
-#include "FixedPoint/FixedPoint.h"
 
 namespace Phoenix
 {
-    struct PHOENIXSIM_API Vec2
+    struct Vec2
     {
         static const Vec2 Zero;
         static const Vec2 One;
@@ -69,12 +70,14 @@ namespace Phoenix
             return { X * rhs.X, Y * rhs.Y }; 
         }
 
-        constexpr Vec2 operator*(Value rhs) const
+        template <class T = Value>
+        constexpr Vec2 operator*(const T& rhs) const
         {
             return { X * rhs, Y * rhs }; 
         }
 
-        friend Vec2 operator*(Value lhs, const Vec2& rhs)
+        template <class T = Value>
+        friend Vec2 operator*(const T& lhs, const Vec2& rhs)
         {
             return { lhs * rhs.X, lhs * rhs.Y }; 
         }
@@ -98,9 +101,16 @@ namespace Phoenix
             return { X / rhs.X, Y / rhs.Y }; 
         }
 
-        constexpr Vec2 operator/(Value rhs) const
+        template <class T>
+        constexpr Vec2 operator/(const T& rhs) const
         {
             return { X / rhs, Y / rhs }; 
+        }
+
+        template <class T = Value>
+        friend Vec2 operator/(const T& lhs, const Vec2& rhs)
+        {
+            return { lhs / rhs.X, lhs / rhs.Y }; 
         }
 
         Vec2& operator/=(const Vec2& rhs)
@@ -110,7 +120,8 @@ namespace Phoenix
             return *this; 
         }
 
-        Vec2& operator/=(Value rhs)
+        template <class T = Value>
+        Vec2& operator/=(const T& rhs)
         {
             X /= rhs;
             Y /= rhs;
@@ -217,7 +228,7 @@ namespace Phoenix
         Phoenix::Distance Y = 0;
     };
 
-    struct PHOENIXSIM_API Vec3
+    struct Vec3
     {
         static const Vec3 Zero;
         static const Vec3 One;
@@ -287,7 +298,7 @@ namespace Phoenix
     };
 
     // Represents a line between 2 points.
-    struct PHOENIXSIM_API Line2
+    struct Line2
     {
         constexpr Line2() = default;
         constexpr Line2(const Vec2& start, const Vec2& end) : Start(start), End(end) {}
@@ -338,7 +349,7 @@ namespace Phoenix
         }
     };
 
-    struct PHOENIXSIM_API Line3
+    struct Line3
     {
         constexpr Line3() = default;
         constexpr Line3(const Vec3& start, const Vec3& end) : Start(start), End(end) {}

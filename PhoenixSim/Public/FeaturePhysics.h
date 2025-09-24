@@ -3,7 +3,7 @@
 #include "FeatureECS.h"
 #include "FixedArray.h"
 #include "PhoenixSim.h"
-#include "FixedPoint/FixedPoint.h"
+#include "FixedPoint.h"
 #include "FixedSet.h"
 
 namespace Phoenix
@@ -47,7 +47,7 @@ namespace Phoenix
             Value LinearDamping = 0;
 
             // The mass of the body. Used when resolving body separation.
-            Value InvMass = 0;
+            TInvFixed2<Value> InvMass;
 
             uint8 SleepTimer = 0;
         };
@@ -81,7 +81,7 @@ namespace Phoenix
             ECS::TransformComponent* TransformB;
             BodyComponent* BodyB;
             Vec2 Normal;
-            Value EffMass;
+            TInvFixed2<Value> EffMass;
             Value Bias;
             Value Impulse;
         };
