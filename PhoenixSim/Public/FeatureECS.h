@@ -240,7 +240,7 @@ namespace Phoenix
                     return;
                 }
 
-                int16 compIndex = entity->ComponentHead;
+                int32 compIndex = entity->ComponentHead;
 
                 while (compIndex != INDEX_NONE)
                 {
@@ -264,7 +264,7 @@ namespace Phoenix
                     return;
                 }
 
-                int16 compIndex = entity->ComponentHead;
+                int32 compIndex = entity->ComponentHead;
 
                 while (compIndex != INDEX_NONE)
                 {

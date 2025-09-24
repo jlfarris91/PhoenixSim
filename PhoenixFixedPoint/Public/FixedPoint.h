@@ -47,38 +47,45 @@ namespace Phoenix
 
     // Calculates the number of bits needed to store the value n.
     // https://en.cppreference.com/w/cpp/numeric/bit_width
-    constexpr int32 bit_width(int32 n)
+    template <class T>
+    constexpr T bit_width(T n)
     {
-        uint32 un = n;
-        uint32 c = 0;
+        T un = n;
+        T c = 0;
         for (; un != 0; un >>= 1) ++c;
-        return (int32)c * (n < 0 ? -1 : 1);
+        return static_cast<T>(c) * (n < 0 ? -1 : 1);
     }
 
     // TODO (jfarris): implement fixed point someday
-    template <int64 Td, class T = int32>
+    template <int64 Tb, class T = int32>
     struct TFixed
     {
-        using StorageT = T;
-        static constexpr int32 D = Td;
-        static constexpr int32 B = bit_width(Td - 1);
+        using ValueT = T;
+        static constexpr int64 D = 1 << Tb;
+        static constexpr int64 B = Tb;
 
-        template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>(v * Td); }
-        template <class U> static constexpr U FromFixedValue(T v) { return static_cast<U>(v) / Td; }
+        static const TFixed EPSILON;
+        static const TFixed MIN;
+        static const TFixed MAX;
+
+        template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>((int64(v * D))); }
+        template <class U> static constexpr U FromFixedValue(T v) { return static_cast<U>(v) / D; }
 
         constexpr TFixed() : Value(0){}
-        constexpr TFixed(Q32 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(Q64 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(int32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(uint32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(int64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(uint64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(float v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
-        constexpr TFixed(double v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
+        constexpr TFixed(Q32 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(Q64 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(int32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(uint32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(int64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(uint64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(float v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
+        constexpr TFixed(double v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
 
-        template <int64 Ud, class U>
-        constexpr TFixed(const TFixed<Ud, U>& other) : Value(ConvertToRaw(other)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / Td) {}
+        template <int32 Ub, class U>
+        constexpr TFixed(const TFixed<Ub, U>& other) : Value(ConvertToRaw(other)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
 
+        constexpr explicit operator Q32() const { return (Q32)FromFixedValue<double>(Value); }
+        constexpr explicit operator Q64() const { return (Q64)FromFixedValue<double>(Value); }
         constexpr explicit operator int32() const { return (int32)FromFixedValue<double>(Value); }
         constexpr explicit operator uint32() const { return (uint32)FromFixedValue<double>(Value); }
         constexpr explicit operator int64() const { return (int64)FromFixedValue<double>(Value); }
@@ -86,13 +93,15 @@ namespace Phoenix
         constexpr explicit operator float() const { return FromFixedValue<float>(Value); }
         constexpr explicit operator double() const { return FromFixedValue<double>(Value); }
 
-        template <int64 Ud, class U>
-        static constexpr T ConvertToRaw(const TFixed<Ud, U>& other)
+        template <int32 Ub, class U>
+        static constexpr T ConvertToRaw(const TFixed<Ub, U>& other)
         {
-            if constexpr (Td < Ud)
-                return T(int64(other.Value) / (Ud / Td));
+            constexpr int64 Td = 1 << Tb;
+            constexpr int64 Ud = 1 << Ub;
+            if constexpr (Tb < Ub)
+                return T(int64(other.Value) * Td / Ud);
             else
-                return T(int64(other.Value) * (Td / Ud));
+                return T(int64(other.Value) * Ud / Td);
         }
 
         T Value;
@@ -101,29 +110,29 @@ namespace Phoenix
 #endif
     };
 
-    using TFixedValue = TFixed<1024>;
+    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::EPSILON = TFixed(1E-3);
 
-    // Useful for storing reciprocal values ie 1/X 
-    template <int64 Td, class T = int32>
+    // Useful for storing reciprocal values ie 1/X without losing precision 
+    template <int32 Tb, class T = int32>
     struct TInvFixed
     {
-        using StorageT = T;
-        static constexpr int32 D = Td;
-        static constexpr int32 B = bit_width(Td - 1);
+        using ValueT = T;
+        static constexpr int64 D = 1 << Tb;
+        static constexpr int64 B = Tb;
         
-        template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>(static_cast<double>(Td) / static_cast<double>(v)); }
-        template <class U> static constexpr U FromFixedValue(T v) { return U(Td) / U(v); }
+        template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>(static_cast<double>(D) / static_cast<double>(v)); }
+        template <class U> static constexpr U FromFixedValue(T v) { return U(D) / U(v); }
 
         constexpr TInvFixed() : Value(0) {}
-        constexpr TInvFixed(Q32 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr TInvFixed(Q64 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(int32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(uint32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(int64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(uint64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(float v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(double v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(const TFixed<Td, T>& v) : Value(v.Value) TFIXED_DEBUG_FIELD(Td / static_cast<double>(Value)) {}
+        constexpr TInvFixed(Q32 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr TInvFixed(Q64 v) : Value(static_cast<T>(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(int32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(uint32 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(int64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(uint64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(float v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(double v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
+        constexpr explicit TInvFixed(const TFixed<Tb, T>& v) : Value(v.Value) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
 
         constexpr explicit operator float() const { return FromFixedValue<float>(Value); }
         constexpr explicit operator double() const { return FromFixedValue<double>(Value); }
@@ -135,65 +144,45 @@ namespace Phoenix
     };
 
     template <class T>
-    using TInvFixed2 = TInvFixed<T::D, typename T::StorageT>;
-
-    using TInvFixedValue = TInvFixed2<TFixedValue>;
+    using TInvFixed2 = TInvFixed<T::B, typename T::ValueT>;
 
     template <class T>
-    constexpr TInvFixed<T::D, typename T::StorageT> OneDivBy(const T& v)
+    constexpr TInvFixed<T::B, typename T::ValueT> OneDivBy(const T& v)
     {
-        return TFixedQ_T<typename T::StorageT>(v.Value);
+        return TFixedQ_T<typename T::ValueT>(v.Value);
     }
 
-    template <int64 Td, class T>
-    constexpr TInvFixed<Td, T> OneDivBy(const TInvFixed<Td, T>& v)
+    template <int32 Tb, class T>
+    constexpr TInvFixed<Tb, T> OneDivBy(const TInvFixed<Tb, T>& v)
     {
-        return OneDivBy(TFixed<Td, T>(TFixedQ_T<T>(v.Value)));
+        return OneDivBy(TFixed<Tb, T>(TFixedQ_T<T>(v.Value)));
     }
 
-    template <class> struct TLiteral;
-    template <> struct TLiteral<double>
-    {
-        TLiteral(double v) : Value(v) {}
-        double Value = 0.0f;
-    };
+    template <class A, class B>
+    constexpr auto _min(A a, B b) { return a < b ? a : b; }
 
-    template <> struct TLiteral<float>
-    {
-        TLiteral(float v) : Value(v) {}
-        float Value = 0.0f;
-    }; 
+    // Helper for defining the precision for a squared number
+    template <uint64 Tb, class T> using TFixedSq_ = TFixed<_min(Tb+Tb, (sizeof(T) << 3 - 2)), int64>;
+    template <class T> using TFixedSq = TFixedSq_<T::B, int64>;
 
-    static_assert(bit_width(1) == 1);
-    static_assert(bit_width(3) == 2);
-    static_assert(bit_width(5) == 3);
-    static_assert(bit_width(64) == 7);
+    using Fixed4 = TFixed<4>;
+    using Fixed8 = TFixed<8>;
+    using Fixed12 = TFixed<12>;
+    using Fixed16 = TFixed<16>;
+    using Fixed20 = TFixed<20>;
+    using Fixed24 = TFixed<24>;
+    using Fixed28 = TFixed<28>;
 
-    using Value = TFixedValue;
-    using Distance = TFixed<16 * 1024>;
-    using Distance2 = TFixed<Distance::D, int64>;
-    using Time = TFixed<64>;
+#ifndef FP_NO_STANDARD_TYPES
+    using Value = TFixed<12>;
+    using ValueSq = TFixedSq<Value>;
+    using Distance = TFixed<16>;
+    using DistanceSq = TFixedSq<Distance>;
+    using Time = Fixed4;
     using DeltaTime = TInvFixed2<Time>;
-    using Speed = TFixed<1024>;
-    using Angle = TFixed<0x10000000 / 45>;
-
-    static_assert(Value::D == 1024);
-    static_assert(Value::B == 10);
-
-    static_assert(Value(0.5f).Value == 512);
-    static_assert(Value(1.0f).Value == 1024);
-    static_assert(Value(2.0f).Value == 2048);
-
-    static_assert(Value(1.0f).Value == Value::ToFixedValue(1.0f));
-    static_assert(1.0f == Value::FromFixedValue<float>(1024));
-
-    static_assert((int32)Value(123.123f) == 123);
-    static_assert((uint32)Value(123.123f) == 123);
-    static_assert((int64)Value(123.123f) == 123);
-    static_assert((uint64)Value(123.123f) == 123);
-
-    static_assert(Angle(1).Value == 0x10000000 / 45);
-    static_assert(Angle(45).Value == (0x10000000 / 45) * 45);
+    using Speed = Fixed16;
+    using Angle = Fixed20;
+#endif
 
     ///////////////////////////////////////////////////////////////////////////
     // 
@@ -207,226 +196,234 @@ namespace Phoenix
 
     // operator==
 
-    // TFixed<Td, T> == TFixed<Td, T>
-    template<int64 Td, class T>
-    constexpr bool operator==(const TFixed<Td, T>& lhs, const TFixed<Td, T>& rhs)
+    // TFixed<Tb, T> == TFixed<Tb, T>
+    template<int32 Tb, class T>
+    constexpr bool operator==(const TFixed<Tb, T>& lhs, const TFixed<Tb, T>& rhs)
     {
         return lhs.Value == rhs.Value;
     }
 
-    // TFixed<Td, T> == TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator==(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> == TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator==(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        auto a = int64(lhs.Value) * Ud;
-        auto b = int64(rhs.Value) * Td;
+        auto a = int64(lhs.Value) * (1 << Ub);
+        auto b = int64(rhs.Value) * (1 << Tb);
         return a == b;
     }
 
     // TFixed == double
-    template<int64 Td, class T>
-    constexpr bool operator==(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator==(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs.Value == TFixed<Td, T>::ToFixedValue(rhs);
+        return lhs.Value == TFixed<Tb, T>::ToFixedValue(rhs);
     }
 
     // double == TFixed 
-    template<int64 Td, class T>
-    constexpr bool operator==(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator==(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) == rhs;
+        return TFixed<Tb, T>(lhs) == rhs;
     }
 
     // TInvFixed == TInvFixed 
-    template<int64 Td, class T>
-    constexpr bool operator==(const TInvFixed<Td, T>& lhs, const TInvFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator==(const TInvFixed<Tb, T>& lhs, const TInvFixed<Tb, T>& rhs)
     {
         return lhs.Value == rhs.Value;
     }
 
     // TInvFixed == double 
-    template<int64 Td, class T>
-    constexpr bool operator==(const TInvFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator==(const TInvFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs.Value == TInvFixed<Td, T>::ToFixedValue(rhs);
+        return lhs.Value == TInvFixed<Tb, T>::ToFixedValue(rhs);
     }
 
     // double == TInvFixed
-    template<int64 Td, class T>
-    constexpr bool operator==(double lhs, const TInvFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator==(double lhs, const TInvFixed<Tb, T>& rhs)
     {
-        return TInvFixed<Td, T>::ToFixedValue(lhs) == rhs;
+        return TInvFixed<Tb, T>::ToFixedValue(lhs) == rhs;
     }
 
     // operator!=
 
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator!=(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator!=(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         return !operator==(lhs, rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator!=(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator!=(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs.Value != TFixed<Td, T>::ToFixedValue(rhs);
+        return lhs.Value != TFixed<Tb, T>::ToFixedValue(rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator!=(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator!=(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) != rhs;
+        return TFixed<Tb, T>(lhs) != rhs;
     }
 
     // operator<
 
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator<(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator<(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
-            return lhs.Value < rhs.Value * (Td / Ud);
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
+            return int64(lhs.Value) * Ud / Td < rhs.Value;
         else
-            return lhs.Value * (Ud / Td) < rhs.Value;
+            return lhs.Value < int64(rhs.Value) * Td / Ud;
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator<(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator<(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs < TFixed<Td, T>(rhs);
+        return lhs < TFixed<Tb, T>(rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator<(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator<(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) < rhs;
+        return TFixed<Tb, T>(lhs) < rhs;
     }
 
     // operator<=
 
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator<=(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator<=(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
-            return lhs.Value <= rhs.Value * (Td / Ud);
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
+            return int64(lhs.Value) * Ud / Td <= rhs.Value;
         else
-            return lhs.Value * (Ud / Td) <= rhs.Value;
+            return lhs.Value <= int64(rhs.Value) * Td / Ud;
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator<=(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator<=(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs <= TFixed<Td, T>(rhs);
+        return lhs <= TFixed<Tb, T>(rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator<=(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator<=(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) <= rhs;
+        return TFixed<Tb, T>(lhs) <= rhs;
     }
 
     // operator>
 
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator>(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator>(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
-            return lhs.Value > rhs.Value * (Td / Ud);
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
+            return int64(lhs.Value) * Ud / Td > rhs.Value;
         else
-            return lhs.Value * (Ud / Td) > rhs.Value;
+            return lhs.Value > int64(rhs.Value) * Td / Ud;
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator>(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator>(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs > TFixed<Td, T>(rhs);
+        return lhs > TFixed<Tb, T>(rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator>(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator>(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) > rhs;
+        return TFixed<Tb, T>(lhs) > rhs;
     }
 
     // operator>=
 
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr bool operator>=(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr bool operator>=(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
-            return lhs.Value >= rhs.Value * (Td / Ud);
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
+            return int64(lhs.Value) * Ud / Td >= rhs.Value;
         else
-            return lhs.Value * (Ud / Td) >= rhs.Value;
+            return lhs.Value >= int64(rhs.Value) * Td / Ud;
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator>=(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator>=(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs >= TFixed<Td, T>(rhs);
+        return lhs >= TFixed<Tb, T>(rhs);
     }
 
-    template<int64 Td, class T>
-    constexpr bool operator>=(double lhs, const TFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr bool operator>=(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) >= rhs;
+        return TFixed<Tb, T>(lhs) >= rhs;
     }
 
     //
     // Addition
     //
 
-    // TFixed<Td, T> + TFixed<Ud, U>
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator+(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> + TFixed<Ub, U>
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator+(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
         {
-            return TFixed<Td, T>(static_cast<Q64>(lhs.Value + rhs.Value * (Td / Ud)));
+            return TFixed<Ub, U>(Q64(int64(lhs.Value) * Ud / Td + rhs.Value));
         }
         else
         {
-            return TFixed<Ud, U>(static_cast<Q64>(lhs.Value * (Ud / Td) + rhs.Value));
+            return TFixed<Tb, T>(Q64(lhs.Value + int64(rhs.Value) * Td / Ud));
         }
     }
 
     // TFixed + double
-    template <int64 Td, class T>
-    constexpr auto operator+(const TFixed<Td, T>& lhs, double rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator+(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs + TFixed<Td, T>(rhs);
+        return lhs + TFixed<Tb, T>(rhs);
     }
 
     // double + TFixed
-    template <int64 Td, class T>
-    constexpr auto operator+(double lhs, const TFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator+(double lhs, const TFixed<Tb, T>& rhs)
     {
         // Commutative, just flip order of operators
         return rhs + lhs;
     }
 
-    // TFixed<Td, T> += TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto& operator+=(TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> += TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto& operator+=(TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         lhs = lhs + rhs;
         return lhs;
     }
 
     // TFixed += double
-    template<int64 Td, class T>
-    constexpr auto& operator+=(TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto& operator+=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value += TFixed<Td, T>::ToFixedValue(rhs);
+        lhs.Value += TFixed<Tb, T>::ToFixedValue(rhs);
         return lhs;
     }
 
     // TInvFixed + TInvFixed
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator+(const TInvFixed<Td, T>& lhs, const TInvFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator+(const TInvFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
-        constexpr auto Tb = TInvFixed<Td, T>::B;
-        constexpr auto Ub = TInvFixed<Ud, U>::B;
         constexpr auto Vb = Tb > Ub ? Tb : Ub;
-        constexpr auto Vd = Td > Ud ? Td : Ud;
+        constexpr auto Vd = Tb > Ub ? Tb : Ub;
         using V = TLargestQ_T<T, U>;
         int64 n = (int64(rhs.Value) << (Vb - Ub)) + (lhs.Value << (Vb - Tb));
         if (n == 0)
@@ -438,111 +435,99 @@ namespace Phoenix
     }
 
     // TInvFixed + double
-    template <int64 Td, class T>
-    constexpr auto operator+(const TInvFixed<Td, T>& lhs, double rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator+(const TInvFixed<Tb, T>& lhs, double rhs)
     {
-        return TInvFixed<Td, T>(TFixedQ_T<T>(lhs.Value + TFixed<Td, T>::ToFixedValue(rhs)));
+        return TInvFixed<Tb, T>(TFixedQ_T<T>(lhs.Value + TFixed<Tb, T>::ToFixedValue(rhs)));
     }
 
     // double + TInvFixed
-    template <int64 Td, class T>
-    constexpr auto operator+(double lhs, const TInvFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator+(double lhs, const TInvFixed<Tb, T>& rhs)
     {
         // Commutative, just flip order of operators
         return rhs + lhs;
     }
 
     // TInvFixed += TInvFixed
-    template <int64 Td, class T>
-    constexpr auto& operator+=(TInvFixed<Td, T>& lhs, const TInvFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto& operator+=(TInvFixed<Tb, T>& lhs, const TInvFixed<Tb, T>& rhs)
     {
         lhs.Value += rhs.Value;
         return lhs;
     }
 
     // TInvFixed += double
-    template <int64 Td, class T>
-    constexpr auto& operator+=(TInvFixed<Td, T>& lhs, double rhs)
+    template <int32 Tb, class T>
+    constexpr auto& operator+=(TInvFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value += TFixed<Td, T>::ToFixedValue(rhs);
+        lhs.Value += TFixed<Tb, T>::ToFixedValue(rhs);
         return lhs;
     }
-
-    static_assert(Value(1.0f) + Value(1.0f) == 2);
-    static_assert(Value(1.0f) + Value(1.0f) == 2.0f);
-    static_assert(Value(1.0f) + Value(1.0f) == Value(2.0f));
-
-    static_assert(Value(1.0f) + 1.0f == 2);
-    static_assert(Value(1.0f) + 1.0f == 2.0f);
-    static_assert(Value(1.0f) + 1.0f == Value(2.0f));
-
-    static_assert(1.0f + Value(1.0f) == 2);
-    static_assert(1.0f + Value(1.0f) == 2.0f);
-    static_assert(1.0f + Value(1.0f) == Value(2.0f));
 
     //
     // Subtraction
     //
 
-    // TFixed<Td, T> - TFixed<Ud, U>
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator-(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> - TFixed<Ub, U>
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator-(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        if constexpr (Td > Ud)
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
         {
-            return TFixed<Td, T>(static_cast<Q64>(lhs.Value - rhs.Value * (Td / Ud)));
+            return TFixed<Ub, U>(Q64(int64(lhs.Value) * Ud / Td - rhs.Value));
         }
         else
         {
-            return TFixed<Ud, U>(static_cast<Q64>(lhs.Value * (Ud / Td) - rhs.Value));
+            return TFixed<Tb, T>(Q64(lhs.Value - int64(rhs.Value) * Td / Ud));
         }
     }
 
     // TFixed - double
-    template <int64 Td, class T>
-    constexpr auto operator-(const TFixed<Td, T>& lhs, double rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator-(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs - TFixed<Td, T>(rhs);
+        return lhs - TFixed<Tb, T>(rhs);
     }
 
     // double - TFixed
-    template <int64 Td, class T>
-    constexpr auto operator-(double lhs, const TFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator-(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) - rhs;
+        return TFixed<Tb, T>(lhs) - rhs;
     }
 
     // -TFixed
-    template <int64 Td, class T>
-    constexpr auto operator-(const TFixed<Td, T>& lhs)
+    template <int32 Tb, class T>
+    constexpr auto operator-(const TFixed<Tb, T>& lhs)
     {
-        return TFixed<Td, T>(TFixedQ_T<T>(-lhs.Value));
+        return TFixed<Tb, T>(TFixedQ_T<T>(-lhs.Value));
     }
 
-    // TFixed<Td, T> -= TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto& operator-=(TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> -= TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto& operator-=(TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         lhs = lhs - rhs;
         return lhs;
     }
 
     // TFixed -= double
-    template<int64 Td, class T>
-    constexpr auto& operator-=(TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto& operator-=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value -= TFixed<Td, T>::ToFixedValue(rhs);
+        lhs.Value -= TFixed<Tb, T>::ToFixedValue(rhs);
         return lhs;
     }
 
     // TInvFixed - TInvFixed
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator-(const TInvFixed<Td, T>& lhs, const TInvFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator-(const TInvFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
-        constexpr auto Tb = TInvFixed<Td, T>::B;
-        constexpr auto Ub = TInvFixed<Ud, U>::B;
         constexpr auto Vb = Tb > Ub ? Tb : Ub;
-        constexpr auto Vd = Td > Ud ? Td : Ud;
+        constexpr auto Vd = Tb > Ub ? Tb : Ub;
         using V = int64;
         V n = (V(rhs.Value) << (Vb - Ub)) - (lhs.Value << (Vb - Tb));
         if (n == 0)
@@ -554,114 +539,90 @@ namespace Phoenix
     }
 
     // TInvFixed - double
-    template<int64 Td, class T>
-    constexpr auto operator-(const TInvFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto operator-(const TInvFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs - TFixed<Td, T>(rhs);
+        return lhs - TFixed<Tb, T>(rhs);
     }
 
     // double - TInvFixed
-    template<int64 Td, class T>
-    constexpr auto operator-(double lhs, TInvFixed<Td, T>& rhs)
+    template<int32 Tb, class T>
+    constexpr auto operator-(double lhs, TInvFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) - rhs;
+        return TFixed<Tb, T>(lhs) - rhs;
     }
 
     // TInvFixed -= TInvFixed
-    template <int64 Td, class T>
-    constexpr auto& operator-=(TInvFixed<Td, T>& lhs, const TInvFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto& operator-=(TInvFixed<Tb, T>& lhs, const TInvFixed<Tb, T>& rhs)
     {
         lhs = lhs - rhs;
         return lhs;
     }
 
     // TInvFixed -= double
-    template<int64 Td, class T>
-    constexpr auto& operator-=(TInvFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto& operator-=(TInvFixed<Tb, T>& lhs, double rhs)
     {
-        lhs -= TInvFixed<Td, T>(TFixedQ_T<T>(TFixed<Td, T>::ToFixedValue(rhs)));
+        lhs -= TInvFixed<Tb, T>(TFixedQ_T<T>(TFixed<Tb, T>::ToFixedValue(rhs)));
         return lhs;
     }
-
-    static_assert(Value(10.0f) - Value(5.0f) == 5);
-    static_assert(Value(10.0f) - Value(5.0f) == 5.0f);
-    static_assert(Value(10.0f) - Value(5.0f) == Value(5.0f));
-
-    static_assert(Value(5.0f) - Value(10.0f) == -5);
-    static_assert(Value(5.0f) - Value(10.0f) == -5.0f);
-    static_assert(Value(5.0f) - Value(10.0f) == Value(-5.0f));
-
-    static_assert(Value(10.0f) - 5.0f == 5);
-    static_assert(Value(10.0f) - 5.0f == 5.0f);
-    static_assert(Value(10.0f) - 5.0f == Value(5.0f));
-
-    static_assert(Value(5.0f) - 10.0f == -5);
-    static_assert(Value(5.0f) - 10.0f == -5.0f);
-    static_assert(Value(5.0f) - 10.0f == Value(-5.0f));
-
-    static_assert(10.0f - Value(5.0f) == 5);
-    static_assert(10.0f - Value(5.0f) == 5.0f);
-    static_assert(10.0f - Value(5.0f) == Value(5.0f));
-
-    static_assert(5.0f - Value(10.0f) == -5);
-    static_assert(5.0f - Value(10.0f) == -5.0f);
-    static_assert(5.0f - Value(10.0f) == Value(-5.0f));
 
     //
     // Multiplication
     //
 
-    // TFixed<Td, T> * TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator*(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> * TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator*(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        auto v = int64(lhs.Value) * rhs.Value;
-        v = v >> TFixed<Ud, U>::B;
-        return TFixed<Td, int64>(Q64(v));
+        constexpr auto MIN = Tb < Ub ? Tb : Ub;
+        constexpr auto MAX = Tb > Ub ? Tb : Ub;
+        return TFixed<MAX, T>(Q64((int64(lhs.Value) * rhs.Value) >> MIN));
     }
 
     // TFixed * double
-    template<int64 Td, class T>
-    constexpr auto operator*(const TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto operator*(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return TFixed<Td, T>(Q64(int64(lhs.Value) * rhs));
+        return TFixed<Tb, T>(Q64(int64(lhs.Value) * rhs));
     }
 
     // double * TFixed
-    template <int64 Td, class T>
-    constexpr auto operator*(double lhs, const TFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator*(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) * rhs;
+        return TFixed<Tb, T>(lhs) * rhs;
     }
 
-    // TFixed<Td, T> *= TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto& operator*=(TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> *= TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto& operator*=(TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         lhs = lhs * rhs;
         return lhs;
     }
 
     // TFixed *= double
-    template<int64 Td, class T>
-    constexpr auto& operator*=(TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto& operator*=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value *= TFixed<Td, T>::ToFixedValue(rhs);
+        lhs.Value *= TFixed<Tb, T>::ToFixedValue(rhs);
         return lhs;
     }
 
-    // TFixed<Td, T> * TInvFixed<Ud, U>
+    // TFixed<Tb, T> * TInvFixed<Ub, U>
     // X*(1/Y) is just X/Y
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator*(const TFixed<Td, T>& lhs, const TInvFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator*(const TFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
-        return TFixed<Td, T>(Q64(int64(lhs.Value) * Ud / rhs.Value));
+        return TFixed<Tb, T>(Q64(int64(lhs.Value) * (1 << Ub) / rhs.Value));
     }
 
-    // TInvFixed<Td, T> * TFixed<Ud, U>
+    // TInvFixed<Tb, T> * TFixed<Ub, U>
     // (1/X)*Y is just Y/X
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator*(const TInvFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator*(const TInvFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         // Commutative, just flip order of operators
         return rhs * lhs;
@@ -669,146 +630,76 @@ namespace Phoenix
 
     // TInvFixed * TInvFixed
     // (1/X)*(1/Y) is just 1/(X*Y)
-    template <int64 Td, class T>
-    constexpr auto operator*(const TInvFixed<Td, T>& lhs, const TInvFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator*(const TInvFixed<Tb, T>& lhs, const TInvFixed<Tb, T>& rhs)
     {
-        return TInvFixed<Td, T>(Q64(int64(lhs.Value) * Td * rhs.Value));
+        return TInvFixed<Tb, T>(Q64(int64(lhs.Value) * (1 << Tb) * rhs.Value));
     }
-
-    static_assert(Value(Q32(512)) * Value(1024) == 512);
-
-    static_assert(Value(5.0f) * Value(2.0f) == 10);
-    static_assert(Value(5.0f) * Value(2.0f) == 10.0f);
-    static_assert(Value(5.0f) * Value(2.0f) == Value(10.0f));
-
-    static_assert(Value(1.0f) * 2 == 2);
-    static_assert(Value(5.0f) * 2.0f == 10);
-    static_assert(Value(5.0f) * 2.0f == 10.0f);
-    static_assert(Value(5.0f) * 2.0f == Value(10.0f));
-
-    static_assert(5.0f * Value(2.0f) == 10);
-    static_assert(5.0f * Value(2.0f) == 10.0f);
-    static_assert(5.0f * Value(2.0f) == Value(10.0f));
-
-    static_assert(TInvFixed2<Value>(Value(10.0f)).Value == 10240);
-    static_assert((Value(10) * TInvFixed2<Value>(0.1f)) == 1.0f);
 
     //
     // Division
     //
 
-    // TFixed<Td, T> / TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator/(const TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> / TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator/(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        return TFixed<Td, T>(Q64(int64(lhs.Value) * Ud / rhs.Value));
+        constexpr int64 Td = 1 << Tb;
+        constexpr int64 Ud = 1 << Ub;
+        if constexpr (Tb < Ub)
+        {
+            return TFixed<Ub, T>(Q64(lhs.Value / int64(rhs.Value) * Td));
+        }
+        else
+        {
+            return TFixed<Tb, T>(Q64(int64(lhs.Value) * Ud / rhs.Value));
+        }
     }
 
     // TFixed / double
-    template <int64 Td, class T>
-    constexpr auto operator/(const TFixed<Td, T>& lhs, double rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator/(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return lhs / TFixed<Td, T>(rhs);
+        return TFixed<Tb, T>(Q64(lhs.Value / rhs));
     }
 
     // double / TFixed
-    template <int64 Td, class T>
-    constexpr auto operator/(double lhs, const TFixed<Td, T>& rhs)
+    template <int32 Tb, class T>
+    constexpr auto operator/(double lhs, const TFixed<Tb, T>& rhs)
     {
-        return TFixed<Td, T>(lhs) / rhs;
+        return TFixed<Tb, T>(lhs) / rhs;
     }
 
-    // TFixed<Td, T> /= TFixed<Ud, U>
-    template<int64 Td, class T, int64 Ud, class U>
-    constexpr auto& operator/=(TFixed<Td, T>& lhs, const TFixed<Ud, U>& rhs)
+    // TFixed<Tb, T> /= TFixed<Ub, U>
+    template<int32 Tb, class T, int32 Ub, class U>
+    constexpr auto& operator/=(TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
         lhs = lhs / rhs;
         return lhs;
     }
 
     // TFixed /= double
-    template<int64 Td, class T>
-    constexpr auto& operator/=(TFixed<Td, T>& lhs, double rhs)
+    template<int32 Tb, class T>
+    constexpr auto& operator/=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs = lhs / rhs;
+        lhs.Value = lhs.Value / rhs;
         return lhs;
     }
 
-    // TFixed<Td, T> / TInvFixed<Ud, U>
+    // TFixed<Tb, T> / TInvFixed<Ub, U>
     // X/(1/Y) is just X*Y
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator/(const TFixed<Td, T>& lhs, const TInvFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator/(const TFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
-        return lhs * TFixed<Ud, U>(TFixedQ_T<U>(rhs.Value));
+        return lhs * TFixed<Ub, U>(TFixedQ_T<U>(rhs.Value));
     }
 
-    // TInvFixed<Td, T> / TFixed<Ud, U>
+    // TInvFixed<Tb, T> / TFixed<Ub, U>
     // (1/X)/Y is just 1/(X*Y)
-    template <int64 Td, class T, int64 Ud, class U>
-    constexpr auto operator/(const TInvFixed<Td, T>& lhs, const TInvFixed<Ud, U>& rhs)
+    template <int32 Tb, class T, int32 Ub, class U>
+    constexpr auto operator/(const TInvFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
         // Commutative, just flip order of operators
         return rhs.Value * lhs.Value;
-    }
-
-    constexpr Value test10 = Value(10.0f);
-    constexpr Value test1 = Value(1.0f);
-    constexpr Value test2 = Value(2.0f);
-    constexpr Value test5 = Value(5.0f);
-    constexpr auto asdf = test10 / test2;
-
-    static_assert((test10 / test2).Value == test5.Value);
-
-    static_assert(Value(10.0f) / Value(2.0f) == 5.0f);
-    static_assert(Value(10.0f) / Value(2.0f) == 5.0f);
-    static_assert(Value(10.0f) / Value(2.0f) == Value(5.0f));
-
-    constexpr Angle test90 = Angle(90);
-    constexpr auto asdfsadf = test90 / test2;
-
-    static_assert(Angle(90.0f) / Value(2.0f) == 45);
-
-    constexpr Value testNeg1 = -1;
-    constexpr Value testNeg2 = -2;
-    constexpr auto asfdf = testNeg1 / test2;
-    constexpr auto asfd2f = test1 / testNeg2;
-
-    static_assert(Value(1.0f) / 2.0f == 0.5f);
-    static_assert(Value(1.5f) / 2.0f == 0.75f);
-    static_assert(Value(-1.0f) / 2.0f == -0.5f);
-    static_assert(Value(-1.5f) / 2.0f == -0.75f);
-    static_assert(Value(1.0f) / -2.0f == -0.5f);
-    static_assert(Value(1.5f) / -2.0f == -0.75f);
-
-    static_assert(OneDivBy<Value>(10.0f).Value == 10240);
-    static_assert(Value(10) / OneDivBy<Value>(10.0f) == 100.0f);
-
-    constexpr auto a = OneDivBy<Value>(2);
-    constexpr auto b = OneDivBy<Value>(4);
-    constexpr auto c = int64(b.Value) - a.Value;
-    constexpr auto d = int64(a.Value) * b.Value;
-    constexpr auto e = d / c;
-    constexpr auto f = OneDivBy<Value>(2) + OneDivBy<Distance>(2);
-    constexpr auto g = OneDivBy<Value>(2) - OneDivBy<Distance>(2);
-    static_assert((OneDivBy<Value>(2) + OneDivBy<Value>(4)).Value == Value(1.3333f).Value);
-    static_assert((OneDivBy<Value>(2) - OneDivBy<Value>(2)).Value == 0);
-    static_assert((OneDivBy<Value>(2) - OneDivBy<Value>(4)).Value == Value(4.0f).Value);
-
-    inline void test()
-    {
-        Value value = 1.0f;
-        Distance distance = 1.0f;
-        Speed speed = 1.0f;
-
-        value = value + 1.0f;
-        value += 1.0f;
-        value = value - 1.0f;
-        value -= 1.0f;
-        value = value * 2.0f;
-        value *= 2.0f;
-        value = value / 2.0f;
-        value /= 2.0f;
-        
-        distance += 1.0f;
     }
 }

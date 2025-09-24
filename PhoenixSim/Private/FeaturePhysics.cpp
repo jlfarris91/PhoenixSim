@@ -152,22 +152,19 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             // Collide with lines
             {
-                Distance radius = bodyCompA->Radius;
+                DistanceSq radius = FixedMath::Square(bodyCompA->Radius);
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
                     Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    Distance vLen2 = v.Length();
+                    DistanceSq vLen2 = v.LengthSq();
                     if (vLen2 < radius)
                     {
-                        Vec2 n = v.Normalized();
-                        Value s = Vec2::Dot(bodyCompA->LinearVelocity * dt, n);
-                        
                         Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
                         contact.TransformA = transformCompA;
                         contact.BodyA = bodyCompA;
                         contact.TransformB = nullptr;
                         contact.BodyB = nullptr;
-                        contact.Normal = n;
+                        contact.Normal = v.Normalized();
                         contact.Bias = (v.Length() - bodyCompA->Radius) / dt;
                         contact.EffMass = OneDivBy(bodyCompA->InvMass);
                         contact.Impulse = 0;
@@ -259,8 +256,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
                 v = transformCompB->Transform.Position - transformCompA->Transform.Position;
             
-                Distance vLen = v.Length();
-                Distance rr = bodyCompA->Radius + bodyCompB->Radius;
+                DistanceSq vLen = v.LengthSq();
+                DistanceSq rr = FixedMath::Square(bodyCompA->Radius + bodyCompB->Radius);
                 if (vLen > rr)
                 {
                     continue;
@@ -268,8 +265,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
                 const Value baum = 0.3f;
                 const Value slop = 0.01f * rr;
-                Distance d = rr - vLen;
-                Value bias = -baum * max(0, d - slop) / dt;
+                Distance d = FixedMath::Sqrt(rr) - FixedMath::Sqrt(vLen);
+                Value bias = -baum * max(0, d - slop) * dt;
 
                 Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
                 contact.TransformA = transformCompA;
@@ -359,7 +356,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                bool isMoving = bodyComp->LinearVelocity.Length() > 0.01f;
+                bool isMoving = bodyComp->LinearVelocity.LengthSq() > DistanceSq::EPSILON;
                 if (isMoving)
                 {
                     bodyComp->SleepTimer = SLEEP_TIMER;

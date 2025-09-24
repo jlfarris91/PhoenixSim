@@ -98,7 +98,8 @@
     <ClInclude Include="Public\Vector.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Private\Vector.cpp" />
+    <ClCompile Include="Private\FixedMath.cpp" />
+    <ClCompile Include="Private\FixedPoint.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

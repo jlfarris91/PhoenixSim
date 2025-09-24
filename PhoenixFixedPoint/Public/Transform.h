@@ -15,7 +15,6 @@ namespace Phoenix
     };
 
     typedef TTransform<Vec2, Angle, Value> Transform2D;
-    typedef TTransform<Vec3, Vec3, Vec3> Transform3D;
 
     template <>
     inline Vec2 TTransform<Vec2, Angle, Value>::RotateVector(const Vec2& vec)
