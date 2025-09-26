@@ -46,7 +46,7 @@
     <IntDir>..\Build\Intermediate\Debug-windows-x86_64\Debug\PhoenixSimDriver\</IntDir>
     <TargetName>PhoenixSimDriver</TargetName>
     <TargetExt>.exe</TargetExt>
-    <ExternalIncludePath>..\PhoenixFixedPoint\Public;..\PhoenixSim\Public;External;$(ExternalIncludePath)</ExternalIncludePath>
+    <ExternalIncludePath>External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -54,14 +54,14 @@
     <IntDir>..\Build\Intermediate\Release-windows-x86_64\Release\PhoenixSimDriver\</IntDir>
     <TargetName>PhoenixSimDriver</TargetName>
     <TargetExt>.exe</TargetExt>
-    <ExternalIncludePath>..\PhoenixFixedPoint\Public;..\PhoenixSim\Public;External;$(ExternalIncludePath)</ExternalIncludePath>
+    <ExternalIncludePath>External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\PhoenixFixedPoint\Public;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -83,7 +83,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\PhoenixFixedPoint\Public;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>

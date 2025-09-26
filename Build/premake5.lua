@@ -57,11 +57,8 @@ project "PhoenixSim"
    }
 
    includedirs {
+      "../PhoenixFixedPoint/Public/",
       "../PhoenixSim/Public"
-   }
-
-   externalincludedirs {
-      "../PhoenixFixedPoint/Public/"
    }
 
    links {
@@ -102,12 +99,11 @@ project "PhoenixSimDriver"
    }
 
    includedirs {
-      "../PhoenixSimDriver"
+      "../PhoenixFixedPoint/Public/",
+      "../PhoenixSim/Public/",
    }
 
    externalincludedirs {
-      "../PhoenixFixedPoint/Public/",
-      "../PhoenixSim/Public/",
       "../PhoenixSimDriver/External/"
    }
 

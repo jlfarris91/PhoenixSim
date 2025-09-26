@@ -7,7 +7,7 @@
 
 namespace Phoenix
 {
-    template <class T = Fixed8>
+    template <class T = Fixed32_8>
     struct TVec2
     {
         using ComponentT = T;
@@ -73,13 +73,13 @@ namespace Phoenix
             return { X * rhs.X, Y * rhs.Y }; 
         }
 
-        template <class U = Fixed12>
+        template <class U = Fixed32_12>
         constexpr TVec2 operator*(const U& rhs) const
         {
             return { X * rhs, Y * rhs }; 
         }
 
-        template <class U = Fixed12>
+        template <class U = Fixed32_12>
         friend TVec2 operator*(const U& lhs, const TVec2& rhs)
         {
             return { lhs * rhs.X, lhs * rhs.Y }; 
@@ -111,7 +111,7 @@ namespace Phoenix
             return { X / rhs, Y / rhs }; 
         }
 
-        template <class U = Fixed12>
+        template <class U = Fixed32_12>
         friend TVec2 operator/(const U& lhs, const TVec2& rhs)
         {
             return { lhs / rhs.X, lhs / rhs.Y }; 
@@ -124,7 +124,7 @@ namespace Phoenix
             return *this; 
         }
 
-        template <class U = Fixed12>
+        template <class U = Fixed32_12>
         TVec2& operator/=(const T& rhs)
         {
             X /= rhs;
@@ -144,40 +144,38 @@ namespace Phoenix
             return { X * -1.0f, Y * -1.0f };
         }
 
+        constexpr Angle AsRadians() const
+        {
+            return ToAngle(X, Y);
+        }
+
         constexpr Angle AsDegrees() const
         {
-            return FixedMath::Rad2Deg(FixedMath::Atan2(Y, X));
+            return Rad2Deg(AsRadians());
         }
 
         constexpr T Length() const
         {
-            TFixedSq<T> a = LengthSq();
-            return FixedMath::Sqrt(a);
-        }
-
-        constexpr auto LengthSq() const
-        {
-            return FixedMath::Square(X) + FixedMath::Square(Y);
+            return Magnitude(X, Y);
         }
 
         constexpr TVec2 Normalized() const
         {
+            /// make a change
             auto m = Length();
             TVec2 result = *this;
             return m == 0.0f ? result : result / m;
         }
 
-        constexpr TVec2 Rotate(Angle degrees) const
+        constexpr TVec2 Rotate(Angle angle) const
         {
-            auto theta = FixedMath::Deg2Rad(degrees);
-            auto cs = FixedMath::Cos(theta);
-            auto sn = FixedMath::Sin(theta);
-            return { X * cs - Y * sn, X * sn + Y * cs };
+            auto v = Cordic::Rotate(X, Y, angle);
+            return { v.X, v.Y };
         }
 
-        constexpr static bool Equals(const TVec2& a, const TVec2& b, T threshold = T::EPSILON)
+        constexpr static bool Equals(const TVec2& a, const TVec2& b, T threshold = T::Epsilon)
         {
-            return FixedMath::Abs(a.X - b.X) < threshold && FixedMath::Abs(a.Y - b.Y) < threshold;
+            return Abs(a.X - b.X) < threshold && Abs(a.Y - b.Y) < threshold;
         }
 
         constexpr static Value Dot(const TVec2& a, const TVec2& b)
@@ -187,14 +185,9 @@ namespace Phoenix
             return a1 + a2;
         }
 
-        constexpr static auto DistanceSq(const TVec2& a, const TVec2& b)
-        {
-            return FixedMath::Square(a.X - b.X) + FixedMath::Square(a.Y - b.Y);
-        }
-
         constexpr static T Distance(const TVec2& a, const TVec2& b)
         {
-            return FixedMath::Sqrt(DistanceSq(a, b));
+            return Magnitude(a.X - b.X, a.Y - b.Y);
         }
 
         constexpr static TVec2 Project(const TVec2& s, const TVec2& n, const TVec2& p)
@@ -268,7 +261,7 @@ namespace Phoenix
             auto bb = T::Dot(b, b);
             if (bb == 0) return T::Zero;
             auto d = T::Dot(a, b) / bb;
-            d = FixedMath::Min(FixedMath::Max(d, 0.0f), 1.0f);
+            d = Min(Max(d, 0.0f), 1.0f);
             return -(a - b * d);
         }
 
@@ -281,7 +274,7 @@ namespace Phoenix
         // Returns the distance from a TVec2 point to a Line.
         constexpr static T DistanceToLine(const TLine& line, const T& point)
         {
-            return FixedMath::Sqrt(DistanceToLineSq(line, point));
+            return Sqrt(DistanceToLineSq(line, point));
         }
     };
 

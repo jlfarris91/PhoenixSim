@@ -76,7 +76,7 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
             bodyComp->LinearVelocity += dir * moveComp->Speed * bodyComp->InvMass;
 
             Angle targetRot = dir.AsDegrees();
-            Angle deltaRot = FixedMath::AngleBetween(transComp->Transform.Rotation, targetRot);
+            Angle deltaRot = AngleBetween(transComp->Transform.Rotation, targetRot);
             transComp->Transform.Rotation += deltaRot * dt;
         }
     }
@@ -93,7 +93,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     size_t maxProbeLen = 0;
 
     Value margin = 0.5f;
-    Distance mapMinDim = min(scratchBlock.MapCenter.X, scratchBlock.MapCenter.Y);
+    Distance mapMinDim = Min(scratchBlock.MapCenter.X, scratchBlock.MapCenter.Y);
     Vec2 offset = Vec2(mapMinDim, mapMinDim) * margin;
     
     Vec2 bl = Vec2(-offset.X, -offset.Y);
@@ -101,7 +101,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     Vec2 tl = Vec2(-offset.X, offset.Y);
     Vec2 tr = Vec2(offset.X, offset.Y);
 
-    scratchBlock.Rotation += 0.1f;
+    scratchBlock.Rotation += Deg2Rad(0.1f);
 
     Vec2 bl1 = bl.Rotate(scratchBlock.Rotation);
     Vec2 br1 = br.Rotate(scratchBlock.Rotation);
@@ -130,8 +130,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     a1 = Vec2(offset.X, offset.Y) * 0.25f;
     a2 = Vec2(offset.X, offset.Y) * -0.25f;
-    a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + 90.0f);
-    a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + 90.0f);
+    a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + HALF_PI);
+    a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + HALF_PI);
     
     scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
     
@@ -152,11 +152,11 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             // Collide with lines
             {
-                DistanceSq radius = FixedMath::Square(bodyCompA->Radius);
+                Distance radius = bodyCompA->Radius;
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
                     Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    DistanceSq vLen2 = v.LengthSq();
+                    Distance vLen2 = v.Length();
                     if (vLen2 < radius)
                     {
                         Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
@@ -205,7 +205,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             if (!overlappingBodies.empty())
             {
-                scratchBlock.MaxQueryBodyCount = max(scratchBlock.MaxQueryBodyCount, overlappingBodies.size() - 1);
+                scratchBlock.MaxQueryBodyCount = Max(scratchBlock.MaxQueryBodyCount, overlappingBodies.size() - 1);
             }
 
             for (const EntityBody* entityBodyB : overlappingBodies)
@@ -228,15 +228,15 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                     continue;
                 }
 
-                entityid_t loId = min(entityBodyA.EntityId, entityBodyB->EntityId);
-                entityid_t hiId = max(entityBodyA.EntityId, entityBodyB->EntityId);
+                entityid_t loId = Min(entityBodyA.EntityId, entityBodyB->EntityId);
+                entityid_t hiId = Max(entityBodyA.EntityId, entityBodyB->EntityId);
                 uint64 key = hiId; key = key << 32 | loId;
 
                 {
                     // ScopedTrace trace2(world, "ContactSetQuery"_n);
                     size_t probeLen = 0;
                     bool containsKey = scratchBlock.ContactSet.Contains(key, &probeLen);
-                    maxProbeLen = max(maxProbeLen, probeLen);
+                    maxProbeLen = Max(maxProbeLen, probeLen);
                     if (containsKey)
                     {
                         continue;
@@ -256,8 +256,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
                 v = transformCompB->Transform.Position - transformCompA->Transform.Position;
             
-                DistanceSq vLen = v.LengthSq();
-                DistanceSq rr = FixedMath::Square(bodyCompA->Radius + bodyCompB->Radius);
+                Distance vLen = v.Length();
+                Distance rr = bodyCompA->Radius + bodyCompB->Radius;
                 if (vLen > rr)
                 {
                     continue;
@@ -265,8 +265,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
                 const Value baum = 0.3f;
                 const Value slop = 0.01f * rr;
-                Distance d = FixedMath::Sqrt(rr) - FixedMath::Sqrt(vLen);
-                Value bias = -baum * max(0, d - slop) * dt;
+                Distance d = Sqrt(rr) - Sqrt(vLen);
+                Value bias = -baum * Max(0, d - slop) * dt;
 
                 Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
                 contact.TransformA = transformCompA;
@@ -287,14 +287,14 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                     // ScopedTrace trace2(world, "ContactSetQuery"_n);
                     size_t probeLen = 0;
                     scratchBlock.ContactSet.Insert(key, &probeLen);
-                    maxProbeLen = max(maxProbeLen, probeLen);
+                    maxProbeLen = Max(maxProbeLen, probeLen);
                 }
             }
         }
     }
 
-    FeatureTrace::PushTrace(world, "ContactSetSize"_n, {}, ETraceFlags::Counter, scratchBlock.ContactSet.Num());
-    FeatureTrace::PushTrace(world, "MaxProbeLen"_n, {}, ETraceFlags::Counter, maxProbeLen);
+    FeatureTrace::PushTrace(world, "ContactSetSize"_n, {}, ETraceFlags::Counter, (int32)scratchBlock.ContactSet.Num());
+    FeatureTrace::PushTrace(world, "MaxProbeLen"_n, {}, ETraceFlags::Counter, (int32)maxProbeLen);
 
     // Multi-pass solver
     if (1)
@@ -324,7 +324,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     
                 // Accumulate and project (no negative normal impulses)
                 Value oldImpulse = contact.Impulse;
-                contact.Impulse = max(oldImpulse + lambda, 0.0f);
+                contact.Impulse = Max(oldImpulse + lambda, 0.0f);
                 Value change = contact.Impulse - oldImpulse;
     
                 // Apply impulse
@@ -356,7 +356,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                bool isMoving = bodyComp->LinearVelocity.LengthSq() > DistanceSq::EPSILON;
+                bool isMoving = bodyComp->LinearVelocity.Length() > Distance::Epsilon;
                 if (isMoving)
                 {
                     bodyComp->SleepTimer = SLEEP_TIMER;
@@ -478,7 +478,6 @@ void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& act
     {
         Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
         Distance range = action.Action.Data[2].Distance;
-        Distance rangeSq = range * range;
 
         TArray<EntityBody> outEntities;
         QueryEntitiesInRange(world, pos, range, outEntities);
@@ -486,7 +485,7 @@ void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         for (const EntityBody& entityBody : outEntities)
         {
             const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
-            if (Vec2::DistanceSq(pos, entityPos) < rangeSq)
+            if (Vec2::Distance(pos, entityPos) < range)
             {
                 FeatureECS::ReleaseEntity(world, entityBody.EntityId);
             }

@@ -26,7 +26,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Private\Vector.cpp">
+    <ClCompile Include="Private\FixedMath.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FixedPoint.cpp">
       <Filter>Private</Filter>
     </ClCompile>
   </ItemGroup>

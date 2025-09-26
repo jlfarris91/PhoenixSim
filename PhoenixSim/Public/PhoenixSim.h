@@ -1,6 +1,8 @@
 
 #pragma once
 
+#define NOMINMAX
+
 #include <windows.h>
 #include <string>
 #include <map>
@@ -11,7 +13,9 @@
 
 #include "DLLExport.h"
 #include "Name.h"
-#include "FixedPoint.h"
+#include "FixedTypes.h"
+
+#pragma warning( disable : 4251 )
 
 namespace Phoenix
 {

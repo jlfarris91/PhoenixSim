@@ -82,7 +82,7 @@ void Session::Tick(const SessionStepArgs& args)
             break;
         }
 
-        AccTickTime -= max(hz, stepElapsed);
+        AccTickTime -= std::max(hz, stepElapsed);
         CurrTickTime = clock();
     }
 

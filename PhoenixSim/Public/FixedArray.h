@@ -285,7 +285,7 @@ namespace Phoenix
 
             friend auto operator<=>(ConstIter, ConstIter) = default;
 
-            friend long operator-(const ConstIter& a, const ConstIter& b)
+            friend auto operator-(const ConstIter& a, const ConstIter& b)
             {
                 return a.DataPtr - b.DataPtr;
             }

@@ -20,7 +20,7 @@ namespace Phoenix
 
     struct PHOENIXSIM_API SessionStepArgs
     {
-        clock_t DeltaTime = 0.0f;
+        clock_t DeltaTime = 0;
         clock_t StepHz = 1000 / 60;
 
         // Optionally only step this world.

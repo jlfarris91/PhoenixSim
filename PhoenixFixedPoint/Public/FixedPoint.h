@@ -1,6 +1,9 @@
 ﻿#pragma once
 
-#include <cstdint>
+#include <limits>
+
+#include "FixedUtils.h"
+#include "PlatformTypes.h"
 
 #ifndef TFIXED_DEBUG
 #if DEBUG
@@ -18,14 +21,46 @@
 
 namespace Phoenix
 {
-    typedef int8_t int8;
-    typedef int16_t int16;
-    typedef int32_t int32;
-    typedef int64_t int64;
-    typedef uint8_t uint8;
-    typedef uint16_t uint16;
-    typedef uint32_t uint32;
-    typedef uint64_t uint64;
+    template <class T>
+    constexpr static T Abs_(T value)
+    {
+        // constexpr T cBits = (sizeof(T) << 3) - 1;
+        // return (value ^ (value >> cBits)) - (value >> cBits);
+        return value < 0 ? -value : value;
+    }
+
+    template <class T>
+    struct ChkResult
+    {
+        constexpr ChkResult() : bOverflowed(true) {}
+        constexpr ChkResult(T v) : bOverflowed(false), Value(v) {}
+        bool bOverflowed;
+        T Value;
+    };
+
+    // Returns true if the product of a and b would overflow with storage type T
+    template <class T, class U>
+    constexpr ChkResult<U> ChkMult_(U a, U b)
+    {
+        if ((b > 0 && a > std::numeric_limits<T>::max() / Abs_(b)) ||
+            (b < 0 && a < std::numeric_limits<T>::min() / Abs_(b)))
+        {
+            return {};
+        }
+        return a * b;
+    }
+
+    // Returns true if the sum of a and b would overflow with storage type T
+    template <class T, class U>
+    constexpr ChkResult<U> ChkAdd_(U a, U b)
+    {
+        if ((b > 0 && a > std::numeric_limits<T>::max() - b) ||
+            (b < 0 && a < std::numeric_limits<T>::min() - b))
+        {
+            return {};
+        }
+        return a + b;
+    }
 
     enum class Q32 : int32{ };
     enum class Q64 : int64{ };
@@ -36,14 +71,14 @@ namespace Phoenix
 
     template <class T> using TFixedQ_T = typename TFixedQ<T>::type;
 
-    template <class, class> struct TLargestQ {};
+    template <class, class> struct TCommonQ {};
 
-    template <> struct TLargestQ<int32, int32> { using type = int32; };
-    template <> struct TLargestQ<int32, int64> { using type = int64; };
-    template <> struct TLargestQ<int64, int32> { using type = int64; };
-    template <> struct TLargestQ<int64, int64> { using type = int64; };
+    template <> struct TCommonQ<int32, int32> { using type = int32; };
+    template <> struct TCommonQ<int32, int64> { using type = int64; };
+    template <> struct TCommonQ<int64, int32> { using type = int64; };
+    template <> struct TCommonQ<int64, int64> { using type = int64; };
 
-    template <class T, class U> using TLargestQ_T = typename TLargestQ<T, U>::type;
+    template <class T, class U> using TCommonQ_T = typename TCommonQ<T, U>::type;
 
     // Calculates the number of bits needed to store the value n.
     // https://en.cppreference.com/w/cpp/numeric/bit_width
@@ -60,13 +95,21 @@ namespace Phoenix
     template <int64 Tb, class T = int32>
     struct TFixed
     {
+        static_assert(Tb < (sizeof(T) << 3) - 2);
         using ValueT = T;
-        static constexpr int64 D = 1 << Tb;
+        static constexpr int64 D = 1LL << Tb;
         static constexpr int64 B = Tb;
 
-        static const TFixed EPSILON;
-        static const TFixed MIN;
-        static const TFixed MAX;
+        static constexpr TFixedQ_T<T> QMIN = TFixedQ_T<T>(std::numeric_limits<T>::min());
+        static constexpr TFixedQ_T<T> QMAX = TFixedQ_T<T>(std::numeric_limits<T>::max());
+        static constexpr TFixedQ_T<T> QSTEP = TFixedQ_T<T>(1);
+        static constexpr TFixedQ_T<T> QZero = TFixedQ_T<T>(0);
+        static constexpr TFixedQ_T<T> QOne = TFixedQ_T<T>(D);
+
+        static const TFixed Epsilon;
+        static const TFixed Min;
+        static const TFixed Max;
+        static const TFixed Step;
 
         template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>((int64(v * D))); }
         template <class U> static constexpr U FromFixedValue(T v) { return static_cast<U>(v) / D; }
@@ -98,10 +141,7 @@ namespace Phoenix
         {
             constexpr int64 Td = 1 << Tb;
             constexpr int64 Ud = 1 << Ub;
-            if constexpr (Tb < Ub)
-                return T(int64(other.Value) * Td / Ud);
-            else
-                return T(int64(other.Value) * Ud / Td);
+            return T(int64(other.Value * Td / Ud));
         }
 
         T Value;
@@ -110,7 +150,39 @@ namespace Phoenix
 #endif
     };
 
-    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::EPSILON = TFixed(1E-3);
+    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::Epsilon = TFixed(1E-3);
+    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::Min = QMIN;
+    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::Max = QMAX;
+    template <int64 Tb, class T> const TFixed<Tb, T> TFixed<Tb, T>::Step = QSTEP;
+
+#define DEF_SIGNED_FIXED(S, N) using Fixed##S##_##N = TFixed<N, int##S>
+
+    DEF_SIGNED_FIXED(32, 0);
+    DEF_SIGNED_FIXED(32, 1);
+    DEF_SIGNED_FIXED(32, 2);
+    DEF_SIGNED_FIXED(32, 4);
+    DEF_SIGNED_FIXED(32, 8);
+    DEF_SIGNED_FIXED(32, 12);
+    DEF_SIGNED_FIXED(32, 16);
+    DEF_SIGNED_FIXED(32, 20);
+    DEF_SIGNED_FIXED(32, 24);
+    DEF_SIGNED_FIXED(32, 28);
+    DEF_SIGNED_FIXED(32, 30);
+
+    DEF_SIGNED_FIXED(64, 0);
+    DEF_SIGNED_FIXED(64, 1);
+    DEF_SIGNED_FIXED(64, 2);
+    DEF_SIGNED_FIXED(64, 4);
+    DEF_SIGNED_FIXED(64, 8);
+    DEF_SIGNED_FIXED(64, 12);
+    DEF_SIGNED_FIXED(64, 16);
+    DEF_SIGNED_FIXED(64, 20);
+    DEF_SIGNED_FIXED(64, 24);
+    DEF_SIGNED_FIXED(64, 28);
+    DEF_SIGNED_FIXED(64, 30);
+    DEF_SIGNED_FIXED(64, 32);
+
+#undef DEF_SIGNED_FIXED
 
     // Useful for storing reciprocal values ie 1/X without losing precision 
     template <int32 Tb, class T = int32>
@@ -146,43 +218,17 @@ namespace Phoenix
     template <class T>
     using TInvFixed2 = TInvFixed<T::B, typename T::ValueT>;
 
-    template <class T>
-    constexpr TInvFixed<T::B, typename T::ValueT> OneDivBy(const T& v)
-    {
-        return TFixedQ_T<typename T::ValueT>(v.Value);
-    }
+    template <class A, class B> constexpr auto _min(A a, B b) { return a < b ? a : b; }
+    template <class A, class B> constexpr auto _max(A a, B b) { return a > b ? a : b; }
 
     template <int32 Tb, class T>
-    constexpr TInvFixed<Tb, T> OneDivBy(const TInvFixed<Tb, T>& v)
+    struct TFixedSq
     {
-        return OneDivBy(TFixed<Tb, T>(TFixedQ_T<T>(v.Value)));
-    }
+        TFixed<Tb, T> Value;
+    };
 
-    template <class A, class B>
-    constexpr auto _min(A a, B b) { return a < b ? a : b; }
-
-    // Helper for defining the precision for a squared number
-    template <uint64 Tb, class T> using TFixedSq_ = TFixed<_min(Tb+Tb, (sizeof(T) << 3 - 2)), int64>;
-    template <class T> using TFixedSq = TFixedSq_<T::B, int64>;
-
-    using Fixed4 = TFixed<4>;
-    using Fixed8 = TFixed<8>;
-    using Fixed12 = TFixed<12>;
-    using Fixed16 = TFixed<16>;
-    using Fixed20 = TFixed<20>;
-    using Fixed24 = TFixed<24>;
-    using Fixed28 = TFixed<28>;
-
-#ifndef FP_NO_STANDARD_TYPES
-    using Value = TFixed<12>;
-    using ValueSq = TFixedSq<Value>;
-    using Distance = TFixed<16>;
-    using DistanceSq = TFixedSq<Distance>;
-    using Time = Fixed4;
-    using DeltaTime = TInvFixed2<Time>;
-    using Speed = Fixed16;
-    using Angle = Fixed20;
-#endif
+    template <class T>
+    using TFixedSq2 = TFixedSq<T::B, T>;
 
     ///////////////////////////////////////////////////////////////////////////
     // 
@@ -200,7 +246,8 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr bool operator==(const TFixed<Tb, T>& lhs, const TFixed<Tb, T>& rhs)
     {
-        return lhs.Value == rhs.Value;
+        auto v = int64(lhs.Value) - rhs.Value; 
+        return (v < 0 ? -v : v) <= 1;
     }
 
     // TFixed<Tb, T> == TFixed<Ub, U>
@@ -209,7 +256,8 @@ namespace Phoenix
     {
         auto a = int64(lhs.Value) * (1 << Ub);
         auto b = int64(rhs.Value) * (1 << Tb);
-        return a == b;
+        auto v = a - b; 
+        return (v < 0 ? -v : v) <= 1;
     }
 
     // TFixed == double
@@ -371,6 +419,45 @@ namespace Phoenix
     // Addition
     //
 
+    // template <int64 Tb, class T, int64 Ub, class U>
+    // constexpr auto ChkAdd(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
+    // {
+    //     constexpr int64 Td = 1 << Tb;
+    //     constexpr int64 Ud = 1 << Ub;
+    //     if constexpr (Tb < Ub)
+    //     {
+    //         using CR = ChkResult<TFixed<Ub, TCommonQ_T<T, U>>>;
+    //         auto v = ChkMult_<T>(int64(lhs.Value), Ud / Td);
+    //         if (v.bOverflowed)
+    //         {
+    //             auto v128 = FixedUtils::Mult128(int64(lhs.Value), Ud / Td);
+    //             v.Value = v128.template NarrowToI64<Ub>();
+    //         }
+    //         auto v2 = ChkAdd_<T>(int64(rhs.Value), v.Value);
+    //         if (v2.bOverflowed)
+    //         {
+    //             return CR();
+    //         }
+    //         return CR(TFixed<Ub, TCommonQ_T<T, U>>(Q64(v2.Value)));
+    //     }
+    //     else
+    //     {
+    //         using CR = ChkResult<TFixed<Tb, TCommonQ_T<T, U>>>;
+    //         auto v = ChkMult_<T>(int64(rhs.Value), Td / Ud);
+    //         if (v.bOverflowed)
+    //         {
+    //             auto v128 = FixedUtils::Mult128(int64(rhs.Value), Td / Ud);
+    //             v.Value = v128.template NarrowToI64<Ub>();
+    //         }
+    //         auto v2 = ChkAdd_<T>(int64(lhs.Value), v.Value);
+    //         if (v2.bOverflowed)
+    //         {
+    //             return CR();
+    //         }
+    //         return CR(TFixed<Tb, TCommonQ_T<T, U>>(Q64(v2.Value)));
+    //     }
+    // }
+
     // TFixed<Tb, T> + TFixed<Ub, U>
     template <int32 Tb, class T, int32 Ub, class U>
     constexpr auto operator+(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
@@ -414,7 +501,7 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr auto& operator+=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value += TFixed<Tb, T>::ToFixedValue(rhs);
+        lhs += TFixed<Tb, T>(rhs);
         return lhs;
     }
 
@@ -424,7 +511,7 @@ namespace Phoenix
     {
         constexpr auto Vb = Tb > Ub ? Tb : Ub;
         constexpr auto Vd = Tb > Ub ? Tb : Ub;
-        using V = TLargestQ_T<T, U>;
+        using V = TCommonQ_T<T, U>;
         int64 n = (int64(rhs.Value) << (Vb - Ub)) + (lhs.Value << (Vb - Tb));
         if (n == 0)
         {
@@ -453,7 +540,7 @@ namespace Phoenix
     template <int32 Tb, class T>
     constexpr auto& operator+=(TInvFixed<Tb, T>& lhs, const TInvFixed<Tb, T>& rhs)
     {
-        lhs.Value += rhs.Value;
+        lhs += rhs;
         return lhs;
     }
 
@@ -461,7 +548,7 @@ namespace Phoenix
     template <int32 Tb, class T>
     constexpr auto& operator+=(TInvFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value += TFixed<Tb, T>::ToFixedValue(rhs);
+        lhs += TFixed<Tb, T>(rhs);
         return lhs;
     }
 
@@ -473,16 +560,7 @@ namespace Phoenix
     template <int32 Tb, class T, int32 Ub, class U>
     constexpr auto operator-(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        constexpr int64 Td = 1 << Tb;
-        constexpr int64 Ud = 1 << Ub;
-        if constexpr (Tb < Ub)
-        {
-            return TFixed<Ub, U>(Q64(int64(lhs.Value) * Ud / Td - rhs.Value));
-        }
-        else
-        {
-            return TFixed<Tb, T>(Q64(lhs.Value - int64(rhs.Value) * Td / Ud));
-        }
+        return lhs + -rhs;
     }
 
     // TFixed - double
@@ -518,7 +596,7 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr auto& operator-=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value -= TFixed<Tb, T>::ToFixedValue(rhs);
+        lhs -= TFixed<Tb, T>(rhs);
         return lhs;
     }
 
@@ -572,6 +650,21 @@ namespace Phoenix
     // Multiplication
     //
 
+    // template <int64 Tb, class T, int64 Ub, class U>
+    // constexpr auto ChkMult(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
+    // {
+    //     constexpr auto MIN = Tb < Ub ? Tb : Ub;
+    //     constexpr auto MAX = Tb > Ub ? Tb : Ub;
+    //     using CR = ChkResult<TFixed<MAX, int64>>;
+    //     auto v = ChkMult_<int64, int64>(lhs.Value, rhs.Value);
+    //     if (v.bOverflowed)
+    //     {
+    //         auto v128 = FixedUtils::Mult128(int64(lhs.Value), rhs.Value);
+    //         v.Value = v128.template NarrowToI64<Ub>();
+    //     }
+    //     return CR(TFixed<MAX, int64>(Q64(v.Value >> MIN)));
+    // }
+
     // TFixed<Tb, T> * TFixed<Ub, U>
     template<int32 Tb, class T, int32 Ub, class U>
     constexpr auto operator*(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
@@ -585,7 +678,7 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr auto operator*(const TFixed<Tb, T>& lhs, double rhs)
     {
-        return TFixed<Tb, T>(Q64(int64(lhs.Value) * rhs));
+        return lhs * TFixed<Tb, T>(rhs);
     }
 
     // double * TFixed
@@ -607,7 +700,7 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr auto& operator*=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value *= TFixed<Tb, T>::ToFixedValue(rhs);
+        lhs *= TFixed<Tb, T>(rhs);
         return lhs;
     }
 
@@ -682,7 +775,7 @@ namespace Phoenix
     template<int32 Tb, class T>
     constexpr auto& operator/=(TFixed<Tb, T>& lhs, double rhs)
     {
-        lhs.Value = lhs.Value / rhs;
+        lhs = lhs / TFixed<Tb, T>(rhs);
         return lhs;
     }
 
@@ -700,6 +793,30 @@ namespace Phoenix
     constexpr auto operator/(const TInvFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
         // Commutative, just flip order of operators
-        return rhs.Value * lhs.Value;
+        return rhs * lhs;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // 
+    // Utility
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    template <int32 Tb, class T>
+    constexpr static TFixed<Tb, T> Abs(const TFixed<Tb, T>& value)
+    {
+        return TFixedQ_T<T>(Abs_(value.Value));
+    }
+
+    template <class T>
+    constexpr TInvFixed<T::B, typename T::ValueT> OneDivBy(const T& v)
+    {
+        return TFixedQ_T<typename T::ValueT>(v.Value);
+    }
+
+    template <int32 Tb, class T>
+    constexpr TInvFixed<Tb, T> OneDivBy(const TInvFixed<Tb, T>& v)
+    {
+        return OneDivBy(TFixed<Tb, T>(TFixedQ_T<T>(v.Value)));
     }
 }

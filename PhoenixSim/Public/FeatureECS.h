@@ -4,7 +4,7 @@
 #include "Features.h"
 #include "FixedArray.h"
 #include "Worlds.h"
-#include "Transform.h"
+#include "FixedTransform.h"
 
 #ifndef ECS_MAX_ENTITIES
 #define ECS_MAX_ENTITIES MAXINT16

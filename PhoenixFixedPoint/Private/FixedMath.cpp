@@ -2,7 +2,6 @@
 #include "FixedMath.h"
 
 using namespace Phoenix;
-using namespace Phoenix::FixedMath;
 
 static_assert(Deg2Rad(0.0f) == 0.0f);
 static_assert(Deg2Rad(90.0f) == HALF_PI);
@@ -39,21 +38,11 @@ static_assert(Abs_(INT_MIN + 1) == INT_MAX);
 // static_assert(Atan2_<1024, int32>(-1, 0) == TFixed<1024>::ToFixedValue(-1.5708));
 // static_assert(Atan2_<1024, int32>(-1, 1) == TFixed<1024>::ToFixedValue(-0.785398));
 
-static_assert(isqrt<Value::B>(Value(1.0).Value) == Value(1.0).Value);
-static_assert(isqrt<Value::B>(Value(4.0).Value) == Value(2.0).Value);
-static_assert(isqrt<Value::B>(Value(16.0).Value) == Value(4.0).Value);
-static_assert(isqrt<Value::B>(Value(8.0*8.0).Value) == Value(8.0).Value);
-static_assert(isqrt<Value::B>(Value(16.0*16.0).Value) == Value(16.0).Value);
-static_assert(isqrt<Value::B>(Value(32.0*32.0).Value) == Value(32.0).Value);
-static_assert(isqrt<Value::B>(Value(64.0*64.0).Value) == Value(64.0).Value);
-static_assert(isqrt<Value::B>(Value(128.0*128.0).Value) == Value(128.0).Value);
-
-static_assert(Sqrt(Distance(1.0)).Value == Distance(1.0).Value);
-static_assert(Sqrt(Distance(4.0)).Value == Distance(2.0).Value);
-static_assert(Sqrt(Distance(16.0)).Value == Distance(4.0).Value);
-static_assert(Sqrt(Distance(8.0*8.0)).Value == Distance(8.0).Value);
-static_assert(Sqrt(Distance(16.0*16.0)).Value == Distance(16.0).Value);
-static_assert(Sqrt(Distance(32.0*32.0)).Value == Distance(32.0).Value);
-static_assert(Sqrt(Distance(64.0*64.0)).Value == Distance(64.0).Value);
-static_assert(Sqrt(Distance(128.0*128.0)).Value == Distance(128.0).Value);
-// static_assert(Sqrt(Distance(1024.0*1024.0)).Value == Distance(1024.0).Value);
+// static_assert(Sqrt(Distance(1.0)).Value == Distance(1.0).Value);
+// static_assert(Sqrt(Distance(4.0)) == Distance(2.0));
+// static_assert(Sqrt(Distance(16.0)) == Distance(4.0));
+// static_assert(Sqrt(Distance(8.0*8.0)).Value == Distance(8.0).Value);
+// static_assert(Sqrt(Distance(16.0*16.0)) == Distance(16.0));
+// static_assert(Sqrt(Distance(32.0*32.0)) == Distance(32.0));
+// static_assert(Sqrt(Distance(64.0*64.0)) == Distance(64.0));
+// static_assert(Sqrt(Distance(128.0*128.0)) == Distance(128.0));

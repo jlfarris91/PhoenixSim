@@ -10,14 +10,14 @@ namespace Phoenix
 {
     namespace Physics
     {
-        PHOENIXSIM_API enum class EBodyMovement : uint8
+        enum class PHOENIXSIM_API EBodyMovement : uint8
         {
             Idle,
             Moving,
             Attached
         };
 
-        PHOENIXSIM_API enum class EBodyFlags : uint8
+        enum class PHOENIXSIM_API EBodyFlags : uint8
         {
             None = 0,
             Awake = 1,

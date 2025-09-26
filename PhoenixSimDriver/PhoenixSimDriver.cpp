@@ -1,4 +1,6 @@
 
+#define NOMINMAX
+
 #include <ctime>
 #include <windows.h>
 
@@ -9,7 +11,6 @@
 #include "MortonCode.h"
 #include "FeatureTrace.h"
 #include "Flags.h"
-#include "Transform.h"
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <queue>
@@ -168,41 +169,59 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
     InitSession();
 
-    auto cos0 = FixedMath::Cos(FixedMath::Deg2Rad(-360));
-    auto cos1 = FixedMath::Cos(FixedMath::Deg2Rad(-315));
-    auto cos2 = FixedMath::Cos(FixedMath::Deg2Rad(-270));
-    auto cos3 = FixedMath::Cos(FixedMath::Deg2Rad(-225));
-    auto cos4 = FixedMath::Cos(FixedMath::Deg2Rad(-180));
-    auto cos5 = FixedMath::Cos(FixedMath::Deg2Rad(-135));
-    auto cos6 = FixedMath::Cos(FixedMath::Deg2Rad(-90));
-    auto cos7 = FixedMath::Cos(FixedMath::Deg2Rad(-45));
-    auto cos8 = FixedMath::Cos(FixedMath::Deg2Rad(0));
-    auto cos9 = FixedMath::Cos(FixedMath::Deg2Rad(45));
-    auto cos10 = FixedMath::Cos(FixedMath::Deg2Rad(90));
-    auto cos11 = FixedMath::Cos(FixedMath::Deg2Rad(135));
-    auto cos12 = FixedMath::Cos(FixedMath::Deg2Rad(180));
-    auto cos13 = FixedMath::Cos(FixedMath::Deg2Rad(225));
-    auto cos14 = FixedMath::Cos(FixedMath::Deg2Rad(270));
-    auto cos15 = FixedMath::Cos(FixedMath::Deg2Rad(315));
-    auto cos16 = FixedMath::Cos(FixedMath::Deg2Rad(360));
 
-    auto sin0 = FixedMath::Sin(FixedMath::Deg2Rad(-360));
-    auto sin1 = FixedMath::Sin(FixedMath::Deg2Rad(-315));
-    auto sin2 = FixedMath::Sin(FixedMath::Deg2Rad(-270));
-    auto sin3 = FixedMath::Sin(FixedMath::Deg2Rad(-225));
-    auto sin4 = FixedMath::Sin(FixedMath::Deg2Rad(-180));
-    auto sin5 = FixedMath::Sin(FixedMath::Deg2Rad(-135));
-    auto sin6 = FixedMath::Sin(FixedMath::Deg2Rad(-90));
-    auto sin7 = FixedMath::Sin(FixedMath::Deg2Rad(-45));
-    auto sin8 = FixedMath::Sin(FixedMath::Deg2Rad(0));
-    auto sin9 = FixedMath::Sin(FixedMath::Deg2Rad(45));
-    auto sin10 = FixedMath::Sin(FixedMath::Deg2Rad(90));
-    auto sin11 = FixedMath::Sin(FixedMath::Deg2Rad(135));
-    auto sin12 = FixedMath::Sin(FixedMath::Deg2Rad(180));
-    auto sin13 = FixedMath::Sin(FixedMath::Deg2Rad(225));
-    auto sin14 = FixedMath::Sin(FixedMath::Deg2Rad(270));
-    auto sin15 = FixedMath::Sin(FixedMath::Deg2Rad(315));
-    auto sin16 = FixedMath::Sin(FixedMath::Deg2Rad(360));
+    auto mag0 = Vec2(1, 1).Length();
+    auto mag1 = Vec2(10, 10).Length();
+    auto mag2 = Vec2(10, 0).Length();
+    auto mag3 = Vec2(0, 10).Length();
+
+    auto rot0 = Cordic::Rotate<Distance>(10, 10, HALF_PI);
+    auto rot1 = Cordic::Rotate<Distance>(0, 10, PI);
+
+    auto sqrt0 = Sqrt(Value(1.0));
+    auto sqrt1 = Sqrt(Value(4.0));
+    auto sqrt2 = Sqrt(Value(16.0));
+    auto sqrt3 = Sqrt(Value(8.0*8.0));
+    auto sqrt4 = Sqrt(Value(16.0*16.0));
+    auto sqrt5 = Sqrt(Value(32.0*32.0));
+    auto sqrt6 = Sqrt(Value(64.0*64.0));
+    auto sqrt7 = Sqrt(Value(128.0*128.0));
+    
+    auto cos0 = Cos(Deg2Rad(-360));
+    auto cos1 = Cos(Deg2Rad(-315));
+    auto cos2 = Cos(Deg2Rad(-270));
+    auto cos3 = Cos(Deg2Rad(-225));
+    auto cos4 = Cos(Deg2Rad(-180));
+    auto cos5 = Cos(Deg2Rad(-135));
+    auto cos6 = Cos(Deg2Rad(-90));
+    auto cos7 = Cos(Deg2Rad(-45));
+    auto cos8 = Cos(Deg2Rad(0));
+    auto cos9 = Cos(Deg2Rad(45));
+    auto cos10 = Cos(Deg2Rad(90));
+    auto cos11 = Cos(Deg2Rad(135));
+    auto cos12 = Cos(Deg2Rad(180));
+    auto cos13 = Cos(Deg2Rad(225));
+    auto cos14 = Cos(Deg2Rad(270));
+    auto cos15 = Cos(Deg2Rad(315));
+    auto cos16 = Cos(Deg2Rad(360));
+
+    auto sin0 = Sin(Deg2Rad(-360));
+    auto sin1 = Sin(Deg2Rad(-315));
+    auto sin2 = Sin(Deg2Rad(-270));
+    auto sin3 = Sin(Deg2Rad(-225));
+    auto sin4 = Sin(Deg2Rad(-180));
+    auto sin5 = Sin(Deg2Rad(-135));
+    auto sin6 = Sin(Deg2Rad(-90));
+    auto sin7 = Sin(Deg2Rad(-45));
+    auto sin8 = Sin(Deg2Rad(0));
+    auto sin9 = Sin(Deg2Rad(45));
+    auto sin10 = Sin(Deg2Rad(90));
+    auto sin11 = Sin(Deg2Rad(135));
+    auto sin12 = Sin(Deg2Rad(180));
+    auto sin13 = Sin(Deg2Rad(225));
+    auto sin14 = Sin(Deg2Rad(270));
+    auto sin15 = Sin(Deg2Rad(315));
+    auto sin16 = Sin(Deg2Rad(360));
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
@@ -507,7 +526,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         {
             aggEvent->Count += traceEvent.Counter;
             aggEvent->Total += traceEvent.Time - aggEvent->StartTime;
-            aggEvent->Max = max(aggEvent->Total, aggEvent->Max);
+            aggEvent->Max = std::max(aggEvent->Total, aggEvent->Max);
             // traceEventStack.pop_back();
         }
 
@@ -517,16 +536,19 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    for (const AggTraceEvent& traceEvent : traceEvents)
+    if (0)
     {
-#if DEBUG
-        RenderDebugText("%s %s %u %.3f %.3f",
-            traceEvent.Name.Debug,
-            traceEvent.Id.Debug,
-            traceEvent.Count,
-            (float)traceEvent.Total / CLOCKS_PER_SEC,
-            (float)traceEvent.Max / CLOCKS_PER_SEC)
-#endif
+        for (const AggTraceEvent& traceEvent : traceEvents)
+        {
+    #if DEBUG
+            RenderDebugText("%s %s %u %.3f %.3f",
+                traceEvent.Name.Debug,
+                traceEvent.Id.Debug,
+                traceEvent.Count,
+                (float)traceEvent.Total / CLOCKS_PER_SEC,
+                (float)traceEvent.Max / CLOCKS_PER_SEC)
+    #endif
+        }
     }
     
     // {
@@ -590,6 +612,31 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     //              y += 10;
     //          }
     //      }
+
+    {
+        Distance cx = (float)windowCenter.X;
+        Distance cy = (float)windowCenter.Y;
+        Distance fmx = mx;
+        Distance fmy = GWindowHeight - my;
+        auto dx = fmx - cx;
+        auto dy = fmy - cy;
+
+        Angle a = Cordic::ArcTan2<Distance>(dy, dx);
+        Distance m = Magnitude(dx, dy);
+
+        RenderDebugText("dx: %f, dy: %f, m: %f, a: %f", (float)dx, (float)dy, (float)m, (float)a)
+
+        Vec2 v(1, 0);
+        v = v.Rotate(a);
+
+        float x1 = (float)cx;
+        float y1 = (float)cy;
+        float x2 = (float)v.X * (float)m;
+        float y2 = -(float)v.Y * (float)m;
+
+        SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
+        SDL_RenderLine(GRenderer, x1, y1, x1 + x2, y1 + y2);
+    }
 
     SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 
