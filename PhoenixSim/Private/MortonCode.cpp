@@ -7,7 +7,7 @@ namespace PhoenixMortonCodeImpl
 {
     void MortonCodeQuery(
         const MortonCodeAABB& query,
-        TArray<TTuple<uint64, uint64>>& outRanges,
+        TMortonCodeRangeArray& outRanges,
         uint32 cellMinX,
         uint32 cellMinY,
         uint32 cellLog)
@@ -59,7 +59,23 @@ namespace PhoenixMortonCodeImpl
     }
 }
 
-void Phoenix::MortonCodeQuery(const MortonCodeAABB& query, TArray<TTuple<uint64, uint64>>& outRanges, uint32 gridBits)
+MortonCodeAABB Phoenix::ToMortonCodeAABB(Vec2 pos, Distance radius)
+{
+    uint32 lox = (uint32)(pos.X - radius);
+    uint32 hix = (uint32)(pos.X + radius);
+    uint32 loy = (uint32)(pos.Y - radius);
+    uint32 hiy = (uint32)(pos.Y + radius);
+
+    MortonCodeAABB aabb;
+    aabb.MinX = lox >> MortonCodeGridBits;
+    aabb.MinY = loy >> MortonCodeGridBits;
+    aabb.MaxX = hix >> MortonCodeGridBits;
+    aabb.MaxY = hiy >> MortonCodeGridBits;
+
+    return aabb;
+}
+
+void Phoenix::MortonCodeQuery(const MortonCodeAABB& query, TMortonCodeRangeArray& outRanges, uint32 gridBits)
 {
     if (gridBits == 0 || gridBits > 32) return;
 

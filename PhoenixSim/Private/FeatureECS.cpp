@@ -438,23 +438,10 @@ void FeatureECS::QueryEntitiesInRange(
 {
     const FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
 
-    TArray<TTuple<uint64, uint64>> ranges;
-    
     // Query for overlapping morton ranges
-    {
-        uint32 lox = (uint32)(pos.X - range);
-        uint32 hix = (uint32)(pos.X + range);
-        uint32 loy = (uint32)(pos.Y - range);
-        uint32 hiy = (uint32)(pos.Y + range);
-
-        MortonCodeAABB aabb;
-        aabb.MinX = lox >> MortonCodeGridBits;
-        aabb.MinY = loy >> MortonCodeGridBits;
-        aabb.MaxX = hix >> MortonCodeGridBits;
-        aabb.MaxY = hiy >> MortonCodeGridBits;
-
-        MortonCodeQuery(aabb, ranges);
-    }
+    TMortonCodeRangeArray ranges;
+    MortonCodeAABB aabb = ToMortonCodeAABB(pos, range);
+    MortonCodeQuery(aabb, ranges);
 
     TArray<EntityTransform*> overlappingEntities;
     ForEachInMortonCodeRanges<EntityTransform, &EntityTransform::ZCode>(

@@ -28,6 +28,15 @@ static_assert(ChkAdd_<int32>(0, INT_MIN).Value == INT_MIN);
 static_assert(ChkAdd_<int32>(INT_MIN, -1).bOverflowed);
 
 //
+// OneDivBy
+//
+
+constexpr auto a = OneDivBy(Value(10.0f));
+constexpr auto b = OneDivBy(a);
+constexpr Value c = (Value)a;
+constexpr Value d = 1 / 10.0f;
+
+//
 // Addition
 //
 
@@ -111,9 +120,6 @@ static_assert(Fixed32_16(5.0f) * 2.0f == Fixed32_16(10.0f));
 static_assert(5.0f * Fixed32_16(2.0f) == 10);
 static_assert(5.0f * Fixed32_16(2.0f) == 10.0f);
 static_assert(5.0f * Fixed32_16(2.0f) == Fixed32_16(10.0f));
-
-static_assert(TInvFixed2<Fixed32_16>(Fixed32_16(10.0f)).Value == Fixed32_16::D * 10);
-static_assert((Fixed32_16(10) * TInvFixed2<Fixed32_16>(0.1f)).Value == Fixed32_16(1.0f).Value);
 
 //
 // Division

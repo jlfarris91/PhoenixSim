@@ -81,7 +81,7 @@ namespace Phoenix
             ECS::TransformComponent* TransformB;
             BodyComponent* BodyB;
             Vec2 Normal;
-            TInvFixed2<Value> EffMass;
+            Value EffMass;
             Value Bias;
             Value Impulse;
         };

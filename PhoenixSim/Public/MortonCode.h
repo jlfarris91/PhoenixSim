@@ -3,11 +3,13 @@
 
 #include <cstdint>
 
+#include "FixedVector.h"
 #include "PhoenixSim.h"
 
 namespace Phoenix
 {
     constexpr uint32 MortonCodeGridBits = 6;
+    using TMortonCodeRangeArray = TArray<TTuple<uint64, uint64>>;
 
     // Expand a 32-bit integer into 64 bits by inserting 0s between the bits
     PHOENIXSIM_API constexpr uint64 ExpandBits(uint32_t v)
@@ -24,24 +26,28 @@ namespace Phoenix
     // Create Morton code from 2D coordinates
     PHOENIXSIM_API constexpr uint64 MortonCode(uint32_t x, uint32_t y)
     {
+        // uint32 xx = x ^ 0x80000000;
+        // uint32 yy = y ^ 0x80000000;
         return (ExpandBits(x) << 1) | ExpandBits(y);
     }
 
     struct PHOENIXSIM_API MortonCodeAABB
     {
-        uint64 MinX = 0, MinY = 0;
-        uint64 MaxX = 0, MaxY = 0;
+        uint32 MinX = 0, MinY = 0;
+        uint32 MaxX = 0, MaxY = 0;
     };
+
+    PHOENIXSIM_API MortonCodeAABB ToMortonCodeAABB(Vec2 pos, Distance radius);
 
     PHOENIXSIM_API void MortonCodeQuery(
         const MortonCodeAABB& query,
-        TArray<TTuple<uint64, uint64>>& outRanges,
+        TMortonCodeRangeArray& outRanges,
         uint32 gridBits = MortonCodeGridBits);
 
     template <class T, uint64 T::*MemPtr, class TRange, class TPred>
     void ForEachInMortonCodeRanges(
         const TRange& sorted,
-        const TArray<TTuple<uint64, uint64>>& ranges,
+        const TMortonCodeRangeArray& ranges,
         const TPred& predicate)
     {
         for (auto && [min, max] : ranges)

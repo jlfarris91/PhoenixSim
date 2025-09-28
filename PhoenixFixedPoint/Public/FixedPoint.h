@@ -204,10 +204,10 @@ namespace Phoenix
         constexpr explicit TInvFixed(uint64 v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
         constexpr explicit TInvFixed(float v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
         constexpr explicit TInvFixed(double v) : Value(ToFixedValue(v)) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
-        constexpr explicit TInvFixed(const TFixed<Tb, T>& v) : Value(v.Value) TFIXED_DEBUG_FIELD(D / static_cast<double>(Value)) {}
 
         constexpr explicit operator float() const { return FromFixedValue<float>(Value); }
         constexpr explicit operator double() const { return FromFixedValue<double>(Value); }
+        constexpr explicit operator TFixed<Tb, T>() const { return TFixedQ_T<T>(double(D) / Value); }
 
         T Value;
 #if TFIXED_DEBUG
@@ -709,7 +709,7 @@ namespace Phoenix
     template <int32 Tb, class T, int32 Ub, class U>
     constexpr auto operator*(const TFixed<Tb, T>& lhs, const TInvFixed<Ub, U>& rhs)
     {
-        return TFixed<Tb, T>(Q64(int64(lhs.Value) * (1 << Ub) / rhs.Value));
+        return lhs / TFixed<Ub, U>(TFixedQ_T<U>(rhs.Value));
     }
 
     // TInvFixed<Tb, T> * TFixed<Ub, U>
@@ -815,8 +815,8 @@ namespace Phoenix
     }
 
     template <int32 Tb, class T>
-    constexpr TInvFixed<Tb, T> OneDivBy(const TInvFixed<Tb, T>& v)
+    constexpr TFixed<Tb, T> OneDivBy(const TInvFixed<Tb, T>& v)
     {
-        return OneDivBy(TFixed<Tb, T>(TFixedQ_T<T>(v.Value)));
+        return TFixedQ_T<T>(v.Value);
     }
 }

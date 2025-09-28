@@ -180,9 +180,7 @@ namespace Phoenix
 
         constexpr static Value Dot(const TVec2& a, const TVec2& b)
         {
-            auto a1 = a.X * b.X;
-            auto a2 = a.Y * b.Y;
-            return a1 + a2;
+            return Cordic::Dot(a.X, a.Y, b.X, b.Y);
         }
 
         constexpr static T Distance(const TVec2& a, const TVec2& b)

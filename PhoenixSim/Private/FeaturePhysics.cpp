@@ -40,16 +40,13 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
         scratchBlock.EntityBodies.Refresh(world);
     }
 
-    // Calculate z-codes and sort entities
+    // Sort entity bodies by z-code (calculated by FeatureECS)
     {
-        ScopedTrace trace(world, "CalculateAndSortZCodes"_n);
+        ScopedTrace trace(world, "SortBodiesByZCode"_n);
         scratchBlock.SortedEntities.Reset();
         for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
         {
-            uint32 x = (uint32)transformComp->Transform.Position.X >> MortonCodeGridBits;
-            uint32 y = (uint32)transformComp->Transform.Position.Y >> MortonCodeGridBits;
-            uint64 zcode = MortonCode(x, y);
-            scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, zcode);
+            scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, transformComp->ZCode);
         }
 
         // Sort entities by their zcodes
@@ -75,9 +72,10 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
             dir = dir.Normalized();
             bodyComp->LinearVelocity += dir * moveComp->Speed * bodyComp->InvMass;
 
-            Angle targetRot = dir.AsDegrees();
+            Angle targetRot = dir.AsRadians();
             Angle deltaRot = AngleBetween(transComp->Transform.Rotation, targetRot);
-            transComp->Transform.Rotation += deltaRot * dt;
+            deltaRot = deltaRot * dt;
+            transComp->Transform.Rotation += deltaRot;
         }
     }
 }
@@ -88,7 +86,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
-    std::vector<TTuple<uint64, uint64>> ranges;
+    TMortonCodeRangeArray ranges;
 
     size_t maxProbeLen = 0;
 
@@ -115,25 +113,25 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     // scratchBlock.Rotation += 0.1f;
 
-    scratchBlock.CollisionLines.Reset();
-    scratchBlock.CollisionLines.EmplaceBack(Line2(bl, br));
-    scratchBlock.CollisionLines.EmplaceBack(Line2(tr, br));
-    scratchBlock.CollisionLines.EmplaceBack(Line2(tr, tl));
-    scratchBlock.CollisionLines.EmplaceBack(Line2(bl, tl));
-
-    Vec2 a1 = Vec2(offset.X, offset.Y) * 0.25f;
-    Vec2 a2 = Vec2(offset.X, offset.Y) * -0.25f;
-    a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation);
-    a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation);
-    
-    scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
-
-    a1 = Vec2(offset.X, offset.Y) * 0.25f;
-    a2 = Vec2(offset.X, offset.Y) * -0.25f;
-    a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + HALF_PI);
-    a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + HALF_PI);
-    
-    scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
+    // scratchBlock.CollisionLines.Reset();
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(bl, br));
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(tr, br));
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(tr, tl));
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(bl, tl));
+    //
+    // Vec2 a1 = Vec2(offset.X, offset.Y) * 0.25f;
+    // Vec2 a2 = Vec2(offset.X, offset.Y) * -0.25f;
+    // a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation);
+    // a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation);
+    //
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
+    //
+    // a1 = Vec2(offset.X, offset.Y) * 0.25f;
+    // a2 = Vec2(offset.X, offset.Y) * -0.25f;
+    // a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + HALF_PI);
+    // a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + HALF_PI);
+    //
+    // scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
     
     // Determine contacts
     {
@@ -179,17 +177,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             {
                 ScopedTrace trace2(world, "OverlapQuery"_n);
 
-                Distance radius = bodyCompA->Radius;
-                uint32 lox = (uint32)(projectedPos.X - radius);
-                uint32 hix = (uint32)(projectedPos.X + radius);
-                uint32 loy = (uint32)(projectedPos.Y - radius);
-                uint32 hiy = (uint32)(projectedPos.Y + radius);
-
-                MortonCodeAABB aabb;
-                aabb.MinX = lox >> MortonCodeGridBits;
-                aabb.MinY = loy >> MortonCodeGridBits;
-                aabb.MaxX = hix >> MortonCodeGridBits;
-                aabb.MaxY = hiy >> MortonCodeGridBits;
+                MortonCodeAABB aabb = ToMortonCodeAABB(projectedPos, bodyCompA->Radius);
         
                 ranges.clear();
                 MortonCodeQuery(aabb, ranges);
@@ -265,8 +253,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
                 const Value baum = 0.3f;
                 const Value slop = 0.01f * rr;
-                Distance d = Sqrt(rr) - Sqrt(vLen);
-                Value bias = -baum * Max(0, d - slop) * dt;
+                Distance d = rr - vLen;
+                Value bias = -baum * Max(0, d - slop) / dt;
 
                 Contact& contact = scratchBlock.Contacts.AddDefaulted_GetRef();
                 contact.TransformA = transformCompA;
@@ -300,7 +288,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     if (1)
     {        
         ScopedTrace trace(world, "PGS"_n);
-        for (uint32 iter = 0; iter < 10; ++iter)
+        for (uint32 iter = 0; iter < 4; ++iter)
         {
             for (Contact& contact : scratchBlock.Contacts)
             {
@@ -380,7 +368,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 
     // Multi-pass overlap separation
-    if (0)
+    if (1)
     {
         for (uint32 i = 0; i < 4; ++i)
         {
@@ -515,21 +503,11 @@ void FeaturePhysics::QueryEntitiesInRange(
 {
     const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
-    TArray<TTuple<uint64, uint64>> ranges;
+    TMortonCodeRangeArray ranges;
     
     // Query for overlapping morton ranges
     {
-        uint32 lox = (uint32)(pos.X - range);
-        uint32 hix = (uint32)(pos.X + range);
-        uint32 loy = (uint32)(pos.Y - range);
-        uint32 hiy = (uint32)(pos.Y + range);
-
-        MortonCodeAABB aabb;
-        aabb.MinX = lox >> MortonCodeGridBits;
-        aabb.MinY = loy >> MortonCodeGridBits;
-        aabb.MaxX = hix >> MortonCodeGridBits;
-        aabb.MaxY = hiy >> MortonCodeGridBits;
-
+        MortonCodeAABB aabb = ToMortonCodeAABB(pos, range);
         MortonCodeQuery(aabb, ranges);
     }
 

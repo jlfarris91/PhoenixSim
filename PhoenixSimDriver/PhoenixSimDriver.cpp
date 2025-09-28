@@ -248,11 +248,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, int32 segments = 32)
 {
     std::vector<SDL_FPoint> points;
-    points.reserve(32);
+    points.reserve(segments);
 
     for (int32 i = 0; i < segments - 1; ++i)
     {
-        float angle = i * (2.0f * 3.14f) / 32;
+        float angle = float(i) * (2.0f * 3.14f) / (segments - 1);
         float x = x1 + cos(angle) * radius; 
         float y = y1 + sin(angle) * radius;
         points.emplace_back(x, y);
@@ -343,6 +343,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     // SDL_RenderRect(renderer, &mapRect);
 
+    // Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
+    Vec2 mapCenter(0, 0);
+
     SDL_SetRenderDrawColor(GRenderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
 
     for (int32 i = 0; i < ceil(GWindowWidth / 10); ++i)
@@ -364,10 +367,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         for (const CollisionLine& collisionLine : GPhysicsScratchBlock->CollisionLines)
         {
             SDL_RenderLine(GRenderer,
-                (float)collisionLine.Line.Start.X,
-                (float)collisionLine.Line.Start.Y,
-                (float)collisionLine.Line.End.X,
-                (float)collisionLine.Line.End.Y);
+                (float)mapCenter.X + (float)collisionLine.Line.Start.X,
+                (float)mapCenter.Y + (float)collisionLine.Line.Start.Y,
+                (float)mapCenter.X + (float)collisionLine.Line.End.X,
+                (float)mapCenter.Y + (float)collisionLine.Line.End.Y);
 
             // Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
             // int32 vX = (int32)v.X;
@@ -394,13 +397,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_SetRenderDrawColor(GRenderer, entityBodyShape.Color.r, entityBodyShape.Color.g, entityBodyShape.Color.b, SDL_ALPHA_OPAQUE);
 
         Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
-        Vec2 pt2 = pt1.Rotate(-135);
-        Vec2 pt3 = pt1.Rotate(135);
+        Vec2 pt2 = pt1.Rotate(Deg2Rad(-135));
+        Vec2 pt3 = pt1.Rotate(Deg2Rad(135));
 
         Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
-        pt1 = entityBodyShape.Transform.Position + transform.RotateVector(pt1);
-        pt2 = entityBodyShape.Transform.Position + transform.RotateVector(pt2);
-        pt3 = entityBodyShape.Transform.Position + transform.RotateVector(pt3);
+        pt1 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt1);
+        pt2 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt2);
+        pt3 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt3);
 
         SDL_FPoint points[4];
         points[0] = { (float)pt1.X, (float)pt1.Y };
@@ -411,7 +414,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     // Render some debug text for each body
-    if (1)
+    if (0)
     {
         constexpr float scale = 2.0f;
         SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
@@ -421,10 +424,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         {
             Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
             Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
-            pt1 = entityBodyShape.Transform.Position + transform.RotateVector(pt1);
+            pt1 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt1);
     
             char zcodeStr[256] = { '\0' };
-            sprintf_s(zcodeStr, _countof(zcodeStr), "%f", (float)entityBodyShape.VelLen);
+            sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", entityBodyShape.ZCode);
             SDL_RenderDebugText(GRenderer, (float)pt1.X / scale, (float)pt1.Y / scale, zcodeStr);
         }
     
@@ -668,6 +671,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         return SDL_APP_SUCCESS;
     }
 
+    auto mapCenterX = 0; //GWindowWidth >> 1;
+    auto mapCenterY = 0; //GWindowHeight >> 1;
+
     if (event->type == SDL_EVENT_WINDOW_RESIZED)
     {
         SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
@@ -678,7 +684,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         GSession->QueueAction(action);
     }
 
-    auto onMouseDownOrMoved = [](const SDL_FPoint& mousePos)
+    auto onMouseDownOrMoved = [&](const SDL_FPoint& mousePos)
     {
         // Spawn entities
         if (GMouseButtonStates.contains(SDL_BUTTON_LEFT) && GMouseButtonStates[SDL_BUTTON_LEFT])
@@ -686,9 +692,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.x;
-            action.Data[2].Distance = mousePos.y;
-            action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
+            action.Data[1].Distance = mousePos.x - mapCenterX;
+            action.Data[2].Distance = mousePos.y - mapCenterY;
+            action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
             action.Data[4].UInt32 = 1;
             GSession->QueueAction(action);
         }
@@ -699,9 +705,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.x;
-            action.Data[2].Distance = mousePos.y;
-            action.Data[3].Degrees = Vec2::RandUnitVector().AsDegrees();
+            action.Data[1].Distance = mousePos.x - mapCenterX;
+            action.Data[2].Distance = mousePos.y - mapCenterY;
+            action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
             action.Data[4].UInt32 = 1;
             action.Data[5].Speed = 10;
             GSession->QueueAction(action);
@@ -712,10 +718,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "push_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.x;
-            action.Data[1].Distance = mousePos.y;
+            action.Data[0].Distance = mousePos.x - mapCenterX;
+            action.Data[1].Distance = mousePos.y - mapCenterY;
             action.Data[2].Distance = 64.0f;
-            action.Data[3].Value = 100.0f;
+            action.Data[3].Value = 10000.0f;
             GSession->QueueAction(action);
         }
 
@@ -724,8 +730,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "release_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.x;
-            action.Data[1].Distance = mousePos.y;
+            action.Data[0].Distance = mousePos.x - mapCenterX;
+            action.Data[1].Distance = mousePos.y - mapCenterY;
             action.Data[2].Distance = 64.0f;
             GSession->QueueAction(action);
         }

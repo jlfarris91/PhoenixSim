@@ -129,130 +129,6 @@ namespace Phoenix
 
         // -1 <= t <= 1, n is the number of iterations
         template <class T>
-        constexpr T ArcCos(T t, int32 n = 32)
-        {
-            if (T::D < Abs_(t.Value))
-            {
-                return t.Value / 0;
-            }
-
-            T x1 = 1.0;
-            T y1 = 0.0;
-            Angle sigma;
-            Angle theta = 0.0;
-            Angle angle = 0.0;
-            Value sign;
-            Value powerOfTwo = 1.0;
-
-            for (int32 j = 1; j <= n; ++j)
-            {
-                if (y1 < 0)
-                {
-                    sign = -1.0;
-                }
-                else
-                {
-                    sign = 1.0;
-                }
-
-                if (t <= x1)
-                {
-                    sigma = sign;
-                }
-                else
-                {
-                    sigma = -sign;
-                }
-
-                if (j <= AnglesLen)
-                {
-                    angle = Angles[j-1].Value;
-                }
-                else
-                {
-                    angle = Q64(angle.Value >> 1);
-                }
-
-                for (int32 i = 1; i < 2; ++i)
-                {
-                    auto x2 = x1 - sigma * powerOfTwo * y1;
-                    auto y2 = sigma * powerOfTwo * x1 + y1;
-                    x1 = x2;
-                    y1 = y2;
-                }
-
-                theta += 2.0 * (sigma * angle);
-                t += t * powerOfTwo * powerOfTwo;
-                powerOfTwo = Q64(powerOfTwo.Value >> 1);
-            }
-
-            return theta;
-        }
-
-        // -1 <= t <= 1, n is the number of iterations
-        template <class T>
-        constexpr T ArcSin(T t, int32 n = 32)
-        {
-            if (T::D < Abs_(t.Value))
-            {
-                return t.Value / 0;
-            }
-
-            T x1 = 1.0;
-            T y1 = 0.0;
-            Angle sigma;
-            Angle theta = 0.0;
-            Angle angle = 0.0;
-            Value sign;
-            Value powerOfTwo = 1.0;
-
-            for (int32 j = 1; j <= n; ++j)
-            {
-                if (x1 < 0)
-                {
-                    sign = -1.0;
-                }
-                else
-                {
-                    sign = 1.0;
-                }
-
-                if (y1 <= t)
-                {
-                    sigma = sign;
-                }
-                else
-                {
-                    sigma = -sign;
-                }
-
-                if (j <= AnglesLen)
-                {
-                    angle = Angles[j-1].Value;
-                }
-                else
-                {
-                    angle = Q64(angle.Value >> 1);
-                }
-
-                for (int32 i = 1; i < 2; ++i)
-                {
-                    auto x2 = x1 - sigma * powerOfTwo * y1;
-                    auto y2 = sigma * powerOfTwo * x1 + y1;
-                    x1 = x2;
-                    y1 = y2;
-                }
-
-                theta += 2.0 * (sigma * angle);
-                t += t * powerOfTwo * powerOfTwo;
-                powerOfTwo = Q64(powerOfTwo.Value >> 1);
-            }
-
-            return theta;
-        }
-
-        // -1 <= t <= 1, n is the number of iterations
-        template <class T>
         constexpr Angle ArcTan2(T y, T x, int32 n = 32)
         {
             using ValueT = int64;
@@ -310,34 +186,37 @@ namespace Phoenix
         template <class T>
         constexpr void CosSin(Angle a, T& c, T& s, int32 n = 32)
         {
-            Value sign;
-            Value powerOfTwo = 1.0;
+            using ValueT = typename T::ValueT;
+            using AngleT = Angle::ValueT;
 
-            auto theta = AngleShift(a, -PI);
+            int32 sign;
+            ValueT powerOfTwo = T::D;
+
+            AngleT theta = AngleShift(a, -PI).Value;
 
             if (theta < -HALF_PI)
             {
-                theta += PI;
-                sign = -1.0;
+                theta += PI.Value;
+                sign = -1;
             }
             else if (HALF_PI < theta)
             {
-                theta -= PI;
-                sign = -1.0;
+                theta -= PI.Value;
+                sign = -1;
             }
             else
             {
-                sign = 1.0;
+                sign = 1;
             }
 
-            c = 1.0;
-            s = 0.0;
+            c = T::D;
+            s = 0;
 
-            auto angle = Angles[0];
+            AngleT angle = Angles[0].Value;
 
-            for (int32 i = 1; i <= n; ++i)
+            for (int32 i = 0; i < n; ++i)
             {
-                Angle sigma = theta < 0.0 ? -1.0 : 1.0;
+                int32 sigma = theta < 0 ? -1 : 1;
 
                 auto factor = sigma * powerOfTwo;
 
@@ -348,73 +227,20 @@ namespace Phoenix
                 s = s2;
 
                 theta -= sigma * angle;
-                powerOfTwo = Q64(powerOfTwo.Value >> 1);
+                powerOfTwo >>= 1;
 
-                if (AnglesLen < i + 1)
+                if (i < AnglesLen)
                 {
-                    angle = Q64(angle.Value >> 1);
+                    angle = Angles[i].Value;
                 }
                 else
                 {
-                    angle = Angles[i];
+                    angle >>= 1;
                 }
             }
 
-            if (n > 0)
-            {
-                c *= KProd[(n < KProdLen ? n : KProdLen) - 1];
-                s *= KProd[(n < KProdLen ? n : KProdLen) - 1];
-            }
-
-            c *= sign;
-            s *= sign;
-        }
-
-        template <class T>
-        constexpr T Tan(Angle beta, int32 n = 32)
-        {
-            auto theta = AngleShift(beta, -PI);
-
-            if (theta < -HALF_PI)
-            {
-                theta += PI;
-            }
-            else if (HALF_PI < theta)
-            {
-                theta -= PI;
-            }
-
-            T c = 1.0;
-            T s = 0.0;
-            Value powerOfTwo = 1.0;
-            Angle angle = Angles[0];
-
-            for (int32 j = 0; j <= n; ++j)
-            {
-                Angle sigma = theta < 0.0 ? -1.0 : 1.0;
-
-                auto factor = sigma * powerOfTwo;
-
-                auto c2 = c - factor * s;
-                auto s2 = factor * c + s;
-
-                c = c2;
-                s = s2;
-
-                theta -= sigma * angle;
-                powerOfTwo = Q64(powerOfTwo.Value >> 1);
-
-                if (AnglesLen < j + 1)
-                {
-                    angle = Q64(angle.Value >> 1);
-                }
-                else
-                {
-                    angle = Angles[j];
-                }
-            }
-
-            return s / c;
+            c = T(Q64(c * sign)) * KProd[(n < KProdLen ? n : KProdLen) - 1];
+            s = T(Q64(c * sign)) * KProd[(n < KProdLen ? n : KProdLen) - 1];
         }
 
         template <class T>
@@ -570,8 +396,16 @@ namespace Phoenix
             }
 
             T m = T(TFixedQ_T<ValueT>(xn)) * KProd[(n < KProdLen ? n : KProdLen) - 1];
-            Angle a = static_cast<TFixedQ_T<Angle::ValueT>>(z);
+            Angle a = TFixedQ_T<Angle::ValueT>(z);
             return { m, a };
+        }
+
+        template <class T>
+        constexpr T Dot(T x1, T y1, T x2, T y2)
+        {
+            auto a = Vector(x1, y1);
+            auto b = Rotate(x2, y2, -a.Y);
+            return a.X * b.X;
         }
     }
 }
