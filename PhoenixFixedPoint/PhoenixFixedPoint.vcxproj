@@ -91,6 +91,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Public\FixedPoint.inl" />
     <ClInclude Include="Public\FixedReal.h" />
     <ClInclude Include="Public\FixedTypes.h" />
     <ClInclude Include="Public\FixedCordic.h" />

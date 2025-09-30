@@ -3,10 +3,10 @@
 
 using namespace Phoenix;
 
-static_assert(bit_width(1) == 1);
-static_assert(bit_width(3) == 2);
-static_assert(bit_width(5) == 3);
-static_assert(bit_width(64) == 7);
+static_assert(BitWidth(1) == 1);
+static_assert(BitWidth(3) == 2);
+static_assert(BitWidth(5) == 3);
+static_assert(BitWidth(64) == 7);
 
 static_assert(Fixed32_16(0.5f).Value == Fixed32_16::D / 2);
 static_assert(Fixed32_16(1.0f).Value == Fixed32_16::D);
