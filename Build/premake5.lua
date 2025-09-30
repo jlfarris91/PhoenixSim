@@ -6,24 +6,26 @@ workspace "Phoenix"
    startproject "PhoenixSimDriver"
    location "../"
 
-project "PhoenixFixedPoint"
+project "PhoenixCore"
    kind "StaticLib"
    language "C++"
    cppdialect "C++20"
    staticruntime "off"
-   location "../PhoenixFixedPoint"
+   location "../PhoenixCore"
    
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
 
    files {
-      "../PhoenixFixedPoint/Public/**.h",
-      "../PhoenixFixedPoint/Private/**.h",
-      "../PhoenixFixedPoint/Private/**.cpp"
+      "../PhoenixCore/Public/**.h",
+      "../PhoenixCore/Public/**.inl",
+      "../PhoenixCore/Private/**.h",
+      "../PhoenixCore/Private/**.inl",
+      "../PhoenixCore/Private/**.cpp"
    }
 
    includedirs {
-      "../PhoenixFixedPoint/Public"
+      "../PhoenixCore/Public"
    }
 
    filter "system:windows"
@@ -52,17 +54,19 @@ project "PhoenixSim"
 
    files {
       "../PhoenixSim/Public/**.h",
+      "../PhoenixSim/Public/**.inl",
       "../PhoenixSim/Private/**.h",
+      "../PhoenixSim/Private/**.inl",
       "../PhoenixSim/Private/**.cpp"
    }
 
    includedirs {
-      "../PhoenixFixedPoint/Public/",
+      "../PhoenixCore/Public/",
       "../PhoenixSim/Public"
    }
 
    links {
-      "PhoenixFixedPoint"
+      "PhoenixCore"
    }
 
    filter "system:windows"
@@ -91,6 +95,7 @@ project "PhoenixSimDriver"
 
    files {
       "../PhoenixSimDriver/**.h",
+      "../PhoenixSimDriver/**.inl",
       "../PhoenixSimDriver/**.cpp"
    }
 
@@ -99,7 +104,7 @@ project "PhoenixSimDriver"
    }
 
    includedirs {
-      "../PhoenixFixedPoint/Public/",
+      "../PhoenixCore/Public/",
       "../PhoenixSim/Public/",
    }
 
@@ -112,7 +117,7 @@ project "PhoenixSimDriver"
    }
 
    links {
-      "PhoenixFixedPoint",
+      "PhoenixCore",
       "PhoenixSim",
       "SDL3"
    }

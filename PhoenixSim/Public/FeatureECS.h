@@ -2,9 +2,9 @@
 #pragma once
 
 #include "Features.h"
-#include "FixedArray.h"
 #include "Worlds.h"
-#include "FixedTransform.h"
+#include "Containers/FixedArray.h"
+#include "FixedPoint/FixedTransform.h"
 
 #ifndef ECS_MAX_ENTITIES
 #define ECS_MAX_ENTITIES MAXINT16

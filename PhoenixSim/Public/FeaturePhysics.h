@@ -1,10 +1,10 @@
 ﻿#pragma once
 
 #include "FeatureECS.h"
-#include "FixedArray.h"
-#include "PhoenixSim.h"
-#include "FixedPoint.h"
-#include "FixedSet.h"
+#include "Containers/FixedArray.h"
+#include "Containers/FixedSet.h"
+#include "FixedPoint/FixedPoint.h"
+#include "FixedPoint/FixedVector.h"
 
 namespace Phoenix
 {

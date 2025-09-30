@@ -30,24 +30,6 @@
     <ClInclude Include="Public\Features.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\FixedArray.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Public\FixedSet.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Public\Flags.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Public\Hashing.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Public\MortonCode.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Public\Name.h">
-      <Filter>Public</Filter>
-    </ClInclude>
     <ClInclude Include="Public\PhoenixSim.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -75,15 +57,6 @@
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Features.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Private\Hashing.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Private\MortonCode.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Private\Name.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Session.cpp">

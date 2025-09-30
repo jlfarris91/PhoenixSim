@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Private">
+      <UniqueIdentifier>{001F8D23-6CFE-0BBF-7516-9795E1747220}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Private\FixedPoint">
+      <UniqueIdentifier>{89026F94-75E6-2FEA-DE46-2A3DCA491A6C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Public">
+      <UniqueIdentifier>{8480F8CA-7022-23A1-59DD-36F5451EAAF1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Public\Containers">
+      <UniqueIdentifier>{89687E48-F57E-7CDE-3EF6-0700AA4B4D66}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Public\FixedPoint">
+      <UniqueIdentifier>{8DE9D756-F9FF-D5EC-4277-610EAECCA674}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Public\Mesh">
+      <UniqueIdentifier>{C0E8AF31-2C9E-2827-B592-22FE21471F2B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Public\Containers\FixedArray.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Containers\FixedSet.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedCordic.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedMath.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedPoint.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedPoint.inl">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedReal.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedTransform.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedTypes.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedUtils.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedVector.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Flags.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Hashing.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Mesh\Mesh.h">
+      <Filter>Public\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\MortonCode.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Name.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\PhoenixCore.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\PlatformTypes.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Private\FixedPoint\FixedMath.cpp">
+      <Filter>Private\FixedPoint</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\FixedPoint\FixedPoint.cpp">
+      <Filter>Private\FixedPoint</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\MortonCode.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Name.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

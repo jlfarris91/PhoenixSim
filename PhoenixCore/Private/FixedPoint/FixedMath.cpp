@@ -1,5 +1,5 @@
 ﻿
-#include "FixedMath.h"
+#include "FixedPoint/FixedMath.h"
 
 using namespace Phoenix;
 

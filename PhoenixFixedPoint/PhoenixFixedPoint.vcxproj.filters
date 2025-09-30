@@ -9,7 +9,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Public\CosTable.h">
+    <ClInclude Include="Public\FixedCordic.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\FixedMath.h">
@@ -18,10 +18,22 @@
     <ClInclude Include="Public\FixedPoint.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\Transform.h">
+    <ClInclude Include="Public\FixedReal.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\Vector.h">
+    <ClInclude Include="Public\FixedTransform.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedTypes.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedUtils.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedVector.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\PlatformTypes.h">
       <Filter>Public</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,14 +1,11 @@
 
 #pragma once
 
-#include <cstdint>
-#include "DLLExport.h"
-
 namespace Phoenix
 {
-    typedef uint32_t hash_t;
+    typedef size_t hash_t;
 
-    struct PHOENIXSIM_API Hashing
+    struct Hashing
     {
         static constexpr hash_t FN1VA32(const char* data, size_t length)
         {

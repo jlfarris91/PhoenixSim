@@ -91,20 +91,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Public\FixedPoint.inl" />
-    <ClInclude Include="Public\FixedReal.h" />
-    <ClInclude Include="Public\FixedTypes.h" />
-    <ClInclude Include="Public\FixedCordic.h" />
-    <ClInclude Include="Public\FixedMath.h" />
-    <ClInclude Include="Public\FixedPoint.h" />
-    <ClInclude Include="Public\FixedTransform.h" />
-    <ClInclude Include="Public\FixedUtils.h" />
-    <ClInclude Include="Public\FixedVector.h" />
-    <ClInclude Include="Public\PlatformTypes.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Private\FixedMath.cpp" />
-    <ClCompile Include="Private\FixedPoint.cpp" />
+    <Folder Include="Private\" />
+    <Folder Include="Public\" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

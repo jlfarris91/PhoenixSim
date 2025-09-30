@@ -4,11 +4,10 @@
 #include <stdlib.h>
 
 #include "Hashing.h"
-#include "DLLExport.h"
 
 namespace Phoenix
 {
-    struct PHOENIXSIM_API FName
+    struct FName
     {
         static const FName None;
         static const FName Empty;

@@ -446,7 +446,7 @@ namespace Phoenix
     {
         constexpr auto MIN = Tb < Ub ? Tb : Ub;
         constexpr auto MAX = Tb > Ub ? Tb : Ub;
-        return TFixed<MAX, T>(Q64((int64(lhs.Value) * rhs.Value) >> MIN));
+        return TFixed<MAX, int64>(Q64((int64(lhs.Value) * rhs.Value) >> MIN));
     }
 
     // TFixed * double

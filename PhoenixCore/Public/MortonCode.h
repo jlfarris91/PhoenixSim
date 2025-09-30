@@ -3,8 +3,9 @@
 
 #include <cstdint>
 
-#include "FixedVector.h"
-#include "PhoenixSim.h"
+#include "PhoenixCore.h"
+#include "PlatformTypes.h"
+#include "FixedPoint/FixedVector.h"
 
 namespace Phoenix
 {
@@ -12,7 +13,7 @@ namespace Phoenix
     using TMortonCodeRangeArray = TArray<TTuple<uint64, uint64>>;
 
     // Expand a 32-bit integer into 64 bits by inserting 0s between the bits
-    PHOENIXSIM_API constexpr uint64 ExpandBits(uint32_t v)
+    constexpr uint64 ExpandBits(uint32_t v)
     {
         uint64 x = v;
         x = (x | (x << 16)) & 0x0000FFFF0000FFFFULL;
@@ -24,22 +25,22 @@ namespace Phoenix
     }
 
     // Create Morton code from 2D coordinates
-    PHOENIXSIM_API constexpr uint64 MortonCode(uint32_t x, uint32_t y)
+    constexpr uint64 MortonCode(uint32_t x, uint32_t y)
     {
         // uint32 xx = x ^ 0x80000000;
         // uint32 yy = y ^ 0x80000000;
         return (ExpandBits(x) << 1) | ExpandBits(y);
     }
 
-    struct PHOENIXSIM_API MortonCodeAABB
+    struct MortonCodeAABB
     {
         uint32 MinX = 0, MinY = 0;
         uint32 MaxX = 0, MaxY = 0;
     };
 
-    PHOENIXSIM_API MortonCodeAABB ToMortonCodeAABB(Vec2 pos, Distance radius);
+    MortonCodeAABB ToMortonCodeAABB(Vec2 pos, Distance radius);
 
-    PHOENIXSIM_API void MortonCodeQuery(
+    void MortonCodeQuery(
         const MortonCodeAABB& query,
         TMortonCodeRangeArray& outRanges,
         uint32 gridBits = MortonCodeGridBits);

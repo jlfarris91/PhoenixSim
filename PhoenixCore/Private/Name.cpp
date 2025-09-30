@@ -3,10 +3,10 @@
 
 using namespace Phoenix;
 
-PHOENIXSIM_API const FName FName::None = FName();
-PHOENIXSIM_API const FName FName::Empty = ""_n;
+const FName FName::None = FName();
+const FName FName::Empty = ""_n;
 
-FName::operator unsigned int() const
+FName::operator size_t() const
 {
     return Hash;
 }

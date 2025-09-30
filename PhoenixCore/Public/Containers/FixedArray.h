@@ -48,9 +48,19 @@ namespace Phoenix
             return Data[Size-1];
         }
 
+        void Add(const T& value)
+        {
+            (void)PushBack(value);
+        }
+
         T& Add_GetRef(const T& value)
         {
             return PushBack(value);
+        }
+
+        void AddDefaulted()
+        {
+            (void)PushBack({});
         }
 
         T& AddDefaulted_GetRef()
