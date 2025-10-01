@@ -46,7 +46,7 @@
     <IntDir>..\Build\Intermediate\Debug-windows-x86_64\Debug\PhoenixSimDriver\</IntDir>
     <TargetName>PhoenixSimDriver</TargetName>
     <TargetExt>.exe</TargetExt>
-    <ExternalIncludePath>External;$(ExternalIncludePath)</ExternalIncludePath>
+    <ExternalIncludePath>..\External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -54,14 +54,14 @@
     <IntDir>..\Build\Intermediate\Release-windows-x86_64\Release\PhoenixSimDriver\</IntDir>
     <TargetName>PhoenixSimDriver</TargetName>
     <TargetExt>.exe</TargetExt>
-    <ExternalIncludePath>External;$(ExternalIncludePath)</ExternalIncludePath>
+    <ExternalIncludePath>..\External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -72,10 +72,10 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /s /y "$(ProjectDir)\External\SDL3\x64\Debug\*.*" "$(TargetDir)"</Command>
+      <Command>xcopy /s /y "$(SolutionDir)\External\SDL3\x64\Debug\*.*" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -83,7 +83,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -98,10 +98,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /s /y "$(ProjectDir)\External\SDL3\x64\Release\*.*" "$(TargetDir)"</Command>
+      <Command>xcopy /s /y "$(SolutionDir)\External\SDL3\x64\Release\*.*" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -92,6 +92,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Public\Containers\FixedArray.h" />
+    <ClInclude Include="Public\Containers\FixedQueue.h" />
     <ClInclude Include="Public\Containers\FixedSet.h" />
     <ClInclude Include="Public\FixedPoint\FixedCordic.h" />
     <ClInclude Include="Public\FixedPoint\FixedMath.h" />

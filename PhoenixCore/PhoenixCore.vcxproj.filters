@@ -24,6 +24,9 @@
     <ClInclude Include="Public\Containers\FixedArray.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>
+    <ClInclude Include="Public\Containers\FixedQueue.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Containers\FixedSet.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>

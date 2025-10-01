@@ -11,21 +11,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{492615A3-35DE-56F0-9EE5-2F4C8ABCF1E0}</ProjectGuid>
+    <ProjectGuid>{00D9870B-6CE2-877C-F55D-9E7C6166937C}</ProjectGuid>
     <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>PhoenixSim</RootNamespace>
+    <RootNamespace>CDT</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
@@ -42,85 +42,78 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\Build\Binaries\Debug-windows-x86_64\</OutDir>
-    <IntDir>..\Build\Intermediate\Debug-windows-x86_64\Debug\PhoenixSim\</IntDir>
-    <TargetName>PhoenixSim</TargetName>
-    <TargetExt>.dll</TargetExt>
+    <OutDir>..\..\Build\Binaries\Debug-windows-x86_64\</OutDir>
+    <IntDir>..\..\Build\Intermediate\Debug-windows-x86_64\Debug\CDT\</IntDir>
+    <TargetName>CDT</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <ExternalIncludePath>..\..\External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\Build\Binaries\Release-windows-x86_64\</OutDir>
-    <IntDir>..\Build\Intermediate\Release-windows-x86_64\Release\PhoenixSim\</IntDir>
-    <TargetName>PhoenixSim</TargetName>
-    <TargetExt>.dll</TargetExt>
+    <OutDir>..\..\Build\Binaries\Release-windows-x86_64\</OutDir>
+    <IntDir>..\..\Build\Intermediate\Release-windows-x86_64\Release\CDT\</IntDir>
+    <TargetName>CDT</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <ExternalIncludePath>..\..\External;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>DLL_EXPORTS;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\PhoenixCore\Public;..\..\PhoenixCore\Public\Containers;..\..\PhoenixCore\Public\FixedPoint;..\..\PhoenixCore\Public\Mesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ImportLibrary>..\Build\Binaries\Debug-windows-x86_64\PhoenixSim.lib</ImportLibrary>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /s /y "$(SolutionDir)\External\SDL3\x64\Debug\*.*" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>DLL_EXPORTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\PhoenixCore\Public;..\..\PhoenixCore\Public\Containers;..\..\PhoenixCore\Public\FixedPoint;..\..\PhoenixCore\Public\Mesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ImportLibrary>..\Build\Binaries\Release-windows-x86_64\PhoenixSim.lib</ImportLibrary>
+      <AdditionalDependencies>SDL3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\..\External\SDL3\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /s /y "$(SolutionDir)\External\SDL3\x64\Release\*.*" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Public\Actions.h" />
-    <ClInclude Include="Public\DLLExport.h" />
-    <ClInclude Include="Public\FeatureECS.h" />
-    <ClInclude Include="Public\FeaturePathfinding.h" />
-    <ClInclude Include="Public\FeaturePhysics.h" />
-    <ClInclude Include="Public\FeatureTrace.h" />
-    <ClInclude Include="Public\Features.h" />
-    <ClInclude Include="Public\PhoenixSim.h" />
-    <ClInclude Include="Public\Session.h" />
-    <ClInclude Include="Public\Worlds.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Private\Actions.cpp" />
-    <ClCompile Include="Private\FeatureECS.cpp" />
-    <ClCompile Include="Private\FeaturePathfinding.cpp" />
-    <ClCompile Include="Private\FeaturePhysics.cpp" />
-    <ClCompile Include="Private\FeatureTrace.cpp" />
-    <ClCompile Include="Private\Features.cpp" />
-    <ClCompile Include="Private\Session.cpp" />
-    <ClCompile Include="Private\Worlds.cpp" />
-    <ClCompile Include="Private\dllmain.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\PhoenixCore\PhoenixCore.vcxproj">
+    <ProjectReference Include="..\..\PhoenixCore\PhoenixCore.vcxproj">
       <Project>{E943B105-55F9-29FB-DEED-23D24AA220FF}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\..\PhoenixSim\PhoenixSim.vcxproj">
+      <Project>{492615A3-35DE-56F0-9EE5-2F4C8ABCF1E0}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CDT.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

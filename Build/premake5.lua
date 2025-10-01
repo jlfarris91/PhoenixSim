@@ -6,6 +6,14 @@ workspace "Phoenix"
    startproject "PhoenixSimDriver"
    location "../"
 
+   group "Core"
+      project "PhoenixCore"
+      project "PhoenixSim"
+
+   group "Tests"
+      project "PhoenixSimDriver"
+      project "CDT"
+
 project "PhoenixCore"
    kind "StaticLib"
    language "C++"
@@ -25,7 +33,7 @@ project "PhoenixCore"
    }
 
    includedirs {
-      "../PhoenixCore/Public"
+      "../PhoenixCore/Public/"
    }
 
    filter "system:windows"
@@ -62,7 +70,9 @@ project "PhoenixSim"
 
    includedirs {
       "../PhoenixCore/Public/",
-      "../PhoenixSim/Public"
+      "../PhoenixCore/Public/**",
+      "../PhoenixSim/Public/",
+      "../PhoenixSim/Public/**"
    }
 
    links {
@@ -99,21 +109,19 @@ project "PhoenixSimDriver"
       "../PhoenixSimDriver/**.cpp"
    }
 
-   removefiles {
-      "../PhoenixSimDriver/External/**"
-   }
-
    includedirs {
       "../PhoenixCore/Public/",
+      "../PhoenixCore/Public/**",
       "../PhoenixSim/Public/",
+      "../PhoenixSim/Public/**",
    }
 
    externalincludedirs {
-      "../PhoenixSimDriver/External/"
+      "../External/"
    }
 
    libdirs {
-      "../PhoenixSimDriver/External/SDL3/x64/Debug"
+      "../External/SDL3/x64/Debug"
    }
 
    links {
@@ -131,7 +139,7 @@ project "PhoenixSimDriver"
       symbols "On"
 
       postbuildcommands {
-        "xcopy /s /y \"$(ProjectDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
       }
 
    filter "configurations:Release"
@@ -140,5 +148,61 @@ project "PhoenixSimDriver"
       optimize "On"
       
       postbuildcommands {
-        "xcopy /s /y \"$(ProjectDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
+      }
+
+project "CDT"
+   kind "ConsoleApp"
+   language "C++"
+   cppdialect "C++20"
+   staticruntime "on"
+   location "../Tests/CDT"
+   
+   targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+   objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+
+   files {
+      "../CDT/**.h",
+      "../CDT/**.inl",
+      "../CDT/**.cpp"
+   }
+
+   includedirs {
+      "../PhoenixCore/Public/",
+      "../PhoenixCore/Public/**"
+   }
+
+   externalincludedirs {
+      "../External/"
+   }
+
+   libdirs {
+      "../External/SDL3/x64/Debug"
+   }
+
+   links {
+      "PhoenixCore",
+      "PhoenixSim",
+      "SDL3"
+   }
+
+   filter "system:windows"
+      systemversion "latest"
+
+   filter "configurations:Debug"
+      defines { "DEBUG" }
+      runtime "Debug"
+      symbols "On"
+
+      postbuildcommands {
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
+      }
+
+   filter "configurations:Release"
+      defines { "NDEBUG" }
+      runtime "Release"
+      optimize "On"
+      
+      postbuildcommands {
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
       }

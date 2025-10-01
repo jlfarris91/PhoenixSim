@@ -266,7 +266,7 @@ namespace Phoenix
 
             if (x.Value < T::D)
             {
-                while (x <= powerOfTwo * powerOfTwo)
+                while (powerOfTwo != 0 && x <= powerOfTwo * powerOfTwo)
                 {
                     powerOfTwo = Q64(powerOfTwo.Value >> 1);
                 }
@@ -274,7 +274,7 @@ namespace Phoenix
             }
             else if (x.Value > T::D)
             {
-                while (powerOfTwo * powerOfTwo <= x)
+                while (powerOfTwo != 0 && powerOfTwo * powerOfTwo <= x)
                 {
                     powerOfTwo = Q64(powerOfTwo.Value << 1);
                 }
@@ -401,7 +401,7 @@ namespace Phoenix
         }
 
         template <class T>
-        constexpr T Dot(T x1, T y1, T x2, T y2)
+        constexpr auto Dot(T x1, T y1, T x2, T y2)
         {
             auto a = Vector(x1, y1);
             auto b = Rotate(x2, y2, -a.Y);

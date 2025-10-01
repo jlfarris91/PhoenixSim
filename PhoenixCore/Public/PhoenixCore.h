@@ -32,7 +32,10 @@ namespace Phoenix
     typedef int64 dt_t;
     typedef uint64 simtime_t;
 
-    constexpr int32 INDEX_NONE = -1;
+    template <class T>
+    struct Index { static constexpr T None = -1; };
+
+    constexpr int32 INDEX_NONE = Index<int32>::None;
 
 #define PHX_ASSERT(...) assert(__VA_ARGS__)
 }

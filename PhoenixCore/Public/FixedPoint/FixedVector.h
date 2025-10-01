@@ -178,7 +178,7 @@ namespace Phoenix
             return Abs(a.X - b.X) < threshold && Abs(a.Y - b.Y) < threshold;
         }
 
-        constexpr static Value Dot(const TVec2& a, const TVec2& b)
+        constexpr static auto Dot(const TVec2& a, const TVec2& b)
         {
             return Cordic::Dot(a.X, a.Y, b.X, b.Y);
         }
@@ -210,6 +210,32 @@ namespace Phoenix
         {
             Angle deg = static_cast<float>(rand() % 1440) / 4.0f;
             return XAxis.Rotate(deg);
+        }
+
+        constexpr static auto Intersects(
+            const TVec2& a1,
+            const TVec2& a2,
+            const TVec2& b1,
+            const TVec2& b2,
+            TVec2& outPt)
+        {
+            auto d = (a1.X - a2.X) * (b1.Y - b2.Y) - (a1.Y - a2.Y) * (b1.X - b2.X);
+            if (d == 0)
+            {
+                outPt = Zero;
+                return false;
+            }
+
+            auto aa = (a1.X*a2.Y - a1.Y*a2.X);
+            auto bb = (b1.X*b2.Y - b1.Y*b2.X);
+
+            auto px = aa * (b1.X - b2.X) - bb * (a1.X - a2.X);
+            auto py = aa * (b1.Y - b2.Y) - bb * (a1.Y - a2.Y);
+
+            outPt.X = px / d;
+            outPt.Y = py / d;
+
+            return true;
         }
 
         T X = 0;
@@ -263,16 +289,15 @@ namespace Phoenix
             return -(a - b * d);
         }
 
-        // Returns the squared distance from a TVec2 point to a Line. 
-        constexpr static T DistanceToLineSq(const TLine& line, const T& point)
+        // Returns the distance from a TVec2 point to a Line.
+        constexpr static auto DistanceToLine(const TLine& line, const T& point)
         {
-            return VectorToLine(line, point).LengthSq();
+            return VectorToLine(line, point).Length();
         }
 
-        // Returns the distance from a TVec2 point to a Line.
-        constexpr static T DistanceToLine(const TLine& line, const T& point)
+        constexpr static auto Intersects(const TLine& a, const TLine& b, T& outPt)
         {
-            return Sqrt(DistanceToLineSq(line, point));
+            return T::Intersects(a.Start, a.End, b.Start, b.End, outPt);
         }
     };
 

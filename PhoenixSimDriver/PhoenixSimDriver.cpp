@@ -266,7 +266,7 @@ void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, 
     SDL_RenderLines(renderer, points.data(), segments);
 }
 
-TFixedMesh<8192, uint32, Vec2, int16> GMesh;
+TFixedCDTMesh<8192, uint32, Vec2, uint16> GMesh;
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
@@ -337,7 +337,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     /* Let's draw a single rectangle (square, really). */
 
-    Vec2 mapSize(512, 512);
+    Vec2 mapSize(1024, 1024);
     Vec2 windowCenter(GWindowWidth / 2.0f, GWindowHeight / 2.0f);
 
     SDL_FRect mapRect;
@@ -371,7 +371,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     static TArray<TTuple<uint32, uint32, uint32>> queryCodeColors;
     if (queryCodeColors.empty())
     {
-        for (int32 i = 0; i < 100; ++i)
+        for (int32 i = 0; i < 1000; ++i)
         {
             queryCodeColors.emplace_back(rand() % 255, rand() % 255, rand() % 255);
         }
@@ -385,15 +385,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         auto tl = Vec2(mapSize.X / -2, mapSize.Y / +2);
         auto tr = Vec2(mapSize.X / +2, mapSize.Y / +4);
 
-        GMesh.Reset();
-        GMesh.AddFace(bl, tr, tl, 1);
-        GMesh.AddFace(bl, br, tr, 2);
-
-        for (const auto& body : GEntityBodies)
+        //if (GMesh.Vertices.Num() - 4 != GEntityBodies.size())
         {
-            auto x = body.Transform.Position.X - mapCenter.X;
-            auto y = body.Transform.Position.Y - mapCenter.Y;
-            CDT_InsertPoint(GMesh, { x, -y });
+            GMesh.Reset();
+            GMesh.InsertFace(bl, tr, tl, 1);
+            GMesh.InsertFace(bl, br, tr, 2);
+
+            for (const auto& body : GEntityBodies)
+            {
+                auto x = body.Transform.Position.X - mapCenter.X;
+                auto y = body.Transform.Position.Y - mapCenter.Y;
+                CDT_InsertPoint(GMesh, { x, -y });
+            }
         }
 
         for (auto vert : GMesh.Vertices)
@@ -405,7 +408,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         for (auto edge : GMesh.HalfEdges)
         {
-            if (edge.Face == INDEX_NONE)
+            if (!GMesh.Faces.IsValidIndex(edge.Face))
                 continue;
             auto& color = queryCodeColors[edge.Face];
             SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
@@ -421,59 +424,84 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         constexpr float scale = 2.0f;
         SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
         SDL_SetRenderScale(GRenderer, scale, scale);
-        
-        for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
+
+        if (0)
         {
-            auto& color = queryCodeColors[i];
-            SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
+            for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
+            {
+                if (!GMesh.Faces.IsValidIndex(i))
+                    continue;
 
-            const auto* e0 = &GMesh.HalfEdges[GMesh.Faces[i].HalfEdge];
-            const auto* e1 = &GMesh.HalfEdges[e0->Next];
-            const auto* e2 = &GMesh.HalfEdges[e1->Next];
+                const auto& face = GMesh.Faces[i];
+                if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
+                    continue;
+
+                auto& color = queryCodeColors[i];
+                SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
+
+                const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
+                const auto& e1 = GMesh.HalfEdges[e0.Next];
+                const auto& e2 = GMesh.HalfEdges[e1.Next];
             
-            const Vec2& a = GMesh.Vertices[e0->VertA];
-            const Vec2& b = GMesh.Vertices[e1->VertA];
-            const Vec2& c = GMesh.Vertices[e2->VertA];
+                const Vec2& a = GMesh.Vertices[e0.VertA];
+                const Vec2& b = GMesh.Vertices[e1.VertA];
+                const Vec2& c = GMesh.Vertices[e2.VertA];
 
-            auto center = (a + b + c) / 3.0;
-            center.X += mapCenter.X;
-            center.Y = mapCenter.Y - center.Y;
+                auto center = (a + b + c) / 3.0;
+                center.X += mapCenter.X;
+                center.Y = mapCenter.Y - center.Y;
         
-            char zcodeStr[256] = { '\0' };
-            sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", i);
-            SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, zcodeStr);
+                char zcodeStr[256] = { '\0' };
+                sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", i);
+                SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, zcodeStr);
+            }
         }
-    
+
         SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 
-        // for (auto face : GMesh.Faces)
-        // {
-        //     const auto* e0 = &GMesh.HalfEdges[face.HalfEdge];
-        //     const auto* e1 = &GMesh.HalfEdges[e0->Next];
-        //     const auto* e2 = &GMesh.HalfEdges[e1->Next];
-        //
-        //     const Vec2& a = GMesh.Vertices[e0->VertA];
-        //     const Vec2& b = GMesh.Vertices[e1->VertA];
-        //     const Vec2& c = GMesh.Vertices[e2->VertA];
-        //
-        //     auto aax = a.X * a.X;
-        //     auto aay = a.Y * a.Y;
-        //     auto a2 = a.X*a.X + a.Y*a.Y;
-        //     auto b2 = b.X*b.X + b.Y*b.Y;
-        //     auto c2 = c.X*c.X + c.Y*c.Y;
-        //
-        //     auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
-        //
-        //     auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;
-        //     auto uy = (a2 * (c.X - b.X) + b2 * (a.X - c.X) + c2 * (b.X - a.X)) / d;
-        //     auto r1 = (ux - a.X)*(ux - a.X) + (uy - a.Y)*(uy - a.Y);
-        //     auto r = Sqrt(r1);
-        //
-        //     ux = mapCenter.X + ux;
-        //     uy = mapCenter.Y - uy;
-        //
-        //     SDL_RenderCircle(GRenderer, (float)ux, (float)uy, (float)r, 32);
-        // }
+        if (0)
+        {
+            for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
+            {
+                if (!GMesh.Faces.IsValidIndex(i))
+                    continue;
+
+                const auto& face = GMesh.Faces[i];
+                if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
+                    continue;
+
+                auto& color = queryCodeColors[i];
+                SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
+
+                const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
+                const auto& e1 = GMesh.HalfEdges[e0.Next];
+                const auto& e2 = GMesh.HalfEdges[e1.Next];
+        
+                const Vec2& a = GMesh.Vertices[e0.VertA];
+                const Vec2& b = GMesh.Vertices[e1.VertA];
+                const Vec2& c = GMesh.Vertices[e2.VertA];
+        
+                auto aax = a.X * a.X;
+                auto aay = a.Y * a.Y;
+                auto a2 = a.X*a.X + a.Y*a.Y;
+                auto b2 = b.X*b.X + b.Y*b.Y;
+                auto c2 = c.X*c.X + c.Y*c.Y;
+        
+                auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
+                if (d == 0)
+                    continue;
+        
+                auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;
+                auto uy = (a2 * (c.X - b.X) + b2 * (a.X - c.X) + c2 * (b.X - a.X)) / d;
+                auto r1 = (ux - a.X)*(ux - a.X) + (uy - a.Y)*(uy - a.Y);
+                auto r = Sqrt(r1);
+        
+                ux = mapCenter.X + ux;
+                uy = mapCenter.Y - uy;
+        
+                SDL_RenderCircle(GRenderer, (float)ux, (float)uy, (float)r, 32);
+            }
+        }
     }
 
     SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
@@ -604,18 +632,38 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         
         for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
         {
-            const auto* e0 = &GMesh.HalfEdges[GMesh.Faces[i].HalfEdge];
-            const auto* e1 = &GMesh.HalfEdges[e0->Next];
-            const auto* e2 = &GMesh.HalfEdges[e1->Next];
+            if (!GMesh.Faces.IsValidIndex(i))
+                continue;
 
-            const Vec2& a = GMesh.Vertices[e0->VertA];
-            const Vec2& b = GMesh.Vertices[e1->VertA];
-            const Vec2& c = GMesh.Vertices[e2->VertA];
+            const auto& face = GMesh.Faces[i];
+            if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
+                continue;
+
+            const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
+            const auto& e1 = GMesh.HalfEdges[e0.Next];
+            const auto& e2 = GMesh.HalfEdges[e1.Next];
+
+            const Vec2& a = GMesh.Vertices[e0.VertA];
+            const Vec2& b = GMesh.Vertices[e1.VertA];
+            const Vec2& c = GMesh.Vertices[e2.VertA];
 
             Vec2 m = { dx, dy };
-            if (PointInTriangle(a, b, c, m))
+
+            auto result = GMesh.PointInFace(int16(i), m);
+            switch (result.Result)
             {
-                RenderDebugText("In Face %d", i)
+                case EPointInFaceResult::Inside:
+                    RenderDebugText("Inside %d", i)
+                    break;
+                case EPointInFaceResult::OnEdge:
+                    RenderDebugText("On Edge %d", result.OnEdgeIndex)
+                    break;
+                default: break;
+            }
+
+            if (PointInCircle(a, b, c, m) > 0)
+            {
+                RenderDebugText("Inside CC %d", i)
             }
         }
         
