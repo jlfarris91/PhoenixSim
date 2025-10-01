@@ -166,7 +166,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
             for (auto edge : GMesh.HalfEdges)
             {
-                if (edge.Face == Index<int16>::None)
+                if (edge.Face == Index<uint16>::None)
                 {
                     continue;
                 }
@@ -222,9 +222,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 center.X += mapCenter.X;
                 center.Y = mapCenter.Y - center.Y;
         
-                char zcodeStr[256] = { '\0' };
-                sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", i);
-                SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, zcodeStr);
+                char str[256] = { '\0' };
+                sprintf_s(str, _countof(str), "%llu", i);
+                if (face.Data >= 100)
+                {
+                    sprintf_s(str, _countof(str), "%llu!%u", i, face.Data - 100);
+                }
+                SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, str);
             }
 
             SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);

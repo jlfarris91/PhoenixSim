@@ -289,6 +289,7 @@ namespace Phoenix
 
             TFace& face = Faces[f];
             face.HalfEdge = e0;
+            face.Data = data;
 
             THalfEdge& edge0 = HalfEdges[e0];
             edge0.Next = e1;
@@ -368,14 +369,14 @@ namespace Phoenix
             // Split by inserting new faces and removing the old one
             {
                 const TFace& face = Faces[faceIndex];
-                const THalfEdge& edge0 = HalfEdges[face.HalfEdge];
-                const THalfEdge& edge1 = HalfEdges[edge0.Next];
-                const THalfEdge& edge2 = HalfEdges[edge1.Next];
+                THalfEdge edge0 = HalfEdges[face.HalfEdge];
+                THalfEdge edge1 = HalfEdges[edge0.Next];
+                THalfEdge edge2 = HalfEdges[edge1.Next];
 
+                RemoveFace(faceIndex);
                 outFace0 = InsertFace(vertIndex, edge0.VertA, edge0.VertB, face.Data);
                 outFace1 = InsertFace(vertIndex, edge1.VertA, edge1.VertB, face.Data);
                 outFace2 = InsertFace(vertIndex, edge2.VertA, edge2.VertB, face.Data);
-                RemoveFace(faceIndex);
             }
         }
 
@@ -608,8 +609,6 @@ namespace Phoenix
                 // containingEdge = result.OnEdgeIndex;
                 continue;
             }
-
-            break;
         }
 
         if (containingFace != Index<TIdx>::None)
@@ -653,59 +652,74 @@ namespace Phoenix
 
         if (v1 == Index<TIdx>::None)
         {
-            v1 = mesh.InsertVertex(v.End);
+            // v1 = mesh.InsertVertex(v.End);
+            v1 = CDT_InsertPoint(mesh, v.End);
         }
 
         // Get the verts again since they may have been snapped to another existing vert
         const Vec2& vertA = mesh.Vertices[v0];
         const Vec2& vertB = mesh.Vertices[v1];
 
-        TFixedQueue<TIdx, 1024> edgeStack;
-        TFixedQueue<TIdx, 1024> faceStack;
+        TFixedQueue<TIdx, 64> edgeStack;
+        TFixedQueue<TIdx, 64> faceStack;
+        TFixedArray<TIdx, 64> corridor;
 
         for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
         {
-            if (mesh.HalfEdges[i].Face != Index<TIdx>::None && mesh.HalfEdges[i].VertA == v0)
+            const THalfEdge& halfEdge = mesh.HalfEdges[i];
+            if (halfEdge.Face != Index<TIdx>::None && halfEdge.VertA == v0)
             {
                 edgeStack.Enqueue(TIdx(i));
             }
         }
 
-        while (!edgeStack.IsEmpty() && !faceStack.IsFull())
+        bool done = false;
+        while (!done && !edgeStack.IsEmpty() && !faceStack.IsFull())
         {
             TIdx edgeIndex = edgeStack.Dequeue();
 
             if (!mesh.HalfEdges.IsValidIndex(edgeIndex))
                 continue;
 
-            for (size_t i = 0; i < 3; ++i)
+            THalfEdge& halfEdge0 = mesh.HalfEdges[edgeIndex];
+            edgeIndex = halfEdge0.Next;
+
+            for (size_t i = 0; i < 2; ++i)
             {
                 PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
-                THalfEdge& halfEdge = mesh.HalfEdges[edgeIndex];
+                const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndex];
 
-                // Done walking, we found the target vert
-                if (halfEdge.VertA == v1 || halfEdge.VertB == v1)
+                if (halfEdgeN.VertA == v0 || halfEdgeN.VertB == v0)
                 {
-                    edgeStack.Reset();
-                    faceStack.Enqueue(halfEdge.Face);
                     break;
                 }
 
-                const Vec2& a = mesh.Vertices[halfEdge.VertA];
-                const Vec2& b = mesh.Vertices[halfEdge.VertB];
+                // Done walking, we found the target vert
+                if (halfEdgeN.VertA == v1 || halfEdgeN.VertB == v1)
+                {
+                    done = true;
+                    faceStack.Enqueue(halfEdgeN.Face);
+                    break;
+                }
+
+                const Vec2& a = mesh.Vertices[halfEdgeN.VertA];
+                const Vec2& b = mesh.Vertices[halfEdgeN.VertB];
 
                 Vec2 pt;
                 if (Vec2::Intersects(vertA, vertB, a, b, pt))
                 {
-                    edgeStack.Reset();
-                    edgeStack.Enqueue(halfEdge.Twin);
-                    faceStack.Enqueue(halfEdge.Face);
+                    corridor.PushBack(halfEdgeN.VertA);
+                    edgeStack.Enqueue(halfEdgeN.Twin);
+                    faceStack.Enqueue(halfEdgeN.Face);
                     break;
                 }
 
-                edgeIndex = halfEdge.Next;
+                edgeIndex = halfEdgeN.Next;
             }
         }
+
+        if (faceStack.IsEmpty())
+            return;
 
         while (!faceStack.IsEmpty())
         {
@@ -723,7 +737,16 @@ namespace Phoenix
         mesh.HalfEdges[e0].bLocked = true;
         mesh.HalfEdges[e1].bLocked = true;
 
-        mesh.FixDelaunayConditions(v0);
-        mesh.FixDelaunayConditions(v1);
+        
+
+        if (corridor.Num() > 1)
+        {
+            for (size_t i = 0; i < corridor.Num() - 2;)
+            {
+                const TIdx& va = corridor[i++];
+                const TIdx& vb = corridor[i++];
+                mesh.InsertFace(v0, va, vb, 100 + i);
+            }
+        }
     }
 }

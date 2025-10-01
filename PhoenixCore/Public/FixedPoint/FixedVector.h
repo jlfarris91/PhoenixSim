@@ -213,28 +213,39 @@ namespace Phoenix
         }
 
         constexpr static auto Intersects(
+            const TVec2& a0,
             const TVec2& a1,
-            const TVec2& a2,
+            const TVec2& b0,
             const TVec2& b1,
-            const TVec2& b2,
             TVec2& outPt)
         {
-            auto d = (a1.X - a2.X) * (b1.Y - b2.Y) - (a1.Y - a2.Y) * (b1.X - b2.X);
-            if (d == 0)
+            if ((a0.X == a1.X && a0.Y == a1.Y) || (b0.X == b1.X && b0.Y == b1.Y)) 
             {
-                outPt = Zero;
                 return false;
             }
 
-            auto aa = (a1.X*a2.Y - a1.Y*a2.X);
-            auto bb = (b1.X*b2.Y - b1.Y*b2.X);
+            auto d = (b1.Y - b0.Y) * (a1.X - a0.X) - (b1.X - b0.X) * (a1.Y - a0.Y);
+            if (d == 0)
+            {
+                return false;
+            }
 
-            auto px = aa * (b1.X - b2.X) - bb * (a1.X - a2.X);
-            auto py = aa * (b1.Y - b2.Y) - bb * (a1.Y - a2.Y);
+            auto dx = a0.X - b0.X;
+            auto dy = a0.Y - b0.Y;
 
-            outPt.X = px / d;
-            outPt.Y = py / d;
+            auto ua = ((b1.X - b0.X) * dy - (b1.Y - b0.Y) * dx);
+            auto ub = ((a1.X - a0.X) * dy - (a1.Y - a0.Y) * dx);
 
+            ua = ua / d;
+            ub = ub / d;
+
+            if (ua < 0 || ua > 1 || ub < 0 || ub > 1)
+            {
+                return false;
+            }
+
+            outPt.X = a0.X + ua * (a1.X - a0.X);
+            outPt.Y = a0.Y + ua * (a1.Y - a0.Y);
             return true;
         }
 
