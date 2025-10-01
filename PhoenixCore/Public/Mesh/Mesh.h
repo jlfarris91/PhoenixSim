@@ -474,7 +474,7 @@ namespace Phoenix
             for (size_t i = 0; i < HalfEdges.Num(); ++i)
             {
                 auto& edge = HalfEdges[i];
-                if (edge.Face != Index<TIdx>::None && edge.VertA == vi)
+                if (edge.Face != Index<TIdx>::None && edge.VertA == vi && !edge.bLocked)
                 {
                     stack.Enqueue(TIdx(i));
                 }
@@ -647,7 +647,8 @@ namespace Phoenix
 
         if (v0 == Index<TIdx>::None)
         {
-            v0 = mesh.InsertVertex(v.Start);
+            // v0 = mesh.InsertVertex(v.Start);
+            v0 = CDT_InsertPoint(mesh, v.Start);
         }
 
         if (v1 == Index<TIdx>::None)
@@ -659,10 +660,13 @@ namespace Phoenix
         // Get the verts again since they may have been snapped to another existing vert
         const Vec2& vertA = mesh.Vertices[v0];
         const Vec2& vertB = mesh.Vertices[v1];
+        Vec2 lineD = vertB - vertA;
+        Vec2 lineCross = Vec2(lineD.Y, -lineD.X);
 
         TFixedQueue<TIdx, 64> edgeStack;
         TFixedQueue<TIdx, 64> faceStack;
-        TFixedArray<TIdx, 64> corridor;
+        TFixedArray<TIdx, 32> corridorA;
+        TFixedArray<TIdx, 32> corridorB;
 
         for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
         {
@@ -708,7 +712,20 @@ namespace Phoenix
                 Vec2 pt;
                 if (Vec2::Intersects(vertA, vertB, a, b, pt))
                 {
-                    corridor.PushBack(halfEdgeN.VertA);
+                    auto va = a - v0;
+                    auto da = Vec2::Dot(va, lineCross);
+                    if (da > 0 && (corridorA.IsEmpty() || corridorA[corridorA.Num() - 1] != halfEdgeN.VertA))
+                    {
+                        corridorA.PushBack(halfEdgeN.VertA);
+                    }
+
+                    auto vb = b - v0;
+                    auto db = Vec2::Dot(vb, lineCross);
+                    if (db < 0 && (corridorB.IsEmpty() || corridorB[corridorB.Num() - 1] != halfEdgeN.VertB))
+                    {
+                        corridorB.PushBack(halfEdgeN.VertB);
+                    }
+                    
                     edgeStack.Enqueue(halfEdgeN.Twin);
                     faceStack.Enqueue(halfEdgeN.Face);
                     break;
@@ -737,16 +754,41 @@ namespace Phoenix
         mesh.HalfEdges[e0].bLocked = true;
         mesh.HalfEdges[e1].bLocked = true;
 
-        
-
-        if (corridor.Num() > 1)
+        if (corridorA.Num() > 1)
         {
-            for (size_t i = 0; i < corridor.Num() - 2;)
+            for (size_t i = 0; i < corridorA.Num() - 1; ++i)
             {
-                const TIdx& va = corridor[i++];
-                const TIdx& vb = corridor[i++];
+                const TIdx& va = corridorA[i + 0];
+                const TIdx& vb = corridorA[i + 1];
                 mesh.InsertFace(v0, va, vb, 100 + i);
             }
+        
+            mesh.InsertFace(v0, corridorA[corridorA.Num() - 1], v1, 100);
         }
+
+        if (corridorB.Num() > 1)
+        {
+            for (size_t i = 0; i < corridorB.Num() - 1; ++i)
+            {
+                const TIdx& va = corridorB[i + 0];
+                const TIdx& vb = corridorB[i + 1];
+                mesh.InsertFace(v0, va, vb, 100 + i);
+            }
+        
+            mesh.InsertFace(v0, corridorB[corridorB.Num() - 1], v1, 100);
+        }
+
+        for (size_t i = 0; i < corridorA.Num(); ++i)
+        {
+            mesh.FixDelaunayConditions(corridorA[i]);
+        }
+
+        for (size_t i = 0; i < corridorB.Num(); ++i)
+        {
+            mesh.FixDelaunayConditions(corridorB[i]);
+        }
+
+        mesh.FixDelaunayConditions(v0);
+        mesh.FixDelaunayConditions(v1);
     }
 }

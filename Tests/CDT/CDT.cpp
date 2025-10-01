@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <windows.h>
+#include <fstream>
 
 #include "Name.h"
 #include "MortonCode.h"
@@ -33,8 +34,70 @@ TArray<Vec2> GPoints;
 TArray<Line2> GLines;
 Vec2 GLineStart, GLineEnd;
 
+void LoadPoints()
+{
+    std::ifstream f("foobar.bin", std::ios::binary);
+
+    if (!f.is_open())
+        return;
+
+    size_t numPoints = 0;
+    f.read(reinterpret_cast<char*>(&numPoints), sizeof(size_t));
+
+    for (size_t i = 0; i < numPoints; ++i)
+    {
+        Vec2 pt;
+        f.read(reinterpret_cast<char*>(&pt.X.Value), sizeof(Vec2::ComponentT));
+        f.read(reinterpret_cast<char*>(&pt.Y.Value), sizeof(Vec2::ComponentT));
+        GPoints.push_back(pt);
+    }
+    
+    size_t numLines;
+    f.read(reinterpret_cast<char*>(&numLines), sizeof(size_t));
+
+    for (size_t i = 0; i < numLines; ++i)
+    {
+        Vec2 start, end;
+        f.read(reinterpret_cast<char*>(&start.X.Value), sizeof(Vec2::ComponentT));
+        f.read(reinterpret_cast<char*>(&start.Y.Value), sizeof(Vec2::ComponentT));
+        f.read(reinterpret_cast<char*>(&end.X.Value), sizeof(Vec2::ComponentT));
+        f.read(reinterpret_cast<char*>(&end.Y.Value), sizeof(Vec2::ComponentT));
+        GLines.emplace_back(start, end);
+    }
+}
+
+void SavePoints()
+{
+    std::ofstream f("foobar.bin", std::ios::binary);
+
+    if (!f.is_open())
+        return;
+
+    size_t numPoints = GPoints.size();
+    f.write(reinterpret_cast<const char*>(&numPoints), sizeof(size_t));
+    for (auto pt : GPoints)
+    {
+        f.write(reinterpret_cast<const char*>(&pt.X.Value), sizeof(Vec2::ComponentT));
+        f.write(reinterpret_cast<const char*>(&pt.Y.Value), sizeof(Vec2::ComponentT));
+    }
+
+    size_t numLines = GLines.size();
+    f.write(reinterpret_cast<const char*>(&numLines), sizeof(size_t));
+    for (auto line : GLines)
+    {
+        f.write(reinterpret_cast<const char*>(&line.Start.X.Value), sizeof(Vec2::ComponentT));
+        f.write(reinterpret_cast<const char*>(&line.Start.Y.Value), sizeof(Vec2::ComponentT));
+        f.write(reinterpret_cast<const char*>(&line.End.X.Value), sizeof(Vec2::ComponentT));
+        f.write(reinterpret_cast<const char*>(&line.End.Y.Value), sizeof(Vec2::ComponentT));
+    }
+
+    f.close();
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+    LoadPoints();
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -81,7 +144,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     /* Let's draw a single rectangle (square, really). */
 
-    Vec2 mapSize(1024, 1024);
+    Vec2 mapSize(GWindowWidth, GWindowHeight);
     Vec2 windowCenter(GWindowWidth / 2.0f, GWindowHeight / 2.0f);
 
     SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
@@ -101,7 +164,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         auto bl = Vec2(mapSize.X / -2, mapSize.Y / -2);
         auto br = Vec2(mapSize.X / +2, mapSize.Y / -2);
         auto tl = Vec2(mapSize.X / -2, mapSize.Y / +2);
-        auto tr = Vec2(mapSize.X / +2, mapSize.Y / +4);
+        auto tr = Vec2(mapSize.X / +2, mapSize.Y / +2);
 
         //if (GMesh.Vertices.Num() - 4 != GEntityBodies.size())
         {
@@ -137,16 +200,31 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (!GMesh.Faces.IsValidIndex(edge.Face))
                 continue;
 
+            if (edge.bLocked)
+                continue;
+
             auto& color = queryCodeColors[edge.Face];
             auto colorR = uint8(std::get<0>(color) / 2);
             auto colorG = uint8(std::get<1>(color) / 2);
             auto colorB = uint8(std::get<2>(color) / 2);
             SDL_SetRenderDrawColor(GRenderer, colorR, colorG, colorB, SDL_ALPHA_OPAQUE);
 
-            if (edge.bLocked)
-            {
-                SDL_SetRenderDrawColor(GRenderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
-            }
+            auto x0 = mapCenter.X + GMesh.Vertices[edge.VertA].X;
+            auto y0 = mapCenter.Y - GMesh.Vertices[edge.VertA].Y;
+            auto x1 = mapCenter.X + GMesh.Vertices[edge.VertB].X;
+            auto y1 = mapCenter.Y - GMesh.Vertices[edge.VertB].Y;
+            SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
+        }
+
+        for (auto edge : GMesh.HalfEdges)
+        {
+            if (!GMesh.Faces.IsValidIndex(edge.Face))
+                continue;
+
+            if (!edge.bLocked)
+                continue;
+
+            SDL_SetRenderDrawColor(GRenderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
 
             auto x0 = mapCenter.X + GMesh.Vertices[edge.VertA].X;
             auto y0 = mapCenter.Y - GMesh.Vertices[edge.VertA].Y;
@@ -197,6 +275,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             constexpr float scale = 2.0f;
             SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
             SDL_SetRenderScale(GRenderer, scale, scale);
+
+            for (size_t i = 0; i < GMesh.Vertices.Num(); ++i)
+            {
+                const Vec2& pt = GMesh.Vertices[i];
+
+                auto ptx = mapCenter.X + pt.X;
+                auto pty = mapCenter.Y - pt.Y;
+
+                char str[256] = { '\0' };
+                sprintf_s(str, _countof(str), "%llu", i);
+                SDL_RenderDebugText(GRenderer, (float)ptx / scale, (float)pty / scale, str);
+            }
 
             for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
             {
@@ -356,11 +446,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     break;
                 default: break;
             }
-
-            if (PointInCircle(a, b, c, m) > 0)
-            {
-                RenderDebugText("Inside CC %d", i)
-            }
         }
     }
 
@@ -485,6 +570,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    SavePoints();
+   
     // destroy the window
     SDL_DestroyWindow(GWindow);
 }
