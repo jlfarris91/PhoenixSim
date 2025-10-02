@@ -34,6 +34,11 @@ TArray<Vec2> GPoints;
 TArray<Line2> GLines;
 Vec2 GLineStart, GLineEnd;
 
+#define SHOW_FACE_IDS 0
+#define SHOW_FACE_CIRCUMCIRCLES 0
+#define SHOW_VERT_IDS 0
+#define SHOW_VERT_CIRCLES 0
+
 void LoadPoints()
 {
     std::ifstream f("foobar.bin", std::ios::binary);
@@ -158,6 +163,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
+    Distance cx = (float)windowCenter.X;
+    Distance cy = (float)windowCenter.Y;
+    Distance fmx = mx;
+    Distance fmy = GWindowHeight - my;
+    auto dx = fmx - cx;
+    auto dy = fmy - cy;
+    Vec2 m = { dx, dy };
+
     {
         Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
 
@@ -188,11 +201,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
         }
 
-        for (auto vert : GMesh.Vertices)
+        if (SHOW_VERT_CIRCLES)
         {
-            auto x = mapCenter.X + vert.X;
-            auto y = mapCenter.Y - vert.Y;
-            SDL_RenderCircle(GRenderer, (float)x, (float)y, 10.0f, 10);
+            for (auto vert : GMesh.Vertices)
+            {
+                auto x = mapCenter.X + vert.X;
+                auto y = mapCenter.Y - vert.Y;
+                SDL_RenderCircle(GRenderer, (float)x, (float)y, 10.0f, 10);
+            }
         }
 
         for (auto edge : GMesh.HalfEdges)
@@ -203,11 +219,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (edge.bLocked)
                 continue;
 
-            auto& color = queryCodeColors[edge.Face];
-            auto colorR = uint8(std::get<0>(color) / 2);
-            auto colorG = uint8(std::get<1>(color) / 2);
-            auto colorB = uint8(std::get<2>(color) / 2);
-            SDL_SetRenderDrawColor(GRenderer, colorR, colorG, colorB, SDL_ALPHA_OPAQUE);
+            SDL_SetRenderDrawColor(GRenderer, 50, 50, 50, SDL_ALPHA_OPAQUE);
 
             auto x0 = mapCenter.X + GMesh.Vertices[edge.VertA].X;
             auto y0 = mapCenter.Y - GMesh.Vertices[edge.VertA].Y;
@@ -231,6 +243,29 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             auto x1 = mapCenter.X + GMesh.Vertices[edge.VertB].X;
             auto y1 = mapCenter.Y - GMesh.Vertices[edge.VertB].Y;
             SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
+        }
+
+        // Redraw the edges of the face the mouse is within so that they draw on top
+        for (size_t i = 0; i < GMesh.Faces.Num(); ++i)
+        {
+            auto result = GMesh.PointInFace(int16(i), m);
+            if (result.Result == EPointInFaceResult::Inside)
+            {
+                auto& color = queryCodeColors[i];
+                auto colorR = uint8(std::get<0>(color) / 2);
+                auto colorG = uint8(std::get<1>(color) / 2);
+                auto colorB = uint8(std::get<2>(color) / 2);
+                SDL_SetRenderDrawColor(GRenderer, colorR, colorG, colorB, SDL_ALPHA_OPAQUE);
+
+                GMesh.ForEachHalfEdgeInFace(i, [&](const auto& halfEdge)
+                {
+                    auto x0 = mapCenter.X + GMesh.Vertices[halfEdge.VertA].X;
+                    auto y0 = mapCenter.Y - GMesh.Vertices[halfEdge.VertA].Y;
+                    auto x1 = mapCenter.X + GMesh.Vertices[halfEdge.VertB].X;
+                    auto y1 = mapCenter.Y - GMesh.Vertices[halfEdge.VertB].Y;
+                    SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
+                });
+            }
         }
 
         if (!Vec2::Equals(GLineStart, GLineEnd))
@@ -270,7 +305,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         SDL_SetRenderDrawColor(GRenderer, 0, 100, 0, SDL_ALPHA_OPAQUE);
 
-        if (1)
+        if (SHOW_VERT_IDS)
         {
             constexpr float scale = 2.0f;
             SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
@@ -288,6 +323,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 SDL_RenderDebugText(GRenderer, (float)ptx / scale, (float)pty / scale, str);
             }
 
+            SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
+        }
+
+        if (SHOW_FACE_IDS)
+        {
+            constexpr float scale = 2.0f;
+            SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+            SDL_SetRenderScale(GRenderer, scale, scale);
+
             for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
             {
                 if (!GMesh.Faces.IsValidIndex(i))
@@ -300,13 +344,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 auto& color = queryCodeColors[i];
                 SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
 
-                const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
-                const auto& e1 = GMesh.HalfEdges[e0.Next];
-                const auto& e2 = GMesh.HalfEdges[e1.Next];
+                const auto& edge0 = GMesh.HalfEdges[face.HalfEdge];
+                const auto& edge1 = GMesh.HalfEdges[edge0.Next];
+                const auto& edge2 = GMesh.HalfEdges[edge1.Next];
             
-                const Vec2& a = GMesh.Vertices[e0.VertA];
-                const Vec2& b = GMesh.Vertices[e1.VertA];
-                const Vec2& c = GMesh.Vertices[e2.VertA];
+                const Vec2& a = GMesh.Vertices[edge0.VertA];
+                const Vec2& b = GMesh.Vertices[edge1.VertA];
+                const Vec2& c = GMesh.Vertices[edge2.VertA];
 
                 auto center = (a + b + c) / 3.0;
                 center.X += mapCenter.X;
@@ -314,17 +358,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         
                 char str[256] = { '\0' };
                 sprintf_s(str, _countof(str), "%llu", i);
-                if (face.Data >= 100)
-                {
-                    sprintf_s(str, _countof(str), "%llu!%u", i, face.Data - 100);
-                }
                 SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, str);
             }
 
             SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
         }
 
-        if (0)
+        if (SHOW_FACE_CIRCUMCIRCLES)
         {
             for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
             {
@@ -408,13 +448,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     {
         RenderDebugText("F: %llu, E: %llu, V: %llu", GMesh.Faces.Num(), GMesh.HalfEdges.Num(), GMesh.Vertices.Num());
-
-        Distance cx = (float)windowCenter.X;
-        Distance cy = (float)windowCenter.Y;
-        Distance fmx = mx;
-        Distance fmy = GWindowHeight - my;
-        auto dx = fmx - cx;
-        auto dy = fmy - cy;
         
         for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
         {
@@ -425,21 +458,27 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
                 continue;
 
-            const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
-            const auto& e1 = GMesh.HalfEdges[e0.Next];
-            const auto& e2 = GMesh.HalfEdges[e1.Next];
+            const auto& edge0 = GMesh.HalfEdges[face.HalfEdge];
+            const auto& edge1 = GMesh.HalfEdges[edge0.Next];
+            const auto& edge2 = GMesh.HalfEdges[edge1.Next];
 
-            const Vec2& a = GMesh.Vertices[e0.VertA];
-            const Vec2& b = GMesh.Vertices[e1.VertA];
-            const Vec2& c = GMesh.Vertices[e2.VertA];
+            auto e0 = face.HalfEdge;
+            auto e1 = edge0.Next;
+            auto e2 = edge1.Next;
 
-            Vec2 m = { dx, dy };
+            auto v0 = edge0.VertA;
+            auto v1 = edge1.VertA;
+            auto v2 = edge2.VertA;
+
+            auto et0 = edge0.Twin;
+            auto et1 = edge1.Twin;
+            auto et2 = edge2.Twin;
 
             auto result = GMesh.PointInFace(int16(i), m);
             switch (result.Result)
             {
                 case EPointInFaceResult::Inside:
-                    RenderDebugText("Inside %d", i)
+                    RenderDebugText("Inside %d - %u (%u/%u) -> %u (%u/%u) -> %u (%u/%u)", i, v0, e0, et0, v1, e1, et1, v2, e2, et2)
                     break;
                 case EPointInFaceResult::OnEdge:
                     RenderDebugText("On Edge %d", result.OnEdgeIndex)

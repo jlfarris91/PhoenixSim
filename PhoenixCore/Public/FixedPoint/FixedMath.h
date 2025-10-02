@@ -61,4 +61,14 @@ namespace Phoenix
     {
         return a > b ? a : b;
     }
+
+    template <class T>
+    constexpr auto Wrap(T value, T minInclusive, T maxExclusive)
+    {
+        auto d = maxExclusive - minInclusive;
+        if (d == 0) return 0;
+        while (value >= maxExclusive) value -= d;
+        while (value < minInclusive) value += d;
+        return value;
+    }
 }

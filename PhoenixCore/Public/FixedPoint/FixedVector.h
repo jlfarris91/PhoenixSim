@@ -201,7 +201,7 @@ namespace Phoenix
             return v - 2 * (Dot(v, n) / Dot(n, n)) * n;
         }
 
-        constexpr static Value Cross(const TVec2& a, const TVec2& b)
+        constexpr static auto Cross(const TVec2& a, const TVec2& b)
         {
             return a.X*b.Y - a.Y*b.X;
         }

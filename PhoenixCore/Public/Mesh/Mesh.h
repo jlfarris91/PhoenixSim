@@ -4,6 +4,7 @@
 #include "PlatformTypes.h"
 #include "Containers/FixedArray.h"
 #include "Containers/FixedQueue.h"
+#include "FixedPoint/FixedMath.h"
 
 namespace Phoenix
 {
@@ -29,8 +30,8 @@ namespace Phoenix
     template <class TIdx = uint16>
     struct TMeshEdge
     {
+        TIdx HalfEdge0 = Index<TIdx>::None;
         TIdx HalfEdge1 = Index<TIdx>::None;
-        TIdx HalfEdge2 = Index<TIdx>::None;
     };
 
     template <class TData, class TIdx = uint16>
@@ -84,34 +85,97 @@ namespace Phoenix
         auto asdfsdf = r1 - asdf;
 
         return asdfsdf;
-        
-        // TVec2<float> af = { (float)a.X, (float)a.Y };
-        // TVec2<float> bf = { (float)b.X, (float)b.Y };
-        // TVec2<float> cf = { (float)c.X, (float)c.Y };
-        // TVec2<float> pf = { (float)p.X, (float)p.Y };
-        //
-        // TVec2<float> daf = af - pf;
-        // TVec2<float> dbf = bf - pf;
-        // TVec2<float> dcf = cf - pf;
-        // auto af2 = daf.X*daf.X + daf.Y*daf.Y;
-        // auto bf2 = dbf.X*dbf.X + dbf.Y*dbf.Y;
-        // auto cf2 = dcf.X*dcf.X + dcf.Y*dcf.Y;
-        // int64 df0 = af.X * (bf.Y * cf2 - cf.Y * bf2);
-        // int64 df1 = af.Y * (bf.X * cf2 - cf.X * bf2);
-        // int64 df2 = af2 * (bf.X * cf.Y - bf.Y * cf.X);
-        // auto df = df0 - df1 + df2;
-        //
-        // auto da = a - p;
-        // auto db = b - p;
-        // auto dc = c - p;
-        // TFixed<16, int64> a2 = Vec2::Dot(da, da);
-        // TFixed<16, int64> b2 = Vec2::Dot(db, db);
-        // TFixed<16, int64> c2 = Vec2::Dot(dc, dc);
-        // TFixed<16, int64> d0 = a.X * (b.Y * c2 - c.Y * b2);
-        // TFixed<16, int64> d1 = a.Y * (b.X * c2 - c.X * b2);
-        // TFixed<16, int64> d2 = a2 * (b.X * c.Y - b.Y * c.X);
-        // TFixed<16, int64> d = d0 - d1 + d2;
-        // return d;
+    }
+
+    template <class TIdx = int32>
+    PointInFaceResult<TIdx> PointInTriangle(const Vec2& a, const Vec2& b, const Vec2& c, const Vec2& p)
+    {
+        auto a0 = Orient(a, b, p);
+        if (a0 == 0)
+        {
+            return { EPointInFaceResult::OnEdge, TIdx(0) };
+        }
+
+        auto b0 = Orient(b, c, p);
+        if (b0 == 0)
+        {
+            return { EPointInFaceResult::OnEdge, TIdx(1) };
+        }
+
+        auto c0 = Orient(c, a, p);
+        if (c0 == 0)
+        {
+            return { EPointInFaceResult::OnEdge, TIdx(2) };
+        }
+
+        bool allPos = a0 > 0 && b0 > 0 && c0 > 0;
+        bool allNeg = a0 < 0 && b0 < 0 && c0 < 0;
+        if (allPos || allNeg)
+        {
+            return { EPointInFaceResult::Inside };
+        }
+
+        return { EPointInFaceResult::Outside };
+    }
+
+    auto TriangulatePolygon(auto& mesh, auto& chain)
+    {
+        while (chain.Num() > 2)
+        {
+            int32 n = chain.Num();
+            bool insertedFace = false;
+            for (int32 i = 0; i < n; ++i)
+            {
+                auto i0 = Wrap(i - 1, 0, n);
+                auto i1 = Wrap(i + 0, 0, n);
+                auto i2 = Wrap(i + 1, 0, n);
+                auto ptIdx0 = chain[i0];
+                auto ptIdx1 = chain[i1];
+                auto ptIdx2 = chain[i2];
+
+                const Vec2& pt0 = mesh.Vertices[ptIdx0];
+                const Vec2& pt1 = mesh.Vertices[ptIdx1];
+                const Vec2& pt2 = mesh.Vertices[ptIdx2];
+                const Vec2 vpt10 = pt1 - pt0;
+                const Vec2 vpt21 = pt2 - pt1;
+
+                auto c = Vec2::Cross(vpt10, vpt21);
+                if (c <= 0)
+                {
+                    continue;
+                }
+
+                bool foundVertInside = false;
+                for (int32 j = Wrap(i2 + 1, 0, n); j != i0; j = Wrap(j + 1, 0, n))
+                {
+                    auto ptIdxJ = chain[j];
+                    const Vec2& ptJ = mesh.Vertices[ptIdxJ];
+                    auto result = PointInTriangle(pt0, pt1, pt2, ptJ);
+                    if (result.Result == EPointInFaceResult::Inside)
+                    {
+                        foundVertInside = true;
+                        break;
+                    }
+                    if (result.Result == EPointInFaceResult::OnEdge)
+                    {
+                        foundVertInside = true;
+                        chain.RemoveAt(j);
+                        break;
+                    }
+                }
+
+                if (foundVertInside)
+                    continue;
+
+                mesh.InsertFace(ptIdx0, ptIdx1, ptIdx2, 100 + i);
+                chain.RemoveAt(i);
+                insertedFace = true;
+                break;
+            }
+
+            if (!insertedFace)
+                break;
+        }
     }
 
     template <size_t NFaces, class TFaceData, class TVert = Vec2, class TIdx = uint16>
@@ -185,6 +249,7 @@ namespace Phoenix
             edge.Twin = Index<TIdx>::None;
             edge.Next = Index<TIdx>::None;
             edge.Face = f;
+            edge.bLocked = false;
 
             return e;
         }
@@ -251,12 +316,12 @@ namespace Phoenix
 
                 if (halfEdge.VertA == v0 && halfEdge.VertB == v1)
                 {
-                    result.HalfEdge1 = i;
+                    result.HalfEdge0 = i;
                     count |= 0x1;
                 }
                 if (halfEdge.VertA == v1 && halfEdge.VertB == v0)
                 {
-                    result.HalfEdge2 = i;
+                    result.HalfEdge1 = i;
                     count |= 0x2;
                 }
             }
@@ -392,9 +457,9 @@ namespace Phoenix
                 const THalfEdge& edge1 = HalfEdges[edge.Next];
                 const THalfEdge& edge2 = HalfEdges[edge1.Next];
 
+                RemoveFace(edge.Face);
                 InsertFace(vertIndex, edge1.VertA, edge1.VertB, face.Data);
                 InsertFace(vertIndex, edge2.VertA, edge2.VertB, face.Data);
-                RemoveFace(edge.Face);
             }
 
             if (HalfEdges.IsValidIndex(edge.Twin))
@@ -407,9 +472,9 @@ namespace Phoenix
                 const THalfEdge& edge1 = HalfEdges[twinEdge.Next];
                 const THalfEdge& edge2 = HalfEdges[edge1.Next];
 
+                RemoveFace(twinEdge.Face);
                 InsertFace(vertIndex, edge1.VertA, edge1.VertB, face.Data);
                 InsertFace(vertIndex, edge2.VertA, edge2.VertB, face.Data);
-                RemoveFace(twinEdge.Face);
             }
         }
 
@@ -431,40 +496,45 @@ namespace Phoenix
             const THalfEdge& edge1 = HalfEdges[edge0.Next];
             const THalfEdge& edge2 = HalfEdges[edge1.Next];
 
-            TIdx edgeIdx0 = face.HalfEdge;
-            TIdx edgeIdx1 = edge0.Next;
-            TIdx edgeIdx2 = edge1.Next;
-
             const Vec2& a = Vertices[edge0.VertA];
             const Vec2& b = Vertices[edge1.VertA];
             const Vec2& c = Vertices[edge2.VertA];
 
-            auto a0 = Orient(a, b, p);
-            if (a0 == 0)
+            auto result = PointInTriangle<TIdx>(a, b, c, p);
+
+            if (result.Result == EPointInFaceResult::OnEdge)
             {
-                return { EPointInFaceResult::OnEdge, edgeIdx0 };
+                TIdx edgeIndices[] =
+                {
+                    face.HalfEdge,
+                    edge0.Next,
+                    edge1.Next,
+                };
+                result.OnEdgeIndex = edgeIndices[result.OnEdgeIndex];
             }
 
-            auto b0 = Orient(b, c, p);
-            if (b0 == 0)
-            {
-                return { EPointInFaceResult::OnEdge, edgeIdx1 };
-            }
+            return result;
+        }
 
-            auto c0 = Orient(c, a, p);
-            if (c0 == 0)
-            {
-                return { EPointInFaceResult::OnEdge, edgeIdx2 };
-            }
+        template <class TPredicate>
+        void ForEachHalfEdgeInFace(TIdx faceIndex, const TPredicate& pred) const
+        {
+            if (!Faces.IsValidIndex(faceIndex))
+                return;
 
-            bool allPos = a0 > 0 && b0 > 0 && c0 > 0;
-            bool allNeg = a0 < 0 && b0 < 0 && c0 < 0;
-            if (allPos || allNeg)
-            {
-                return { EPointInFaceResult::Inside };
-            }
+            const TFace& face = Faces[faceIndex];
 
-            return { EPointInFaceResult::Outside };
+            if (face.HalfEdge == Index<TIdx>::None)
+                return;
+
+            TIdx edgeIndex = face.HalfEdge;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+                pred(halfEdge);
+                edgeIndex = halfEdge.Next;
+            }
         }
 
         void FixDelaunayConditions(TIdx vi)
@@ -640,10 +710,12 @@ namespace Phoenix
 
         TIdx v0, v1;
         TMeshEdge<TIdx> edge = mesh.FindEdge(v.Start, v.End, v0, v1);
-        if (edge.HalfEdge1 != Index<TIdx>::None && edge.HalfEdge2 != Index<TIdx>::None)
+
+        // Edge already exists so just lock it.
+        if (edge.HalfEdge0 != Index<TIdx>::None && edge.HalfEdge1 != Index<TIdx>::None)
         {
+            mesh.HalfEdges[edge.HalfEdge0].bLocked = true;
             mesh.HalfEdges[edge.HalfEdge1].bLocked = true;
-            mesh.HalfEdges[edge.HalfEdge2].bLocked = true;
             return;
         }
 
@@ -658,29 +730,32 @@ namespace Phoenix
         }
 
         // Get the verts again since they may have been snapped to another existing vert
-        const Vec2& vertA = mesh.Vertices[v0];
-        const Vec2& vertB = mesh.Vertices[v1];
-        Vec2 lineD = vertB - vertA;
+        const Vec2& vert0 = mesh.Vertices[v0];
+        const Vec2& vert1 = mesh.Vertices[v1];
+        Vec2 lineD = vert1 - vert0;
         Vec2 lineCross = Vec2(lineD.Y, -lineD.X);
 
-        TFixedQueue<TIdx, 64> edgeStack;
-        TFixedQueue<TIdx, 64> faceStack;
-        TFixedArray<TIdx, 32> corridorA;
-        TFixedArray<TIdx, 32> corridorB;
+        // TODO: how do we intelligently determine the sizes of these containers? 
+        TFixedQueue<TIdx, 64> edgeQueue;
+        TFixedArray<TIdx, 64> corridor;
+        TFixedArray<TIdx, 64> chainRhs;
+        TFixedArray<TIdx, 64> chainLhs;
 
+        // Find all half-edges incident to the start vert of the line
         for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
         {
             const THalfEdge& halfEdge = mesh.HalfEdges[i];
             if (halfEdge.Face != Index<TIdx>::None && halfEdge.VertA == v0)
             {
-                edgeStack.Enqueue(TIdx(i));
+                edgeQueue.Enqueue(TIdx(i));
             }
         }
 
+        // Walk each triangle with an edge intersecting with the line
         bool done = false;
-        while (!done && !edgeStack.IsEmpty() && !faceStack.IsFull())
+        while (!done && !edgeQueue.IsEmpty() && !corridor.IsFull())
         {
-            TIdx edgeIndex = edgeStack.Dequeue();
+            TIdx edgeIndex = edgeQueue.Dequeue();
 
             if (!mesh.HalfEdges.IsValidIndex(edgeIndex))
                 continue;
@@ -688,6 +763,7 @@ namespace Phoenix
             THalfEdge& halfEdge0 = mesh.HalfEdges[edgeIndex];
             edgeIndex = halfEdge0.Next;
 
+            // Walk the half-edges to find one that intersects the line
             for (size_t i = 0; i < 2; ++i)
             {
                 PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
@@ -702,7 +778,7 @@ namespace Phoenix
                 if (halfEdgeN.VertA == v1 || halfEdgeN.VertB == v1)
                 {
                     done = true;
-                    faceStack.Enqueue(halfEdgeN.Face);
+                    corridor.PushBack(halfEdgeN.Face);
                     break;
                 }
 
@@ -710,10 +786,10 @@ namespace Phoenix
                 const Vec2& b = mesh.Vertices[halfEdgeN.VertB];
 
                 Vec2 pt;
-                if (Vec2::Intersects(vertA, vertB, a, b, pt))
-                {                    
-                    edgeStack.Enqueue(halfEdgeN.Twin);
-                    faceStack.Enqueue(halfEdgeN.Face);
+                if (Vec2::Intersects(vert0, vert1, a, b, pt))
+                {
+                    edgeQueue.Enqueue(halfEdgeN.Twin);
+                    corridor.PushBack(halfEdgeN.Face);
                     break;
                 }
 
@@ -721,13 +797,15 @@ namespace Phoenix
             }
         }
 
-        if (faceStack.IsEmpty())
+        if (corridor.IsEmpty())
             return;
 
-        while (!faceStack.IsEmpty())
-        {
-            TIdx faceIndex = faceStack.Dequeue();
+        // Add the first vertex to the corridor vert chains
+        chainRhs.PushBack(v0);
+        chainLhs.PushBack(v0);
 
+        for (TIdx faceIndex : corridor)
+        {
             if (!mesh.Faces.IsValidIndex(faceIndex))
                 continue;
 
@@ -737,72 +815,62 @@ namespace Phoenix
             for (size_t i = 0; i < 3; ++i)
             {
                 PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
-                const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndex];
+                const THalfEdge& halfEdge = mesh.HalfEdges[edgeIndex];
 
-                const Vec2& a = mesh.Vertices[halfEdgeN.VertA];
-                const Vec2& b = mesh.Vertices[halfEdgeN.VertB];
+                const Vec2& a = mesh.Vertices[halfEdge.VertA];
+                const Vec2& b = mesh.Vertices[halfEdge.VertB];
 
-                auto va = a - v0;
-                auto da = Vec2::Dot(va, lineCross);
-                if (da > 0 && (corridorA.IsEmpty() || corridorA[corridorA.Num() - 1] != halfEdgeN.VertA))
+                if (halfEdge.VertA != v0 && halfEdge.VertA != v1)
                 {
-                    corridorA.PushBack(halfEdgeN.VertA);
+                    auto va = a - vert0;
+                    auto da = Vec2::Dot(va, lineCross);
+                    if (da > 0 && !chainRhs.Contains(halfEdge.VertA))
+                    {
+                        chainRhs.PushBack(halfEdge.VertA);
+                    }
                 }
 
-                auto vb = b - v0;
-                auto db = Vec2::Dot(vb, lineCross);
-                if (db < 0 && (corridorB.IsEmpty() || corridorB[corridorB.Num() - 1] != halfEdgeN.VertB))
+                if (halfEdge.VertB != v0 && halfEdge.VertB != v1)
                 {
-                    corridorB.PushBack(halfEdgeN.VertB);
+                    auto vb = b - vert0;
+                    auto db = Vec2::Dot(vb, lineCross);
+                    if (db < 0 && !chainLhs.Contains(halfEdge.VertB))
+                    {
+                        chainLhs.PushBack(halfEdge.VertB);
+                    }
                 }
 
-                edgeIndex = halfEdgeN.Next;
+                edgeIndex = halfEdge.Next;
             }
 
             mesh.RemoveFace(faceIndex);
         }
 
-        if (corridorA.Num() > 1)
+        // Add the last vert to the corridor vert chains
+        chainRhs.PushBack(v1);
+        chainLhs.PushBack(v1);
+
+        // Reverse the lhs chain so that it's CCW
+        std::reverse(chainLhs.begin(), chainLhs.end());
+
+        // Triangulate the rhs and lhs polygons of the corridor
+        TriangulatePolygon(mesh, chainRhs);
+        TriangulatePolygon(mesh, chainLhs);
+
+        auto lockedEdge = mesh.FindEdge(v0, v1);
+
+        if (lockedEdge.HalfEdge0 != Index<TIdx>::None)
         {
-            for (size_t i = 0; i < corridorA.Num() - 1; ++i)
-            {
-                const TIdx& va = corridorA[i + 0];
-                const TIdx& vb = corridorA[i + 1];
-                mesh.InsertFace(v0, va, vb, 100 + i);
-            }
-        
-            mesh.InsertFace(v0, corridorA[corridorA.Num() - 1], v1, 100);
+            mesh.HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
         }
 
-        if (corridorB.Num() > 1)
+        if (lockedEdge.HalfEdge1 != Index<TIdx>::None)
         {
-            for (size_t i = 0; i < corridorB.Num() - 1; ++i)
-            {
-                const TIdx& va = corridorB[i + 0];
-                const TIdx& vb = corridorB[i + 1];
-                mesh.InsertFace(v1, va, vb, 100 + i);
-            }
-        
-            mesh.InsertFace(v1, corridorB[0], v0, 100);
+            mesh.HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
         }
 
-        // for (size_t i = 0; i < corridorA.Num(); ++i)
-        // {
-        //     mesh.FixDelaunayConditions(corridorA[i]);
-        // }
-        //
-        // for (size_t i = 0; i < corridorB.Num(); ++i)
-        // {
-        //     mesh.FixDelaunayConditions(corridorB[i]);
-        // }
-        
+        // Re-triangluate to respect delaunay
         mesh.FixDelaunayConditions(v0);
         mesh.FixDelaunayConditions(v1);
-
-        TIdx e0 = mesh.FindHalfEdge(v0, v1);
-        TIdx e1 = mesh.FindHalfEdge(v1, v0);
-        
-        // mesh.HalfEdges[e0].bLocked = true;
-        // mesh.HalfEdges[e1].bLocked = true;
     }
 }

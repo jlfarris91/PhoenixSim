@@ -138,6 +138,30 @@ namespace Phoenix
             SetNum(Capacity, value);
         }
 
+        int32 IndexOf(const T& value)
+        {
+            for (size_t i = 0; i < Size; ++i)
+            {
+                if (Data[i] == value)
+                    return (int32)i;
+            }
+            return INDEX_NONE;
+        }
+
+        bool Contains(const T& value)
+        {
+            return IndexOf(value) != INDEX_NONE;
+        }
+
+        void RemoveAt(size_t index)
+        {
+            for (size_t i = index; i < Size - 1; ++i)
+            {
+                Data[i] = Data[i + 1];
+            }
+            --Size;
+        }
+
         struct Iter
         {
             using value_type = T;
