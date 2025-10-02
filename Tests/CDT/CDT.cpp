@@ -161,10 +161,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
         Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
 
-        auto bl = Vec2(mapSize.X / -2, mapSize.Y / -2);
-        auto br = Vec2(mapSize.X / +2, mapSize.Y / -2);
-        auto tl = Vec2(mapSize.X / -2, mapSize.Y / +2);
-        auto tr = Vec2(mapSize.X / +2, mapSize.Y / +2);
+        auto bl = Vec2(mapSize.X / -3, mapSize.Y / -3);
+        auto br = Vec2(mapSize.X / +3, mapSize.Y / -3);
+        auto tl = Vec2(mapSize.X / -3, mapSize.Y / +3);
+        auto tr = Vec2(mapSize.X / +3, mapSize.Y / +3);
 
         //if (GMesh.Vertices.Num() - 4 != GEntityBodies.size())
         {

@@ -502,6 +502,8 @@ namespace Phoenix
                     continue;
 
                 THalfEdge& twinEdge0 = HalfEdges[twinEdgeIndex0];
+                if (twinEdge0.bLocked)
+                    continue;
 
                 if (!Faces.IsValidIndex(twinEdge0.Face))
                     continue;
@@ -647,13 +649,11 @@ namespace Phoenix
 
         if (v0 == Index<TIdx>::None)
         {
-            // v0 = mesh.InsertVertex(v.Start);
             v0 = CDT_InsertPoint(mesh, v.Start);
         }
 
         if (v1 == Index<TIdx>::None)
         {
-            // v1 = mesh.InsertVertex(v.End);
             v1 = CDT_InsertPoint(mesh, v.End);
         }
 
@@ -711,21 +711,7 @@ namespace Phoenix
 
                 Vec2 pt;
                 if (Vec2::Intersects(vertA, vertB, a, b, pt))
-                {
-                    auto va = a - v0;
-                    auto da = Vec2::Dot(va, lineCross);
-                    if (da > 0 && (corridorA.IsEmpty() || corridorA[corridorA.Num() - 1] != halfEdgeN.VertA))
-                    {
-                        corridorA.PushBack(halfEdgeN.VertA);
-                    }
-
-                    auto vb = b - v0;
-                    auto db = Vec2::Dot(vb, lineCross);
-                    if (db < 0 && (corridorB.IsEmpty() || corridorB[corridorB.Num() - 1] != halfEdgeN.VertB))
-                    {
-                        corridorB.PushBack(halfEdgeN.VertB);
-                    }
-                    
+                {                    
                     edgeStack.Enqueue(halfEdgeN.Twin);
                     faceStack.Enqueue(halfEdgeN.Face);
                     break;
@@ -745,14 +731,36 @@ namespace Phoenix
             if (!mesh.Faces.IsValidIndex(faceIndex))
                 continue;
 
+            const auto& face = mesh.Faces[faceIndex];
+
+            TIdx edgeIndex = face.HalfEdge;
+            for (size_t i = 0; i < 3; ++i)
+            {
+                PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
+                const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndex];
+
+                const Vec2& a = mesh.Vertices[halfEdgeN.VertA];
+                const Vec2& b = mesh.Vertices[halfEdgeN.VertB];
+
+                auto va = a - v0;
+                auto da = Vec2::Dot(va, lineCross);
+                if (da > 0 && (corridorA.IsEmpty() || corridorA[corridorA.Num() - 1] != halfEdgeN.VertA))
+                {
+                    corridorA.PushBack(halfEdgeN.VertA);
+                }
+
+                auto vb = b - v0;
+                auto db = Vec2::Dot(vb, lineCross);
+                if (db < 0 && (corridorB.IsEmpty() || corridorB[corridorB.Num() - 1] != halfEdgeN.VertB))
+                {
+                    corridorB.PushBack(halfEdgeN.VertB);
+                }
+
+                edgeIndex = halfEdgeN.Next;
+            }
+
             mesh.RemoveFace(faceIndex);
         }
-
-        TIdx e0 = mesh.InsertHalfEdge(v0, v1, Index<TIdx>::None);
-        TIdx e1 = mesh.InsertHalfEdge(v1, v0, Index<TIdx>::None);
-
-        mesh.HalfEdges[e0].bLocked = true;
-        mesh.HalfEdges[e1].bLocked = true;
 
         if (corridorA.Num() > 1)
         {
@@ -772,23 +780,29 @@ namespace Phoenix
             {
                 const TIdx& va = corridorB[i + 0];
                 const TIdx& vb = corridorB[i + 1];
-                mesh.InsertFace(v0, va, vb, 100 + i);
+                mesh.InsertFace(v1, va, vb, 100 + i);
             }
         
-            mesh.InsertFace(v0, corridorB[corridorB.Num() - 1], v1, 100);
+            mesh.InsertFace(v1, corridorB[0], v0, 100);
         }
 
-        for (size_t i = 0; i < corridorA.Num(); ++i)
-        {
-            mesh.FixDelaunayConditions(corridorA[i]);
-        }
-
-        for (size_t i = 0; i < corridorB.Num(); ++i)
-        {
-            mesh.FixDelaunayConditions(corridorB[i]);
-        }
-
+        // for (size_t i = 0; i < corridorA.Num(); ++i)
+        // {
+        //     mesh.FixDelaunayConditions(corridorA[i]);
+        // }
+        //
+        // for (size_t i = 0; i < corridorB.Num(); ++i)
+        // {
+        //     mesh.FixDelaunayConditions(corridorB[i]);
+        // }
+        
         mesh.FixDelaunayConditions(v0);
         mesh.FixDelaunayConditions(v1);
+
+        TIdx e0 = mesh.FindHalfEdge(v0, v1);
+        TIdx e1 = mesh.FindHalfEdge(v1, v0);
+        
+        // mesh.HalfEdges[e0].bLocked = true;
+        // mesh.HalfEdges[e1].bLocked = true;
     }
 }
