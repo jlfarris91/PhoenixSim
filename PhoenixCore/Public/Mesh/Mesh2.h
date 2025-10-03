@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "Optional.h"
 #include "PlatformTypes.h"
 #include "Containers/FixedArray.h"
 #include "Containers/FixedQueue.h"
@@ -178,14 +179,30 @@ namespace Phoenix
         }
     }
 
-    template <size_t NFaces, class TFaceData, class TVert = Vec2, class TIdx = uint16>
-    struct TFixedCDTMesh
+    template <size_t NFaces, class TFaceData, class TVecComp = Distance, class TIdx = uint16>
+    struct TFixedCDTMesh2
     {
         using TIndex = TIdx;
         using THalfEdge = TMeshHalfEdge<TIdx>;
         using TFace = TMeshFace<TFaceData, TIdx>;
+        using TVert = TVec2<TVecComp>;
         using TVertComp = typename TVert::ComponentT;
         static constexpr TVertComp DefaultThreshold = 10.0;
+
+        bool IsValidVert(TIdx vertIndex) const
+        {
+            return Vertices.IsValidIndex(vertIndex);
+        }
+
+        bool IsValidHalfEdge(TIdx halfEdgeIndex) const
+        {
+            return HalfEdges.IsValidIndex(halfEdgeIndex) && HalfEdges[halfEdgeIndex].Face != Index<TIdx>::None;
+        }
+
+        bool IsValidFace(TIdx faceIndex) const
+        {
+            return Faces.IsValidIndex(faceIndex) && IsValidHalfEdge(Faces[faceIndex].HalfEdge);
+        }
 
         bool FindVertsForEdge(
             const TVert& v0,
@@ -316,12 +333,12 @@ namespace Phoenix
 
                 if (halfEdge.VertA == v0 && halfEdge.VertB == v1)
                 {
-                    result.HalfEdge0 = i;
+                    result.HalfEdge0 = TIdx(i);
                     count |= 0x1;
                 }
                 if (halfEdge.VertA == v1 && halfEdge.VertB == v0)
                 {
-                    result.HalfEdge1 = i;
+                    result.HalfEdge1 = TIdx(i);
                     count |= 0x2;
                 }
             }
@@ -405,13 +422,10 @@ namespace Phoenix
 
         void RemoveFace(TIdx faceIndex)
         {
-            if (!Faces.IsValidIndex(faceIndex))
+            if (!IsValidFace(faceIndex))
                 return;
 
             TFace& face = Faces[faceIndex];
-
-            if (!HalfEdges.IsValidIndex(face.HalfEdge))
-                return;
 
             THalfEdge& e0 = HalfEdges[face.HalfEdge];
             THalfEdge& e1 = HalfEdges[e0.Next];
@@ -424,9 +438,9 @@ namespace Phoenix
             face.HalfEdge = Index<TIdx>::None;
 
             // Also remove any references to these edges from their twin edges
-            if (HalfEdges.IsValidIndex(e0.Twin)) HalfEdges[e0.Twin].Twin = Index<TIdx>::None;
-            if (HalfEdges.IsValidIndex(e1.Twin)) HalfEdges[e1.Twin].Twin = Index<TIdx>::None;
-            if (HalfEdges.IsValidIndex(e2.Twin)) HalfEdges[e2.Twin].Twin = Index<TIdx>::None;
+            if (IsValidHalfEdge(e0.Twin)) HalfEdges[e0.Twin].Twin = Index<TIdx>::None;
+            if (IsValidHalfEdge(e1.Twin)) HalfEdges[e1.Twin].Twin = Index<TIdx>::None;
+            if (IsValidHalfEdge(e2.Twin)) HalfEdges[e2.Twin].Twin = Index<TIdx>::None;
         }
 
         void SplitFace(TIdx faceIndex, TIdx vertIndex, TIdx& outFace0, TIdx& outFace1, TIdx& outFace2)
@@ -447,11 +461,11 @@ namespace Phoenix
 
         void SplitEdge(TIdx edgeIndex, TIdx vertIndex)
         {
-            PHX_ASSERT(HalfEdges.IsValidIndex(edgeIndex));
+            PHX_ASSERT(IsValidHalfEdge(edgeIndex));
             const THalfEdge& edge = HalfEdges[edgeIndex];
 
             {
-                PHX_ASSERT(Faces.IsValidIndex(edge.Face));
+                PHX_ASSERT(IsValidFace(edge.Face));
                 const TFace& face = Faces[edge.Face];
 
                 const THalfEdge& edge1 = HalfEdges[edge.Next];
@@ -462,11 +476,11 @@ namespace Phoenix
                 InsertFace(vertIndex, edge2.VertA, edge2.VertB, face.Data);
             }
 
-            if (HalfEdges.IsValidIndex(edge.Twin))
+            if (IsValidHalfEdge(edge.Twin))
             {
                 const THalfEdge& twinEdge = HalfEdges[edge.Twin];
 
-                PHX_ASSERT(Faces.IsValidIndex(twinEdge.Face));
+                PHX_ASSERT(IsValidFace(twinEdge.Face));
                 const TFace& face = Faces[twinEdge.Face];
 
                 const THalfEdge& edge1 = HalfEdges[twinEdge.Next];
@@ -478,19 +492,14 @@ namespace Phoenix
             }
         }
 
-        PointInFaceResult<TIdx> PointInFace(TIdx f, const TVert& p)
+        PointInFaceResult<TIdx> PointInFace(TIdx f, const TVert& p) const
         {
-            if (!Faces.IsValidIndex(f))
+            if (!IsValidFace(f))
             {
                 return { EPointInFaceResult::Outside };
             }
-            
-            const TFace& face = Faces[f];
 
-            if (!HalfEdges.IsValidIndex(face.HalfEdge))
-            {
-                return { EPointInFaceResult::Outside };
-            }
+            const TFace& face = Faces[f];
 
             const THalfEdge& edge0 = HalfEdges[face.HalfEdge];
             const THalfEdge& edge1 = HalfEdges[edge0.Next];
@@ -519,22 +528,164 @@ namespace Phoenix
         template <class TPredicate>
         void ForEachHalfEdgeInFace(TIdx faceIndex, const TPredicate& pred) const
         {
-            if (!Faces.IsValidIndex(faceIndex))
+            if (!IsValidFace(faceIndex))
                 return;
 
             const TFace& face = Faces[faceIndex];
-
-            if (face.HalfEdge == Index<TIdx>::None)
-                return;
 
             TIdx edgeIndex = face.HalfEdge;
 
             for (size_t i = 0; i < 3; ++i)
             {
                 const THalfEdge& halfEdge = HalfEdges[edgeIndex];
-                pred(halfEdge);
                 edgeIndex = halfEdge.Next;
+                pred(halfEdge);
             }
+        }
+
+        template <class TPredicate>
+        void ForEachHalfEdgeTwinInFace(TIdx faceIndex, const TPredicate& pred) const
+        {
+            if (!IsValidFace(faceIndex))
+                return;
+
+            const TFace& face = Faces[faceIndex];
+
+            TIdx edgeIndex = face.HalfEdge;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+                edgeIndex = halfEdge.Next;
+
+                if (!IsValidHalfEdge(halfEdge.Twin))
+                    continue;
+
+                const THalfEdge& twinEdge = HalfEdges[halfEdge.Twin];
+
+                pred(twinEdge);
+            }
+        }
+
+        template <class TPredicate>
+        void ForEachNeighboringFaceIndex(TIdx faceIndex, const TPredicate& pred) const
+        {
+            if (!IsValidFace(faceIndex))
+                return;
+
+            const TFace& face = Faces[faceIndex];
+
+            TIdx edgeIndex = face.HalfEdge;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+                edgeIndex = halfEdge.Next;
+
+                if (!IsValidHalfEdge(halfEdge.Twin))
+                    continue;
+
+                const THalfEdge& twinEdge = HalfEdges[halfEdge.Twin];
+
+                if (!IsValidFace(twinEdge.Face))
+                    continue;
+
+                pred(twinEdge.Face);
+            }
+        }
+
+        template <class TPredicate>
+        void ForEachNeighboringFace(TIdx faceIndex, const TPredicate& pred) const
+        {
+            if (!IsValidFace(faceIndex))
+                return;
+
+            const TFace& face = Faces[faceIndex];
+
+            TIdx edgeIndex = face.HalfEdge;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+                edgeIndex = halfEdge.Next;
+
+                if (!IsValidHalfEdge(halfEdge.Twin))
+                    continue;
+
+                const THalfEdge& twinEdge = HalfEdges[halfEdge.Twin];
+
+                if (!IsValidFace(twinEdge.Face))
+                    continue;
+
+                const TFace& twinFace = Faces[twinEdge.Face];
+
+                pred(twinFace);
+            }
+        }
+
+        // Gets the index of the face containing the point or Index<TIdx>::None.
+        TIdx FindFaceContainingPoint(const TVert& pos) const
+        {
+            for (size_t i = 0; i < Faces.Num(); ++i)
+            {
+                if (PointInFace(i, pos).Result == EPointInFaceResult::Inside)
+                {
+                    return TIdx(i);
+                }
+            }
+            return Index<TIdx>::None;
+        }
+
+        bool GetFaceVerts(TIdx faceIndex, TVert& outA, TVert& outB, TVert& outC) const
+        {
+            if (!IsValidFace(faceIndex))
+            {
+                return false;
+            }
+
+            const TFace& face = Faces[faceIndex];
+            TIdx edgeIndex;
+            const THalfEdge* edge;
+
+            // Vert A
+            edgeIndex = face.HalfEdge;
+            PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+            edge = &HalfEdges[edgeIndex];
+            PHX_ASSERT(IsValidVert(edge->VertA));
+            outA = Vertices[edge->VertA];
+
+            // Vert B
+            edgeIndex = edge->Next;
+            PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+            edge = &HalfEdges[edgeIndex];
+            PHX_ASSERT(IsValidVert(edge->VertA));
+            outB = Vertices[edge->VertA];
+
+            // Vert C
+            edgeIndex = edge->Next;
+            PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+            edge = &HalfEdges[edgeIndex];
+            PHX_ASSERT(IsValidVert(edge->VertA));
+            outC = Vertices[edge->VertA];
+
+            return true;
+        }
+
+        TOptional<TVert> GetFaceCenter(TIdx faceIndex) const
+        {
+            if (!IsValidFace(faceIndex))
+            {
+                return {};
+            }
+
+            TVert a, b, c;
+            if (!GetFaceVerts(faceIndex, a, b, c))
+            {
+                return {};
+            }
+
+            TVert center = (a + b + c) / 3.0;
+            return { center };
         }
 
         void FixDelaunayConditions(TIdx vi)
@@ -554,47 +705,47 @@ namespace Phoenix
             {
                 TIdx edgeIndex = stack.Dequeue();
 
-                PHX_ASSERT(HalfEdges.IsValidIndex(edgeIndex));
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex));
 
                 TIdx edgeIndex0 = edgeIndex;
                 THalfEdge& edge0 = HalfEdges[edgeIndex0];
 
                 TIdx edgeIndex1 = edge0.Next;
-                PHX_ASSERT(HalfEdges.IsValidIndex(edgeIndex1));
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex1));
                 THalfEdge& edge1 = HalfEdges[edgeIndex1];
 
                 TIdx edgeIndex2 = edge1.Next;
-                PHX_ASSERT(HalfEdges.IsValidIndex(edgeIndex2));
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex2));
                 THalfEdge& edge2 = HalfEdges[edgeIndex2];
 
                 TIdx twinEdgeIndex0 = edge1.Twin;
-                if (!HalfEdges.IsValidIndex(edge1.Twin))
+                if (!IsValidHalfEdge(edge1.Twin))
                     continue;
 
                 THalfEdge& twinEdge0 = HalfEdges[twinEdgeIndex0];
                 if (twinEdge0.bLocked)
                     continue;
 
-                if (!Faces.IsValidIndex(twinEdge0.Face))
+                if (!IsValidFace(twinEdge0.Face))
                     continue;
 
                 TIdx twinEdgeIndex1 = twinEdge0.Next;
-                PHX_ASSERT(HalfEdges.IsValidIndex(twinEdgeIndex1));
+                PHX_ASSERT(IsValidHalfEdge(twinEdgeIndex1));
                 THalfEdge& twinEdge1 = HalfEdges[twinEdgeIndex1];
 
                 if (twinEdge1.bLocked)
                     continue;
 
                 TIdx twinEdgeIndex2 = twinEdge1.Next;
-                PHX_ASSERT(HalfEdges.IsValidIndex(twinEdgeIndex2));
+                PHX_ASSERT(IsValidHalfEdge(twinEdgeIndex2));
                 THalfEdge& twinEdge2 = HalfEdges[twinEdgeIndex2];
 
                 TIdx faceIndex = edge0.Face;
-                PHX_ASSERT(Faces.IsValidIndex(faceIndex));
+                PHX_ASSERT(IsValidFace(faceIndex));
                 TFace& face = Faces[edge0.Face];
 
                 TIdx twinFaceIndex = twinEdge0.Face;
-                PHX_ASSERT(Faces.IsValidIndex(twinFaceIndex));
+                PHX_ASSERT(IsValidFace(twinFaceIndex));
                 TFace& twinFace = Faces[twinFaceIndex];
 
                 TIdx indexP = edge0.VertA; // P
@@ -648,7 +799,9 @@ namespace Phoenix
         TFixedArray<TFace, NFaces> Faces;
     };
 
-    template <class T = TFixedCDTMesh<8192, uint32, Vec2, uint16>>
+    using DefaultFixedCDTMesh2 = TFixedCDTMesh2<8192, uint32, Distance, uint16>;
+
+    template <class T = DefaultFixedCDTMesh2>
     typename T::TIndex CDT_InsertPoint(T& mesh, const Vec2& v)
     {
         using TIdx = typename T::TIndex;
@@ -662,7 +815,7 @@ namespace Phoenix
             auto faceIndex = TIdx(i);
             const auto& face = mesh.Faces[faceIndex];
 
-            if (!mesh.HalfEdges.IsValidIndex(face.HalfEdge))
+            if (!mesh.IsValidHalfEdge(face.HalfEdge))
                 continue;
 
             PointInFaceResult<TIdx> result = mesh.PointInFace(faceIndex, v);
@@ -702,7 +855,7 @@ namespace Phoenix
         return vi;
     }
 
-    template <class T = TFixedCDTMesh<8192, uint32, Vec2, uint16>>
+    template <class T = DefaultFixedCDTMesh2>
     void CDT_InsertEdge(T& mesh, const Line2& v)
     {
         using THalfEdge = typename T::THalfEdge;
@@ -757,7 +910,7 @@ namespace Phoenix
         {
             TIdx edgeIndex = edgeQueue.Dequeue();
 
-            if (!mesh.HalfEdges.IsValidIndex(edgeIndex))
+            if (!mesh.IsValidHalfEdge(edgeIndex))
                 continue;
 
             THalfEdge& halfEdge0 = mesh.HalfEdges[edgeIndex];
@@ -766,7 +919,7 @@ namespace Phoenix
             // Walk the half-edges to find one that intersects the line
             for (size_t i = 0; i < 2; ++i)
             {
-                PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
+                PHX_ASSERT(mesh.IsValidHalfEdge(edgeIndex));
                 const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndex];
 
                 if (halfEdgeN.VertA == v0 || halfEdgeN.VertB == v0)
@@ -806,7 +959,7 @@ namespace Phoenix
 
         for (TIdx faceIndex : corridor)
         {
-            if (!mesh.Faces.IsValidIndex(faceIndex))
+            if (!mesh.IsValidFace(faceIndex))
                 continue;
 
             const auto& face = mesh.Faces[faceIndex];
@@ -814,8 +967,9 @@ namespace Phoenix
             TIdx edgeIndex = face.HalfEdge;
             for (size_t i = 0; i < 3; ++i)
             {
-                PHX_ASSERT(mesh.HalfEdges.IsValidIndex(edgeIndex));
+                PHX_ASSERT(mesh.IsValidHalfEdge(edgeIndex));
                 const THalfEdge& halfEdge = mesh.HalfEdges[edgeIndex];
+                edgeIndex = halfEdge.Next;
 
                 const Vec2& a = mesh.Vertices[halfEdge.VertA];
                 const Vec2& b = mesh.Vertices[halfEdge.VertB];
@@ -839,8 +993,6 @@ namespace Phoenix
                         chainLhs.PushBack(halfEdge.VertB);
                     }
                 }
-
-                edgeIndex = halfEdge.Next;
             }
 
             mesh.RemoveFace(faceIndex);

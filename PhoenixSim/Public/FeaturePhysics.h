@@ -96,7 +96,7 @@ namespace Phoenix
             ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent> EntityBodies;
             TFixedArray<EntityBody, ECS_MAX_ENTITIES> SortedEntities;
             TFixedArray<Contact, ECS_MAX_ENTITIES> Contacts;
-            TFastSet<uint64, ECS_MAX_ENTITIES> ContactSet;
+            TFixedSet<uint64, ECS_MAX_ENTITIES> ContactSet;
             TFixedArray<CollisionLine, 1000> CollisionLines;
 
             ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent, ECS::MovementComponent> MoveBodies;

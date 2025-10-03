@@ -92,6 +92,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Public\Containers\FixedArray.h" />
+    <ClInclude Include="Public\Containers\FixedMap.h" />
     <ClInclude Include="Public\Containers\FixedQueue.h" />
     <ClInclude Include="Public\Containers\FixedSet.h" />
     <ClInclude Include="Public\FixedPoint\FixedCordic.h" />
@@ -105,9 +106,11 @@
     <ClInclude Include="Public\FixedPoint\FixedVector.h" />
     <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
-    <ClInclude Include="Public\Mesh\Mesh.h" />
+    <ClInclude Include="Public\Mesh\Mesh2.h" />
+    <ClInclude Include="Public\Mesh\MeshPath.h" />
     <ClInclude Include="Public\MortonCode.h" />
     <ClInclude Include="Public\Name.h" />
+    <ClInclude Include="Public\Optional.h" />
     <ClInclude Include="Public\PhoenixCore.h" />
     <ClInclude Include="Public\PlatformTypes.h" />
   </ItemGroup>

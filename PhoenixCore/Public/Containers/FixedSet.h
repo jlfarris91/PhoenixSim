@@ -1,16 +1,18 @@
+
 #pragma once
-#include "PhoenixSim.h"
+
+#include <functional>
 
 namespace Phoenix
 {
     template <class TKey, size_t N, class THash = std::hash<TKey>>
-    class TFastSet
+    class TFixedSet
     {
     public:
 
         static constexpr size_t Capacity = N;
 
-        TFastSet()
+        TFixedSet()
         {
             Reset();
         }

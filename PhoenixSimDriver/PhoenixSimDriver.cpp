@@ -18,7 +18,7 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 
-#include "Mesh/Mesh.h"
+#include "Mesh/Mesh2.h"
 
 
 using namespace Phoenix;
@@ -266,7 +266,7 @@ void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, 
     SDL_RenderLines(renderer, points.data(), segments);
 }
 
-TFixedCDTMesh<8192, uint32, Vec2, uint16> GMesh;
+TFixedCDTMesh2<8192, uint32, Vec2, uint16> GMesh;
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {

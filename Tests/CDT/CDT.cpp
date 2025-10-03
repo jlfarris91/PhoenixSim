@@ -8,12 +8,15 @@
 #include "Name.h"
 #include "MortonCode.h"
 #include "FixedPoint/FixedTransform.h"
-#include "Mesh/Mesh.h"
+#include "Mesh/Mesh2.h"
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <queue>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
+
+#include "MeshPath.h"
+#include "Optional.h"
 
 using namespace Phoenix;
 
@@ -29,10 +32,15 @@ float GRendererFPS = 0.0f;
 TMap<uint8, bool> GMouseButtonStates;
 TMap<SDL_Keycode, bool> GKeyStates;
 
-TFixedCDTMesh<8192, uint32, Vec2, uint16> GMesh;
+DefaultFixedCDTMesh2 GMesh;
 TArray<Vec2> GPoints;
+
 TArray<Line2> GLines;
-Vec2 GLineStart, GLineEnd;
+TOptional<Vec2> GLineStart, GLineEnd;
+
+TMeshPath<decltype(GMesh)> GMeshPath;
+TOptional<Vec2> GPathStart, GPathGoal;
+TArray<Vec2> Path;
 
 #define SHOW_FACE_IDS 0
 #define SHOW_FACE_CIRCUMCIRCLES 0
@@ -195,9 +203,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 CDT_InsertEdge(GMesh, line);
             }
 
-            if (!Vec2::Equals(GLineStart, GLineEnd))
+            if (GLineStart.IsSet() && GLineEnd.IsSet() && !Vec2::Equals(*GLineStart, *GLineEnd))
             {
-                CDT_InsertEdge(GMesh, Line2(GLineStart, GLineEnd));
+                CDT_InsertEdge(GMesh, Line2(*GLineStart, *GLineEnd));
             }
         }
 
@@ -268,13 +276,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
         }
 
-        if (!Vec2::Equals(GLineStart, GLineEnd))
+        if (GLineStart.IsSet() && GLineEnd.IsSet() && !Vec2::Equals(*GLineStart,*GLineEnd))
         {
             SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-            auto x0 = mapCenter.X + GLineStart.X;
-            auto y0 = mapCenter.Y - GLineStart.Y;
-            auto x1 = mapCenter.X + GLineEnd.X;
-            auto y1 = mapCenter.Y - GLineEnd.Y;
+            auto x0 = mapCenter.X + GLineStart->X;
+            auto y0 = mapCenter.Y - GLineStart->Y;
+            auto x1 = mapCenter.X + GLineEnd->X;
+            auto y1 = mapCenter.Y - GLineEnd->Y;
             SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
 
             for (auto edge : GMesh.HalfEdges)
@@ -288,7 +296,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 const Vec2& b = GMesh.Vertices[edge.VertB];
 
                 Vec2 pt;
-                if (Vec2::Intersects(a, b, GLineStart, GLineEnd, pt))
+                if (Vec2::Intersects(a, b, *GLineStart, *GLineEnd, pt))
                 {
                     auto x0 = mapCenter.X + GMesh.Vertices[edge.VertA].X;
                     auto y0 = mapCenter.Y - GMesh.Vertices[edge.VertA].Y;
@@ -300,6 +308,50 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     auto pty = mapCenter.Y - pt.Y;
                     SDL_RenderCircle(GRenderer, (float)ptx, (float)pty, 10, 32);
                 }
+            }
+        }
+
+        if (GPathStart.IsSet())
+        {
+            SDL_SetRenderDrawColor(GRenderer, 0, 0, 100, SDL_ALPHA_OPAQUE);
+
+            auto ptx = mapCenter.X + GPathStart->X;
+            auto pty = mapCenter.Y - GPathStart->Y;
+            SDL_RenderCircle(GRenderer, (float)ptx, (float)pty, 10, 32);
+        }
+
+        if (GPathGoal.IsSet())
+        {
+            SDL_SetRenderDrawColor(GRenderer, 0, 0, 100, SDL_ALPHA_OPAQUE);
+
+            auto ptx = mapCenter.X + GPathGoal->X;
+            auto pty = mapCenter.Y - GPathGoal->Y;
+            SDL_RenderCircle(GRenderer, (float)ptx, (float)pty, 10, 32);
+        }
+
+        {
+            for (uint16 faceIndex : GMeshPath.OpenSet)
+            {
+                SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+
+                GMesh.ForEachHalfEdgeInFace(faceIndex, [&](const auto& halfEdge)
+                {
+                    auto x0 = mapCenter.X + GMesh.Vertices[halfEdge.VertA].X;
+                    auto y0 = mapCenter.Y - GMesh.Vertices[halfEdge.VertA].Y;
+                    auto x1 = mapCenter.X + GMesh.Vertices[halfEdge.VertB].X;
+                    auto y1 = mapCenter.Y - GMesh.Vertices[halfEdge.VertB].Y;
+                    SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
+                });
+            }
+
+            SDL_SetRenderDrawColor(GRenderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
+            for (int32 i = 0; i < (int32)Path.size() - 1; ++i)
+            {
+                auto x0 = mapCenter.X + Path[i + 0].X;
+                auto y0 = mapCenter.Y - Path[i + 0].Y;
+                auto x1 = mapCenter.X + Path[i + 1].X;
+                auto y1 = mapCenter.Y - Path[i + 1].Y;
+                SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
             }
         }
 
@@ -488,12 +540,33 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
-
-    if (GMouseButtonStates.contains(SDL_BUTTON_RIGHT) && GMouseButtonStates[SDL_BUTTON_RIGHT])
     {
-        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+        RenderDebugText("Start: %u", GMeshPath.StartFaceIndex)
+        RenderDebugText("Goal: %u", GMeshPath.GoalFaceIndex)
+        RenderDebugText("Steps: %u", GMeshPath.Steps)
+
+        switch (GMeshPath.LastStepResult)
+        {
+            case TMeshPath<>::EStepResult::Continue:
+                RenderDebugText("State: Continue")
+                break;
+            case TMeshPath<>::EStepResult::FoundPath:
+                RenderDebugText("State: Found path!")
+                break;
+            case TMeshPath<>::EStepResult::Failed:
+                RenderDebugText("State: Failed!")
+                break;
+        }
+
+        RenderDebugText("Open Set: %llu", GMeshPath.OpenSet.Num())
+        for (size_t i = 0; i < GMeshPath.OpenSet.Num(); ++i)
+        {
+            const decltype(GMeshPath)::Node& node = GMeshPath.FindOrAddNode(GMesh, GMeshPath.OpenSet[i]);
+            RenderDebugText("  %llu: %u G:%f F:%f %u", i, GMeshPath.OpenSet[i], (float)node.G, (float)node.F, node.From);
+        }
     }
+
+    SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 
     if (GKeyStates.contains(SDLK_X) && GKeyStates[SDLK_X])
     {
@@ -571,13 +644,27 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_KEY_UP)
     {
         GKeyStates[event->key.key] = false;
+
+        if (event->key.key == SDLK_SPACE && GMeshPath.LastStepResult == TMeshPath<>::EStepResult::Continue)
+        {
+            auto result = GMeshPath.Step(GMesh);
+            if (result == TMeshPath<>::EStepResult::FoundPath)
+            {
+                Path.clear();
+                GMeshPath.ResolvePath(Path);
+            }
+        }
     }
     
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
     {
         GMouseButtonStates[event->button.button] = true;
 
-        GLineStart = mousePosSim;
+        if (event->button.button == SDL_BUTTON_LEFT)
+        {
+            GLineStart = mousePosSim;
+            GLineEnd.Reset();
+        }
 
         onMouseDownOrMoved();
     }
@@ -586,17 +673,44 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         GMouseButtonStates[event->button.button] = false;
 
-        if ((GLineStart - GLineEnd).Length() > 10.0f)
+        if (event->button.button == SDL_BUTTON_LEFT)
         {
-            GLines.push_back(Line2(GLineStart, GLineEnd));
-        }
-        else
-        {
-            GPoints.push_back(GLineEnd);
+            if (GLineStart.IsSet() && GLineEnd.IsSet() &&
+                (*GLineStart - *GLineEnd).Length() > 10.0f)
+            {
+                GLines.push_back(Line2(*GLineStart, *GLineEnd));
+            }
+            else if (GLineEnd.IsSet())
+            {
+                GPoints.push_back(*GLineEnd);
+            }
+
+            GLineStart.Reset();
+            GLineEnd.Reset();
         }
 
-        GLineStart = Vec2::Zero;
-        GLineEnd = Vec2::Zero;
+        if (event->button.button == SDL_BUTTON_RIGHT)
+        {
+            if (GPathStart.IsSet() && GPathGoal.IsSet())
+            {
+                GPathStart.Reset();
+                GPathGoal.Reset();
+            }
+
+            if (!GPathStart.IsSet())
+                GPathStart = mousePosSim;
+            else if (!GPathGoal.IsSet())
+            {
+                GPathGoal = mousePosSim;
+                bool stepping = GKeyStates.contains(SDL_KMOD_CTRL) && GKeyStates[SDL_KMOD_CTRL];
+                GMeshPath.FindPath(GMesh, *GPathStart, *GPathGoal, stepping);
+                if (GMeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+                {
+                    Path.clear();
+                    GMeshPath.ResolvePath(Path);
+                }
+            }
+        }
     }
 
     if (event->type == SDL_EVENT_MOUSE_MOTION)
