@@ -225,6 +225,26 @@ namespace Phoenix
             return false;
         }
 
+        bool GetEdgeVerts(TIdx edgeIndex, TVert& outVertA, TVert& outVertB) const
+        {
+            if (!IsValidHalfEdge(edgeIndex))
+                return false;
+
+            const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+            outVertA = Vertices[halfEdge.VertA];
+            outVertB = Vertices[halfEdge.VertB];
+            return true;
+        }
+
+        bool GetEdgeCenter(TIdx edgeIndex, TVert& outCenter) const
+        {
+            TVert vertA, vertB;
+            if (!GetEdgeVerts(edgeIndex, vertA, vertB))
+                return false;
+            outCenter = Vec2::Midpoint(vertA, vertB);
+            return true;
+        }
+
         TIdx InsertVertex(const TVert& v, const TVertComp& threshold = DefaultThreshold)
         {
             for (size_t i = 0; i < Vertices.Num(); ++i)
@@ -537,9 +557,29 @@ namespace Phoenix
 
             for (size_t i = 0; i < 3; ++i)
             {
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex));
                 const THalfEdge& halfEdge = HalfEdges[edgeIndex];
                 edgeIndex = halfEdge.Next;
                 pred(halfEdge);
+            }
+        }
+
+        template <class TPredicate>
+        void ForEachHalfEdgeIndexInFace(TIdx faceIndex, const TPredicate& pred) const
+        {
+            if (!IsValidFace(faceIndex))
+                return;
+
+            const TFace& face = Faces[faceIndex];
+
+            TIdx edgeIndex = face.HalfEdge;
+
+            for (size_t i = 0; i < 3; ++i)
+            {
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+                pred(edgeIndex);
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+                edgeIndex = halfEdge.Next;
             }
         }
 
@@ -787,11 +827,47 @@ namespace Phoenix
             }
         }
 
+        // Returns true if either half-edge of a given edge is locked.
+        // TODO (jfarris): IF ONE IS LOCKED THEN THEY BOTH SHOULD BE! but they aren't always for some reason...
+        bool IsEdgeLocked(TIdx halfEdgeIndex) const
+        {
+            if (!IsValidHalfEdge(halfEdgeIndex))
+                return false;
+
+            const THalfEdge& halfEdge = HalfEdges[halfEdgeIndex];
+            if (halfEdge.bLocked)
+                return true;
+
+            if (!IsValidHalfEdge(halfEdge.Twin))
+                return false;
+
+            return HalfEdges[halfEdge.Twin].bLocked;
+        }
+
         void Reset()
         {
             Vertices.Reset();
             HalfEdges.Reset();
             Faces.Reset();
+        }
+
+        void TracePortalEdges(const auto& corridor, auto& outChainRhs, auto& outChainLhs)
+        {
+            for (TIdx edgeIndex : corridor)
+            {
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+
+                if (outChainLhs.IsEmpty() || outChainLhs.Back() != halfEdge.VertA)
+                {
+                    outChainLhs.PushBack(halfEdge.VertA);
+                }
+
+                if (outChainRhs.IsEmpty() || outChainRhs.Back() != halfEdge.VertB)
+                {
+                    outChainRhs.PushBack(halfEdge.VertB);
+                }
+            }
         }
 
         TFixedArray<TVert, NFaces*3> Vertices;
@@ -805,8 +881,6 @@ namespace Phoenix
     typename T::TIndex CDT_InsertPoint(T& mesh, const Vec2& v)
     {
         using TIdx = typename T::TIndex;
-
-        TIdx vi = mesh.InsertVertex(v);
 
         TIdx containingFace = Index<TIdx>::None;
         TIdx containingEdge = Index<TIdx>::None;
@@ -836,6 +910,13 @@ namespace Phoenix
             }
         }
 
+        if (containingFace == Index<TIdx>::None && containingEdge == Index<TIdx>::None)
+        {
+            return Index<TIdx>::None;
+        }
+
+        TIdx vi = mesh.InsertVertex(v);
+
         if (containingFace != Index<TIdx>::None)
         {
             uint16 f0, f1, f2;
@@ -847,7 +928,7 @@ namespace Phoenix
         }
         else
         {
-            return vi;
+            return Index<TIdx>::None;
         }
 
         mesh.FixDelaunayConditions(vi);
@@ -882,17 +963,25 @@ namespace Phoenix
             v1 = CDT_InsertPoint(mesh, v.End);
         }
 
+        // Failed to insert one of the points
+        if (v0 == Index<TIdx>::None || v1 == Index<TIdx>::None)
+        {
+            return;
+        }
+
+        // Both verts of the line are the same vert
+        if (v0 == v1)
+        {
+            return;
+        }
+
         // Get the verts again since they may have been snapped to another existing vert
         const Vec2& vert0 = mesh.Vertices[v0];
         const Vec2& vert1 = mesh.Vertices[v1];
-        Vec2 lineD = vert1 - vert0;
-        Vec2 lineCross = Vec2(lineD.Y, -lineD.X);
 
         // TODO: how do we intelligently determine the sizes of these containers? 
-        TFixedQueue<TIdx, 64> edgeQueue;
-        TFixedArray<TIdx, 64> corridor;
-        TFixedArray<TIdx, 64> chainRhs;
-        TFixedArray<TIdx, 64> chainLhs;
+        TFixedQueue<TIdx, 128> edgeQueue;
+        TFixedArray<TIdx, 128> corridor;
 
         // Find all half-edges incident to the start vert of the line
         for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
@@ -904,6 +993,9 @@ namespace Phoenix
             }
         }
 
+        if (edgeQueue.IsEmpty())
+            return;
+
         // Walk each triangle with an edge intersecting with the line
         bool done = false;
         while (!done && !edgeQueue.IsEmpty() && !corridor.IsFull())
@@ -914,13 +1006,14 @@ namespace Phoenix
                 continue;
 
             THalfEdge& halfEdge0 = mesh.HalfEdges[edgeIndex];
-            edgeIndex = halfEdge0.Next;
+            TIdx edgeIndexN = halfEdge0.Next;
 
             // Walk the half-edges to find one that intersects the line
             for (size_t i = 0; i < 2; ++i)
             {
-                PHX_ASSERT(mesh.IsValidHalfEdge(edgeIndex));
-                const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndex];
+                PHX_ASSERT(mesh.IsValidHalfEdge(edgeIndexN));
+                const THalfEdge& halfEdgeN = mesh.HalfEdges[edgeIndexN];
+                edgeIndexN = halfEdgeN.Next;
 
                 if (halfEdgeN.VertA == v0 || halfEdgeN.VertB == v0)
                 {
@@ -931,7 +1024,7 @@ namespace Phoenix
                 if (halfEdgeN.VertA == v1 || halfEdgeN.VertB == v1)
                 {
                     done = true;
-                    corridor.PushBack(halfEdgeN.Face);
+                    corridor.PushBack(edgeIndex);
                     break;
                 }
 
@@ -942,84 +1035,47 @@ namespace Phoenix
                 if (Vec2::Intersects(vert0, vert1, a, b, pt))
                 {
                     edgeQueue.Enqueue(halfEdgeN.Twin);
-                    corridor.PushBack(halfEdgeN.Face);
+                    corridor.PushBack(edgeIndex);
                     break;
                 }
-
-                edgeIndex = halfEdgeN.Next;
             }
         }
 
-        if (corridor.IsEmpty())
-            return;
-
-        // Add the first vertex to the corridor vert chains
-        chainRhs.PushBack(v0);
-        chainLhs.PushBack(v0);
-
-        for (TIdx faceIndex : corridor)
+        if (corridor.Num() > 1)
         {
-            if (!mesh.IsValidFace(faceIndex))
-                continue;
+            TFixedArray<TIdx, 128> chainRhs;
+            TFixedArray<TIdx, 128> chainLhs;
 
-            const auto& face = mesh.Faces[faceIndex];
+            // Add the first vertex to the corridor vert chains
+            chainRhs.PushBack(v0);
+            chainLhs.PushBack(v0);
 
-            TIdx edgeIndex = face.HalfEdge;
-            for (size_t i = 0; i < 3; ++i)
+            mesh.TracePortalEdges(corridor, chainRhs, chainLhs);
+
+            // Add the last vert to the corridor vert chains
+            chainRhs.PushBack(v1);
+            chainLhs.PushBack(v1);
+
+            // Reverse the lhs chain so that it's CCW
+            std::reverse(chainLhs.begin(), chainLhs.end());
+
+            // Remove faces
+            for (TIdx edgeIndex : corridor)
             {
-                PHX_ASSERT(mesh.IsValidHalfEdge(edgeIndex));
-                const THalfEdge& halfEdge = mesh.HalfEdges[edgeIndex];
-                edgeIndex = halfEdge.Next;
-
-                const Vec2& a = mesh.Vertices[halfEdge.VertA];
-                const Vec2& b = mesh.Vertices[halfEdge.VertB];
-
-                if (halfEdge.VertA != v0 && halfEdge.VertA != v1)
-                {
-                    auto va = a - vert0;
-                    auto da = Vec2::Dot(va, lineCross);
-                    if (da > 0 && !chainRhs.Contains(halfEdge.VertA))
-                    {
-                        chainRhs.PushBack(halfEdge.VertA);
-                    }
-                }
-
-                if (halfEdge.VertB != v0 && halfEdge.VertB != v1)
-                {
-                    auto vb = b - vert0;
-                    auto db = Vec2::Dot(vb, lineCross);
-                    if (db < 0 && !chainLhs.Contains(halfEdge.VertB))
-                    {
-                        chainLhs.PushBack(halfEdge.VertB);
-                    }
-                }
+                mesh.RemoveFace(mesh.HalfEdges[edgeIndex].Face);
             }
 
-            mesh.RemoveFace(faceIndex);
+            // Triangulate the rhs and lhs polygons of the corridor
+            TriangulatePolygon(mesh, chainRhs);
+            TriangulatePolygon(mesh, chainLhs);
         }
-
-        // Add the last vert to the corridor vert chains
-        chainRhs.PushBack(v1);
-        chainLhs.PushBack(v1);
-
-        // Reverse the lhs chain so that it's CCW
-        std::reverse(chainLhs.begin(), chainLhs.end());
-
-        // Triangulate the rhs and lhs polygons of the corridor
-        TriangulatePolygon(mesh, chainRhs);
-        TriangulatePolygon(mesh, chainLhs);
 
         auto lockedEdge = mesh.FindEdge(v0, v1);
 
-        if (lockedEdge.HalfEdge0 != Index<TIdx>::None)
-        {
-            mesh.HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
-        }
-
-        if (lockedEdge.HalfEdge1 != Index<TIdx>::None)
-        {
-            mesh.HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
-        }
+        PHX_ASSERT(lockedEdge.HalfEdge0 != Index<TIdx>::None);
+        PHX_ASSERT(lockedEdge.HalfEdge1 != Index<TIdx>::None);
+        mesh.HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
+        mesh.HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
 
         // Re-triangluate to respect delaunay
         mesh.FixDelaunayConditions(v0);

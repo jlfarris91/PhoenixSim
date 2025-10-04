@@ -249,6 +249,11 @@ namespace Phoenix
             return true;
         }
 
+        constexpr static TVec2 Midpoint(const TVec2& a, const TVec2& b)
+        {
+            return (a + b) / 2.0;
+        }
+
         T X = 0;
         T Y = 0;
     };

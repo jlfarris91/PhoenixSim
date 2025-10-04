@@ -21,10 +21,11 @@ namespace Phoenix
         struct Node
         {
             Value G;
-            Value F;
-            TIdx From;
+            Value H;
+            TIdx FromEdge;
             TVert Center;
             bool Visited = false;
+            Value GetF() const { return G + H; }
         };
 
         enum class EStepResult
@@ -38,10 +39,10 @@ namespace Phoenix
         TVert GoalPos;
         TIdx StartFaceIndex = Index<TIdx>::None;
         TIdx GoalFaceIndex = Index<TIdx>::None;
-        TIdx CurrFaceIndex = Index<TIdx>::None;
+        TIdx CurrEdgeIndex = Index<TIdx>::None;
         uint32 Steps = 0;
-        TFixedQueue<TIdx, 128> OpenSet;
-        TFixedMap<TIdx, Node, 128> Nodes;
+        TFixedQueue<TIdx, 1024> OpenSet;
+        TFixedMap<TIdx, Node, 1024> Nodes;
         EStepResult LastStepResult = EStepResult::Continue;
 
         bool FindPath(const TMesh& mesh, const TVert& startPos, const TVert& goalPos, bool stepping)
@@ -53,7 +54,7 @@ namespace Phoenix
             Steps = 0;
             OpenSet.Reset();
             Nodes.Reset();
-            CurrFaceIndex = Index<TIdx>::None;
+            CurrEdgeIndex = Index<TIdx>::None;
             LastStepResult = EStepResult::Continue;
 
             if (StartFaceIndex == Index<TIdx>::None || GoalFaceIndex == Index<TIdx>::None)
@@ -61,10 +62,18 @@ namespace Phoenix
                 return false;
             }
 
-            OpenSet.Enqueue(StartFaceIndex);
+            // Start by adding all edges of the start face to the open set
+            mesh.ForEachHalfEdgeIndexInFace(StartFaceIndex, [&, this](TIdx halfEdgeIndex)
+            {
+                // Ignore edges that can't be traversed
+                if (mesh.IsEdgeLocked(halfEdgeIndex))
+                    return;
 
-            Node& startNode = FindOrAddNode(mesh, StartFaceIndex);
-            startNode.G = 0;
+                OpenSet.Enqueue(halfEdgeIndex);
+
+                Node& startNode = FindOrAddNode(mesh, halfEdgeIndex);
+                startNode.G = CalculateHeuristicToStart(halfEdgeIndex);
+            });
 
             if (!stepping)
             {
@@ -91,105 +100,146 @@ namespace Phoenix
 
             ++Steps;
 
-            TIdx currFaceIndex = OpenSet.Dequeue();
-            CurrFaceIndex = currFaceIndex;
+            TIdx currEdgeIndex = OpenSet.Dequeue();
+            CurrEdgeIndex = currEdgeIndex;
 
-            if (!mesh.IsValidFace(currFaceIndex))
+            if (!mesh.IsValidHalfEdge(currEdgeIndex))
+            {
+                LastStepResult = EStepResult::Continue;
+                return LastStepResult;
+            }
+
+            Node& currNode = FindOrAddNode(mesh, currEdgeIndex);
+            currNode.Visited = true;
+
+            const THalfEdge& edge = mesh.HalfEdges[currEdgeIndex];
+            if (edge.bLocked)
             {
                 LastStepResult = EStepResult::Continue;
                 return LastStepResult;
             }
 
             // Found the goal triangle, we're done.
-            if (currFaceIndex == GoalFaceIndex)
+            if (edge.Face == GoalFaceIndex)
             {
                 // TODO reconstruct triangle path
                 LastStepResult = EStepResult::FoundPath;
                 return LastStepResult;
             }
 
-            Node& currNode = FindOrAddNode(mesh, currFaceIndex);
-            currNode.Visited = true;
+            TIdx twinEdgeIndex = edge.Twin;
+            if (!mesh.IsValidHalfEdge(twinEdgeIndex))
+            {
+                LastStepResult = EStepResult::Continue;
+                return LastStepResult;
+            }
 
             {
-                const TFace& face = mesh.Faces[currFaceIndex];
+                const THalfEdge& twinHalfEdge0 = mesh.HalfEdges[twinEdgeIndex];
 
-                TIdx edgeIndex = face.HalfEdge;
-
-                for (size_t i = 0; i < 3; ++i)
+                if (twinHalfEdge0.Face == GoalFaceIndex)
                 {
-                    const THalfEdge& halfEdge = mesh.HalfEdges[edgeIndex];
-                    edgeIndex = halfEdge.Next;
+                    LastStepResult = EStepResult::FoundPath;
+                    return LastStepResult;
+                }
 
-                    if (halfEdge.bLocked || !mesh.IsValidHalfEdge(halfEdge.Twin))
+                // Skip the twin and check the next 2
+                twinEdgeIndex = twinHalfEdge0.Next;
+
+                for (size_t i = 0; i < 2; ++i)
+                {
+                    const THalfEdge& twinHalfEdgeN = mesh.HalfEdges[twinEdgeIndex];
+
+                    if (twinHalfEdgeN.bLocked || !mesh.IsValidHalfEdge(twinHalfEdgeN.Twin))
+                    {
+                        twinEdgeIndex = twinHalfEdgeN.Next;
                         continue;
+                    }
 
-                    const THalfEdge& twinEdge = mesh.HalfEdges[halfEdge.Twin];
-
-                    if (twinEdge.bLocked || !mesh.IsValidFace(twinEdge.Face))
+                    const THalfEdge& twinTwin = mesh.HalfEdges[twinHalfEdgeN.Twin];
+                    if (Nodes.Contains(twinHalfEdgeN.Twin) && Nodes[twinHalfEdgeN.Twin].Visited)
+                    {
+                        twinEdgeIndex = twinHalfEdgeN.Next;
                         continue;
+                    }
 
-                    auto neighborFaceIndex = twinEdge.Face;
+                    if (twinTwin.bLocked)
+                    {
+                        twinEdgeIndex = twinHalfEdgeN.Next;
+                        continue;
+                    }
 
                     {
-                        Node& neighborNode = FindOrAddNode(mesh, neighborFaceIndex);
+                        Node& neighborNode = FindOrAddNode(mesh, twinEdgeIndex);
 
-                        auto d = CalculateHeuristic(currFaceIndex, neighborFaceIndex);
+                        auto d = CalculateHeuristic(currEdgeIndex, twinEdgeIndex);
                         auto score = currNode.G + d;
                         if (score < neighborNode.G)
                         {
-                            neighborNode.From = currFaceIndex;
+                            neighborNode.FromEdge = currEdgeIndex;
                             neighborNode.G = score;
-                            neighborNode.F = score + CalculateHeuristicToGoal(neighborFaceIndex);
 
                             if (!neighborNode.Visited)
-                                OpenSet.Enqueue(neighborFaceIndex);
+                                OpenSet.Enqueue(twinEdgeIndex);
                         }
                     }
+
+                    twinEdgeIndex = twinHalfEdgeN.Next;
                 }
             }
 
-            std::sort(OpenSet.begin(), OpenSet.end(), [&](TIdx a, TIdx b)
-                {
-                    return Nodes[a].F < Nodes[b].F;
-                });
+            if (!OpenSet.IsEmpty())
+            {
+                std::sort(OpenSet.begin(), OpenSet.end(), [&](TIdx a, TIdx b)
+                    {
+                        return Nodes[a].GetF() < Nodes[b].GetF();
+                    });
+            }
 
             LastStepResult = EStepResult::Continue;
             return LastStepResult;
         }
 
-        Node& FindOrAddNode(const TMesh& mesh, TIdx faceIndex)
+        Node& FindOrAddNode(const TMesh& mesh, TIdx halfEdgeIndex)
         {
-            if (!Nodes.Contains(faceIndex))
+            if (!Nodes.Contains(halfEdgeIndex))
             {
-                Node& node = Nodes.InsertDefaulted_GetRef(faceIndex);
-                node.Center = *mesh.GetFaceCenter(faceIndex);
-                node.From = Index<TIdx>::None;
+                Node& node = Nodes.InsertDefaulted_GetRef(halfEdgeIndex);
+                mesh.GetEdgeCenter(halfEdgeIndex, node.Center);
+                node.FromEdge = Index<TIdx>::None;
                 node.G = Value::Max;
-                node.F = CalculateHeuristicToGoal(faceIndex);
+                node.H = CalculateHeuristicToGoal(halfEdgeIndex);
             }
-            return Nodes[faceIndex];
+            return Nodes[halfEdgeIndex];
         }
 
-        Value CalculateHeuristicToGoal(TIdx faceIndex) const
+        Value CalculateHeuristicToGoal(TIdx edgeIndex) const
         {
-            return (GoalPos - Nodes[faceIndex].Center).Length();
+            return Vec2::Distance(GoalPos, Nodes[edgeIndex].Center);
         }
 
-        Value CalculateHeuristic(TIdx currFaceIndex, TIdx neighborFaceIndex) const
+        Value CalculateHeuristicToStart(TIdx halfEdgeIndex) const
         {
-            return (Nodes[currFaceIndex].Center - Nodes[neighborFaceIndex].Center).Length();
+            return Vec2::Distance(StartPos, Nodes[halfEdgeIndex].Center);
         }
 
-        void ResolvePath(TArray<TVert>& outPath)
+        Value CalculateHeuristic(TIdx currEdgeIndex, TIdx neighborEdgeIndex) const
         {
-            TIdx idx = CurrFaceIndex;
+            return (Nodes[currEdgeIndex].Center - Nodes[neighborEdgeIndex].Center).Length();
+        }
+
+        void ResolvePath(const TMesh& mesh, TArray<TVert>& outPath)
+        {
+            TIdx idx = CurrEdgeIndex;
+            outPath.clear();
+            outPath.push_back(GoalPos);
             while (Nodes.Contains(idx))
             {
                 Node& node = Nodes[idx];
                 outPath.push_back(node.Center);
-                idx = node.From;
+                idx = node.FromEdge;
             }
+            outPath.push_back(StartPos);
         }
         
     };

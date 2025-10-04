@@ -42,10 +42,11 @@ TMeshPath<decltype(GMesh)> GMeshPath;
 TOptional<Vec2> GPathStart, GPathGoal;
 TArray<Vec2> Path;
 
-#define SHOW_FACE_IDS 0
+#define SHOW_FACE_IDS 1
 #define SHOW_FACE_CIRCUMCIRCLES 0
-#define SHOW_VERT_IDS 0
-#define SHOW_VERT_CIRCLES 0
+#define SHOW_VERT_IDS 1
+#define SHOW_VERT_CIRCLES 1
+#define PATH_STEPPING 0
 
 void LoadPoints()
 {
@@ -330,18 +331,31 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
 
         {
-            for (uint16 faceIndex : GMeshPath.OpenSet)
+            for (uint16 halfEdgeIndex : GMeshPath.OpenSet)
             {
                 SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
 
-                GMesh.ForEachHalfEdgeInFace(faceIndex, [&](const auto& halfEdge)
-                {
-                    auto x0 = mapCenter.X + GMesh.Vertices[halfEdge.VertA].X;
-                    auto y0 = mapCenter.Y - GMesh.Vertices[halfEdge.VertA].Y;
-                    auto x1 = mapCenter.X + GMesh.Vertices[halfEdge.VertB].X;
-                    auto y1 = mapCenter.Y - GMesh.Vertices[halfEdge.VertB].Y;
-                    SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
-                });
+                const auto& halfEdge = GMesh.HalfEdges[halfEdgeIndex];
+
+                auto vertA = GMesh.Vertices[halfEdge.VertA];
+                auto vertB = GMesh.Vertices[halfEdge.VertB];
+
+                auto x0 = mapCenter.X + vertA.X;
+                auto y0 = mapCenter.Y - vertA.Y;
+                auto x1 = mapCenter.X + vertB.X;
+                auto y1 = mapCenter.Y - vertB.Y;
+                SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
+
+                Vec2 center = Vec2::Midpoint(vertA, vertB);
+                Vec2 d = (vertB - vertA).Normalized();
+                Vec2 cross = Vec2(-d.Y, d.X);
+                Vec2 f = center + cross * 10.0f;
+
+                x0 = mapCenter.X + center.X;
+                y0 = mapCenter.Y - center.Y;
+                x1 = mapCenter.X + f.X;
+                y1 = mapCenter.Y - f.Y;
+                SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
             }
 
             SDL_SetRenderDrawColor(GRenderer, 0, 0, 255, SDL_ALPHA_OPAQUE);
@@ -562,7 +576,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         for (size_t i = 0; i < GMeshPath.OpenSet.Num(); ++i)
         {
             const decltype(GMeshPath)::Node& node = GMeshPath.FindOrAddNode(GMesh, GMeshPath.OpenSet[i]);
-            RenderDebugText("  %llu: %u G:%f F:%f %u", i, GMeshPath.OpenSet[i], (float)node.G, (float)node.F, node.From);
+            RenderDebugText("  %llu: %u G:%f F:%f %u", i, GMeshPath.OpenSet[i], (float)node.G, (float)node.GetF(), node.FromEdge)
         }
     }
 
@@ -651,7 +665,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             if (result == TMeshPath<>::EStepResult::FoundPath)
             {
                 Path.clear();
-                GMeshPath.ResolvePath(Path);
+                GMeshPath.ResolvePath(GMesh, Path);
             }
         }
     }
@@ -702,12 +716,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             else if (!GPathGoal.IsSet())
             {
                 GPathGoal = mousePosSim;
-                bool stepping = GKeyStates.contains(SDL_KMOD_CTRL) && GKeyStates[SDL_KMOD_CTRL];
-                GMeshPath.FindPath(GMesh, *GPathStart, *GPathGoal, stepping);
-                if (GMeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+                GMeshPath.FindPath(GMesh, *GPathStart, *GPathGoal, PATH_STEPPING);
+
+                if (!PATH_STEPPING)
                 {
-                    Path.clear();
-                    GMeshPath.ResolvePath(Path);
+                    if (GMeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+                    {
+                        Path.clear();
+                        GMeshPath.ResolvePath(GMesh, Path);
+                    }
                 }
             }
         }
