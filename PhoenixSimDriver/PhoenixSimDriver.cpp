@@ -172,60 +172,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
     InitSession();
 
-
-    auto mag0 = Vec2(1, 1).Length();
-    auto mag1 = Vec2(10, 10).Length();
-    auto mag2 = Vec2(10, 0).Length();
-    auto mag3 = Vec2(0, 10).Length();
-
-    auto rot0 = Cordic::Rotate<Distance>(10, 10, HALF_PI);
-    auto rot1 = Cordic::Rotate<Distance>(0, 10, PI);
-
-    auto sqrt0 = Sqrt(Value(1.0));
-    auto sqrt1 = Sqrt(Value(4.0));
-    auto sqrt2 = Sqrt(Value(16.0));
-    auto sqrt3 = Sqrt(Value(8.0*8.0));
-    auto sqrt4 = Sqrt(Value(16.0*16.0));
-    auto sqrt5 = Sqrt(Value(32.0*32.0));
-    auto sqrt6 = Sqrt(Value(64.0*64.0));
-    auto sqrt7 = Sqrt(Value(128.0*128.0));
-    
-    auto cos0 = Cos(Deg2Rad(-360));
-    auto cos1 = Cos(Deg2Rad(-315));
-    auto cos2 = Cos(Deg2Rad(-270));
-    auto cos3 = Cos(Deg2Rad(-225));
-    auto cos4 = Cos(Deg2Rad(-180));
-    auto cos5 = Cos(Deg2Rad(-135));
-    auto cos6 = Cos(Deg2Rad(-90));
-    auto cos7 = Cos(Deg2Rad(-45));
-    auto cos8 = Cos(Deg2Rad(0));
-    auto cos9 = Cos(Deg2Rad(45));
-    auto cos10 = Cos(Deg2Rad(90));
-    auto cos11 = Cos(Deg2Rad(135));
-    auto cos12 = Cos(Deg2Rad(180));
-    auto cos13 = Cos(Deg2Rad(225));
-    auto cos14 = Cos(Deg2Rad(270));
-    auto cos15 = Cos(Deg2Rad(315));
-    auto cos16 = Cos(Deg2Rad(360));
-
-    auto sin0 = Sin(Deg2Rad(-360));
-    auto sin1 = Sin(Deg2Rad(-315));
-    auto sin2 = Sin(Deg2Rad(-270));
-    auto sin3 = Sin(Deg2Rad(-225));
-    auto sin4 = Sin(Deg2Rad(-180));
-    auto sin5 = Sin(Deg2Rad(-135));
-    auto sin6 = Sin(Deg2Rad(-90));
-    auto sin7 = Sin(Deg2Rad(-45));
-    auto sin8 = Sin(Deg2Rad(0));
-    auto sin9 = Sin(Deg2Rad(45));
-    auto sin10 = Sin(Deg2Rad(90));
-    auto sin11 = Sin(Deg2Rad(135));
-    auto sin12 = Sin(Deg2Rad(180));
-    auto sin13 = Sin(Deg2Rad(225));
-    auto sin14 = Sin(Deg2Rad(270));
-    auto sin15 = Sin(Deg2Rad(315));
-    auto sin16 = Sin(Deg2Rad(360));
-
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -265,8 +211,6 @@ void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, 
     
     SDL_RenderLines(renderer, points.data(), segments);
 }
-
-TFixedCDTMesh2<8192, uint32, Vec2, uint16> GMesh;
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
@@ -374,133 +318,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         for (int32 i = 0; i < 1000; ++i)
         {
             queryCodeColors.emplace_back(rand() % 255, rand() % 255, rand() % 255);
-        }
-    }
-
-    {
-        Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
-
-        auto bl = Vec2(mapSize.X / -2, mapSize.Y / -2);
-        auto br = Vec2(mapSize.X / +2, mapSize.Y / -2);
-        auto tl = Vec2(mapSize.X / -2, mapSize.Y / +2);
-        auto tr = Vec2(mapSize.X / +2, mapSize.Y / +4);
-
-        //if (GMesh.Vertices.Num() - 4 != GEntityBodies.size())
-        {
-            GMesh.Reset();
-            GMesh.InsertFace(bl, tr, tl, 1);
-            GMesh.InsertFace(bl, br, tr, 2);
-
-            for (const auto& body : GEntityBodies)
-            {
-                auto x = body.Transform.Position.X - mapCenter.X;
-                auto y = body.Transform.Position.Y - mapCenter.Y;
-                CDT_InsertPoint(GMesh, { x, -y });
-            }
-        }
-
-        for (auto vert : GMesh.Vertices)
-        {
-            auto x = mapCenter.X + vert.X;
-            auto y = mapCenter.Y - vert.Y;
-            SDL_RenderCircle(GRenderer, (float)x, (float)y, 10.0f, 10);
-        }
-
-        for (auto edge : GMesh.HalfEdges)
-        {
-            if (!GMesh.Faces.IsValidIndex(edge.Face))
-                continue;
-            auto& color = queryCodeColors[edge.Face];
-            SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
-            auto x0 = mapCenter.X + GMesh.Vertices[edge.VertA].X;
-            auto y0 = mapCenter.Y - GMesh.Vertices[edge.VertA].Y;
-            auto x1 = mapCenter.X + GMesh.Vertices[edge.VertB].X;
-            auto y1 = mapCenter.Y - GMesh.Vertices[edge.VertB].Y;
-            SDL_RenderLine(GRenderer, (float)x0, (float)y0, (float)x1, (float)y1);
-        }
-
-        SDL_SetRenderDrawColor(GRenderer, 0, 100, 0, SDL_ALPHA_OPAQUE);
-
-        constexpr float scale = 2.0f;
-        SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-        SDL_SetRenderScale(GRenderer, scale, scale);
-
-        if (0)
-        {
-            for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
-            {
-                if (!GMesh.Faces.IsValidIndex(i))
-                    continue;
-
-                const auto& face = GMesh.Faces[i];
-                if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
-                    continue;
-
-                auto& color = queryCodeColors[i];
-                SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
-
-                const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
-                const auto& e1 = GMesh.HalfEdges[e0.Next];
-                const auto& e2 = GMesh.HalfEdges[e1.Next];
-            
-                const Vec2& a = GMesh.Vertices[e0.VertA];
-                const Vec2& b = GMesh.Vertices[e1.VertA];
-                const Vec2& c = GMesh.Vertices[e2.VertA];
-
-                auto center = (a + b + c) / 3.0;
-                center.X += mapCenter.X;
-                center.Y = mapCenter.Y - center.Y;
-        
-                char zcodeStr[256] = { '\0' };
-                sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", i);
-                SDL_RenderDebugText(GRenderer, (float)center.X / scale, (float)center.Y / scale, zcodeStr);
-            }
-        }
-
-        SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
-
-        if (0)
-        {
-            for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
-            {
-                if (!GMesh.Faces.IsValidIndex(i))
-                    continue;
-
-                const auto& face = GMesh.Faces[i];
-                if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
-                    continue;
-
-                auto& color = queryCodeColors[i];
-                SDL_SetRenderDrawColor(GRenderer, std::get<0>(color), std::get<1>(color), std::get<2>(color), SDL_ALPHA_OPAQUE);
-
-                const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
-                const auto& e1 = GMesh.HalfEdges[e0.Next];
-                const auto& e2 = GMesh.HalfEdges[e1.Next];
-        
-                const Vec2& a = GMesh.Vertices[e0.VertA];
-                const Vec2& b = GMesh.Vertices[e1.VertA];
-                const Vec2& c = GMesh.Vertices[e2.VertA];
-        
-                auto aax = a.X * a.X;
-                auto aay = a.Y * a.Y;
-                auto a2 = a.X*a.X + a.Y*a.Y;
-                auto b2 = b.X*b.X + b.Y*b.Y;
-                auto c2 = c.X*c.X + c.Y*c.Y;
-        
-                auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
-                if (d == 0)
-                    continue;
-        
-                auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;
-                auto uy = (a2 * (c.X - b.X) + b2 * (a.X - c.X) + c2 * (b.X - a.X)) / d;
-                auto r1 = (ux - a.X)*(ux - a.X) + (uy - a.Y)*(uy - a.Y);
-                auto r = Sqrt(r1);
-        
-                ux = mapCenter.X + ux;
-                uy = mapCenter.Y - uy;
-        
-                SDL_RenderCircle(GRenderer, (float)ux, (float)uy, (float)r, 32);
-            }
         }
     }
 
@@ -619,56 +436,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         RenderDebugText("Max Query Bodies: %llu", GPhysicsScratchBlock->MaxQueryBodyCount)
         RenderDebugText("Num Contacts: %llu", GPhysicsScratchBlock->Contacts.Num())
     }
-
-    {
-        RenderDebugText("F: %llu, E: %llu, V: %llu", GMesh.Faces.Num(), GMesh.HalfEdges.Num(), GMesh.Vertices.Num());
-
-        Distance cx = (float)windowCenter.X;
-        Distance cy = (float)windowCenter.Y;
-        Distance fmx = mx;
-        Distance fmy = GWindowHeight - my;
-        auto dx = fmx - cx;
-        auto dy = fmy - cy;
-        
-        for (int32 i = 0; i < GMesh.Faces.Num(); ++i)
-        {
-            if (!GMesh.Faces.IsValidIndex(i))
-                continue;
-
-            const auto& face = GMesh.Faces[i];
-            if (!GMesh.HalfEdges.IsValidIndex(face.HalfEdge))
-                continue;
-
-            const auto& e0 = GMesh.HalfEdges[face.HalfEdge];
-            const auto& e1 = GMesh.HalfEdges[e0.Next];
-            const auto& e2 = GMesh.HalfEdges[e1.Next];
-
-            const Vec2& a = GMesh.Vertices[e0.VertA];
-            const Vec2& b = GMesh.Vertices[e1.VertA];
-            const Vec2& c = GMesh.Vertices[e2.VertA];
-
-            Vec2 m = { dx, dy };
-
-            auto result = GMesh.PointInFace(int16(i), m);
-            switch (result.Result)
-            {
-                case EPointInFaceResult::Inside:
-                    RenderDebugText("Inside %d", i)
-                    break;
-                case EPointInFaceResult::OnEdge:
-                    RenderDebugText("On Edge %d", result.OnEdgeIndex)
-                    break;
-                default: break;
-            }
-
-            if (PointInCircle(a, b, c, m) > 0)
-            {
-                RenderDebugText("Inside CC %d", i)
-            }
-        }
-        
-    }
-    
 
     FeatureTraceScratchBlock& traceBlock = GCurrWorld->GetBlockRef<FeatureTraceScratchBlock>();
 
@@ -804,31 +571,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     //              y += 10;
     //          }
     //      }
-
-    {
-        Distance cx = (float)windowCenter.X;
-        Distance cy = (float)windowCenter.Y;
-        Distance fmx = mx;
-        Distance fmy = GWindowHeight - my;
-        auto dx = fmx - cx;
-        auto dy = fmy - cy;
-
-        Angle a = Cordic::ArcTan2<Distance>(dy, dx);
-        Distance m = Magnitude(dx, dy);
-
-        RenderDebugText("dx: %f, dy: %f, m: %f, a: %f", (float)dx, (float)dy, (float)m, (float)a)
-
-        Vec2 v(1, 0);
-        v = v.Rotate(a);
-
-        float x1 = (float)cx;
-        float y1 = (float)cy;
-        float x2 = (float)v.X * (float)m;
-        float y2 = -(float)v.Y * (float)m;
-
-        SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
-        SDL_RenderLine(GRenderer, x1, y1, x1 + x2, y1 + y2);
-    }
 
     SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 

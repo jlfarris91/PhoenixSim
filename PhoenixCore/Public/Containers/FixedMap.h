@@ -92,7 +92,7 @@ namespace Phoenix
             for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
+                if (Table[probe].Key == key && Table[probe].Occupied)
                 {
                     return true;
                 }
@@ -118,7 +118,7 @@ namespace Phoenix
             for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
+                if (Table[probe].Key == key && Table[probe].Occupied)
                 {
                     return &Table[probe].Value;
                 }
@@ -144,7 +144,7 @@ namespace Phoenix
             for (size_t i = 0; i < N; ++i)
             {
                 size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
+                if (Table[probe].Key == key && Table[probe].Occupied)
                 {
                     return &Table[probe].Value;
                 }
@@ -198,8 +198,8 @@ namespace Phoenix
         struct Element
         {
             uint8 Occupied = 0;
-            TKey Key;
-            TValue Value;
+            TKey Key = {};
+            TValue Value = {};
         };
 
         Element Table[N];

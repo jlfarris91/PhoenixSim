@@ -183,7 +183,7 @@ namespace Phoenix
             return Cordic::Dot(a.X, a.Y, b.X, b.Y);
         }
 
-        constexpr static T Distance(const TVec2& a, const TVec2& b)
+        constexpr static auto Distance(const TVec2& a, const TVec2& b)
         {
             return Magnitude(a.X - b.X, a.Y - b.Y);
         }

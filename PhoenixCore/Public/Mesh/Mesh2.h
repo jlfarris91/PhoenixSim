@@ -245,6 +245,27 @@ namespace Phoenix
             return true;
         }
 
+        bool GetEdgeCenterAndNormal(TIdx edgeIndex, TVert& outCenter, TVert& outNormal) const
+        {
+            TVert vertA, vertB;
+            if (!GetEdgeVerts(edgeIndex, vertA, vertB))
+                return false;
+            outCenter = Vec2::Midpoint(vertA, vertB);
+            Vec2 n = (vertB - vertA).Normalized();
+            outNormal = Vec2(-n.Y, n.X);
+            return true;
+        }
+
+        auto GetEdgeLength(TIdx edgeIndex) const
+        {
+            TVert vertA, vertB;
+            if (GetEdgeVerts(edgeIndex, vertA, vertB))
+            {
+                return Vec2::Distance(vertA, vertB);
+            }
+            return decltype(Vec2::Distance(vertA, vertB)){};
+        }
+
         TIdx InsertVertex(const TVert& v, const TVertComp& threshold = DefaultThreshold)
         {
             for (size_t i = 0; i < Vertices.Num(); ++i)
@@ -851,22 +872,37 @@ namespace Phoenix
             Faces.Reset();
         }
 
-        void TracePortalEdges(const auto& corridor, auto& outChainRhs, auto& outChainLhs)
+        void TracePortalEdges(const auto& corridor, auto& outChainRhs, auto& outChainLhs, bool trimDuplicates = true) const
         {
             for (TIdx edgeIndex : corridor)
             {
                 PHX_ASSERT(IsValidHalfEdge(edgeIndex));
                 const THalfEdge& halfEdge = HalfEdges[edgeIndex];
 
-                if (outChainLhs.IsEmpty() || outChainLhs.Back() != halfEdge.VertA)
+                if (outChainLhs.IsEmpty() || !(trimDuplicates && outChainLhs.Back() == halfEdge.VertA))
                 {
                     outChainLhs.PushBack(halfEdge.VertA);
                 }
 
-                if (outChainRhs.IsEmpty() || outChainRhs.Back() != halfEdge.VertB)
+                if (outChainRhs.IsEmpty() || !(trimDuplicates && outChainRhs.Back() == halfEdge.VertB))
                 {
                     outChainRhs.PushBack(halfEdge.VertB);
                 }
+            }
+        }
+
+        void TracePortalEdgeVerts(const auto& corridor, auto& outChainRhs, auto& outChainLhs) const
+        {
+            for (TIdx edgeIndex : corridor)
+            {
+                PHX_ASSERT(IsValidHalfEdge(edgeIndex));
+                const THalfEdge& halfEdge = HalfEdges[edgeIndex];
+
+                const Vec2& vertA = Vertices[halfEdge.VertA];
+                const Vec2& vertB = Vertices[halfEdge.VertB];
+
+                outChainLhs.PushBack(vertA);
+                outChainRhs.PushBack(vertB);
             }
         }
 
