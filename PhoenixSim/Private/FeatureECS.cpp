@@ -231,6 +231,7 @@ bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
         return false;
     }
     
+    RemoveAllTags(world, entityId);
     RemoveAllComponents(world, entityId);
 
     // Reset entity data
@@ -242,10 +243,162 @@ bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
     return true;
 }
 
+bool FeatureECS::HasTag(WorldConstRef world, EntityId entityId, FName tagName)
+{
+    bool foundTag = false;
+    ForEachTag(world, entityId, [&](const EntityTag& tag, int32)
+    {
+        if (tag.TagName == tagName)
+        {
+            foundTag = true;
+            return false;
+        }
+        return true;
+    });
+    return foundTag;
+}
+
+bool FeatureECS::AddTag(WorldRef world, EntityId entityId, FName tagName)
+{
+    FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+
+    PHX_ASSERT(!block.Tags.IsFull());
+
+    Entity* entity = GetEntityPtr(world, entityId);
+    if (!entity)
+    {
+        return false;
+    }
+
+    int32 newTagIndex = INDEX_NONE;
+
+    // Find the next available tag index
+    {
+        for (int32 i = 1; i < ECS_MAX_TAGS; ++i)
+        {
+            if (block.Tags[i].TagName == FName::None)
+            {
+                newTagIndex = i;
+                break;
+            }
+        }
+
+        if (newTagIndex == INDEX_NONE)
+        {
+            return false;
+        }
+    }
+
+    if (entity->TagHead == INDEX_NONE)
+    {
+        entity->TagHead = newTagIndex;
+    }
+    else
+    {
+        // Find the tail tag and update it's next
+        int32 tagIter = entity->TagHead;
+        while (block.Tags[tagIter].Next != INDEX_NONE)
+        {
+            // Entity already has the tag, don't add duplicates
+            if (block.Tags[tagIter].TagName == tagName)
+            {
+                return false;
+            }
+
+            tagIter = block.Tags[tagIter].Next;
+        }
+        block.Tags[tagIter].Next = newTagIndex;
+    }
+
+    // Make room for the new tag if necessary
+    if (!block.Tags.IsValidIndex(newTagIndex))
+    {
+        block.Tags.SetNum(newTagIndex + 1);
+    }
+
+    EntityTag& tag = block.Tags[newTagIndex];
+    tag.Next = INDEX_NONE;
+    tag.TagName = tagName;
+
+    return true;
+}
+
+bool FeatureECS::RemoveTag(WorldRef world, EntityId entityId, FName tagName)
+{
+    int32 prevTagIndex = INDEX_NONE;
+    int32 tagIndex = INDEX_NONE;
+    ForEachTag(world, entityId, [&, tagName](const EntityTag& tag, uint32 index)
+    {
+        tagIndex = index;
+        if (tag.TagName == tagName)
+        {
+            return false;
+        }
+        prevTagIndex = tagIndex;
+        return true;
+    });
+
+    if (tagIndex == INDEX_NONE)
+    {
+        return false;
+    }
+
+    FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+    EntityTag& tagToRemove = block.Tags[tagIndex];
+
+    if (prevTagIndex != INDEX_NONE)
+    {
+        EntityTag& prevTag = block.Tags[prevTagIndex];
+        prevTag.Next = tagToRemove.Next;
+    }
+
+    Entity& entity = GetEntityRef(world, entityId);
+    if (entity.TagHead == tagIndex)
+    {
+        entity.TagHead = prevTagIndex;
+    }
+
+    // Reset tag data
+    tagToRemove.TagName = FName::None;
+    tagToRemove.Next = INDEX_NONE;
+
+    return true;
+}
+
+uint32 FeatureECS::RemoveAllTags(WorldRef world, EntityId entityId)
+{
+    FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+
+    Entity* entity = GetEntityPtr(world, entityId);
+    if (!entity)
+    {
+        return false;
+    }
+
+    int32 tagIndex = entity->TagHead;
+
+    uint32 numTagsRemoved = 0;
+    while (tagIndex != INDEX_NONE)
+    {
+        EntityTag& tag = block.Tags[tagIndex];
+
+        tagIndex = tag.Next;
+        numTagsRemoved++;
+
+        // Reset tag data
+        tag.TagName = FName::None;
+        tag.Next = INDEX_NONE;
+    }
+
+    entity->TagHead = INDEX_NONE;
+
+    return numTagsRemoved;
+}
+
 int32 FeatureECS::GetIndexOfComponent(WorldConstRef world, EntityId entityId, FName componentType)
 {
     int32 compIndex = INDEX_NONE;
-    ForEachComponent(world, entityId, [&compIndex, componentType](const Component& comp, uint32 index)
+    ForEachComponent(world, entityId, [&compIndex, componentType](const EntityComponent& comp, uint32 index)
     {
         if (comp.TypeName == componentType)
         {
@@ -258,26 +411,26 @@ int32 FeatureECS::GetIndexOfComponent(WorldConstRef world, EntityId entityId, FN
     return compIndex;
 }
 
-Component* FeatureECS::GetComponentPtr(WorldRef world, EntityId entityId, FName componentType)
+EntityComponent* FeatureECS::GetComponentPtr(WorldRef world, EntityId entityId, FName componentType)
 {
     int32 index = GetIndexOfComponent(world, entityId, componentType);
     return index != INDEX_NONE ? &world.GetBlockRef<FeatureECSDynamicBlock>().Components[index] : nullptr;
 }
 
-const Component* FeatureECS::GetComponentPtr(WorldConstRef world, EntityId entityId, FName componentType)
+const EntityComponent* FeatureECS::GetComponentPtr(WorldConstRef world, EntityId entityId, FName componentType)
 {
     int32 index = GetIndexOfComponent(world, entityId, componentType);
     return index != INDEX_NONE ? &world.GetBlockRef<FeatureECSDynamicBlock>().Components[index] : nullptr;
 }
 
-Component& FeatureECS::GetComponentRef(WorldRef world, EntityId entityId, FName componentType)
+EntityComponent& FeatureECS::GetComponentRef(WorldRef world, EntityId entityId, FName componentType)
 {
     int32 index = GetIndexOfComponent(world, entityId, componentType);
     PHX_ASSERT(index != INDEX_NONE);
     return world.GetBlockRef<FeatureECSDynamicBlock>().Components[index];
 }
 
-const Component& FeatureECS::GetComponentRef(WorldConstRef world, EntityId entityId, FName componentType)
+const EntityComponent& FeatureECS::GetComponentRef(WorldConstRef world, EntityId entityId, FName componentType)
 {
     int32 index = GetIndexOfComponent(world, entityId, componentType);
     PHX_ASSERT(index != INDEX_NONE);
@@ -288,7 +441,7 @@ bool FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, FName compon
 {
     int32 prevCompIndex = INDEX_NONE;
     int32 compIndex = INDEX_NONE;
-    ForEachComponent(world, entityId, [&, componentType](const Component& comp, uint32 index)
+    ForEachComponent(world, entityId, [&, componentType](const EntityComponent& comp, uint32 index)
     {
         compIndex = index;
         if (comp.TypeName == componentType)
@@ -305,11 +458,11 @@ bool FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, FName compon
     }
 
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    Component& compToRemove = block.Components[compIndex];
+    EntityComponent& compToRemove = block.Components[compIndex];
 
     if (prevCompIndex != INDEX_NONE)
     {
-        Component& prevComp = block.Components[prevCompIndex];
+        EntityComponent& prevComp = block.Components[prevCompIndex];
         prevComp.Next = compToRemove.Next;
     }
 
@@ -342,7 +495,7 @@ uint32 FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
     uint32 numCompsRemoved = 0;
     while (compIndex != INDEX_NONE)
     {
-        Component& comp = block.Components[compIndex];
+        EntityComponent& comp = block.Components[compIndex];
 
         compIndex = comp.Next;
         numCompsRemoved++;
@@ -363,7 +516,7 @@ void FeatureECS::RegisterSystem(const TSharedPtr<ISystem>& system)
     Systems.push_back(system);
 }
 
-Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName componentType)
+EntityComponent* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName componentType)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
@@ -415,12 +568,12 @@ Component* FeatureECS::AddComponent(WorldRef world, EntityId entityId, FName com
         block.Components.SetNum(newCompIndex + 1);
     }
 
-    Component& comp = block.Components[newCompIndex];
+    EntityComponent& comp = block.Components[newCompIndex];
     comp.Next = INDEX_NONE;
     comp.TypeName = componentType;
 
     // Clear out the component data
-    std::memset(&comp.Data[0], 0, sizeof(Component::Data));
+    std::memset(&comp.Data[0], 0, sizeof(EntityComponent::Data));
     
     return &comp;
 }

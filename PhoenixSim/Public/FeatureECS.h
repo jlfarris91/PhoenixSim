@@ -5,9 +5,14 @@
 #include "Worlds.h"
 #include "Containers/FixedArray.h"
 #include "FixedPoint/FixedTransform.h"
+#include "Utils.h"
 
 #ifndef ECS_MAX_ENTITIES
 #define ECS_MAX_ENTITIES MAXINT16
+#endif
+
+#ifndef ECS_MAX_TAGS
+#define ECS_MAX_TAGS MAXINT16 << 1
 #endif
 
 #ifndef ECS_MAX_COMPONENTS
@@ -44,9 +49,16 @@ namespace Phoenix
             EntityId Id = EntityId::Invalid;
             FName Kind;
             int32 ComponentHead = INDEX_NONE;
+            int32 TagHead = INDEX_NONE;
         };
 
-        struct PHOENIXSIM_API Component
+        struct PHOENIXSIM_API EntityTag
+        {
+            FName TagName;
+            int32 Next = INDEX_NONE;
+        };
+
+        struct PHOENIXSIM_API EntityComponent
         {
             // The name of the component type.
             FName TypeName;
@@ -129,7 +141,8 @@ namespace Phoenix
             static constexpr FName StaticName = "FeatureECSDynamicBlock"_n;
 
             TFixedArray<Entity, ECS_MAX_ENTITIES> Entities;
-            TFixedArray<Component, ECS_MAX_COMPONENTS> Components;
+            TFixedArray<EntityTag, ECS_MAX_TAGS> Tags;
+            TFixedArray<EntityComponent, ECS_MAX_COMPONENTS> Components;
             TFixedArray<EntityId, ECS_MAX_ENTITIES> Groups;
         };
 
@@ -191,18 +204,47 @@ namespace Phoenix
             static EntityId AcquireEntity(WorldRef world, FName kind);
             static bool ReleaseEntity(WorldRef world, EntityId entityId);
 
+            static bool HasTag(WorldConstRef world, EntityId entityId, FName tagName);
+
+            static bool AddTag(WorldRef world, EntityId entityId, FName tagName);
+            static bool RemoveTag(WorldRef world, EntityId entityId, FName tagName);
+            static uint32 RemoveAllTags(WorldRef world, EntityId entityId);
+
+            template <class TCallback>
+            static void ForEachTag(WorldConstRef world, EntityId entityId, const TCallback& callback)
+            {
+                const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+
+                const Entity* entity = GetEntityPtr(world, entityId);
+                if (!entity)
+                {
+                    return;
+                }
+
+                int32 tagIndex = entity->TagHead;
+                while (tagIndex != INDEX_NONE)
+                {
+                    const EntityTag& tag = block.Tags[tagIndex];
+                    if (!callback(tag, tagIndex))
+                    {
+                        return;
+                    }
+                    tagIndex = tag.Next;
+                }
+            }
+
             static int32 GetIndexOfComponent(WorldConstRef world, EntityId entityId, FName componentType);
 
-            static Component* GetComponentPtr(WorldRef world, EntityId entityId, FName componentType);
-            static const Component* GetComponentPtr(WorldConstRef world, EntityId entityId, FName componentType);
+            static EntityComponent* GetComponentPtr(WorldRef world, EntityId entityId, FName componentType);
+            static const EntityComponent* GetComponentPtr(WorldConstRef world, EntityId entityId, FName componentType);
 
-            static Component& GetComponentRef(WorldRef world, EntityId entityId, FName componentType);
-            static const Component& GetComponentRef(WorldConstRef world, EntityId entityId, FName componentType);
+            static EntityComponent& GetComponentRef(WorldRef world, EntityId entityId, FName componentType);
+            static const EntityComponent& GetComponentRef(WorldConstRef world, EntityId entityId, FName componentType);
 
             template <class T>
             static T* GetComponentDataPtr(WorldRef world, EntityId entityId)
             {
-                Component* comp = GetComponentPtr(world, entityId, T::StaticName);
+                EntityComponent* comp = GetComponentPtr(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 return reinterpret_cast<T*>(&comp->Data[0]);
             }
@@ -210,7 +252,7 @@ namespace Phoenix
             template <class T>
             static const T* GetComponentDataPtr(WorldConstRef world, EntityId entityId)
             {
-                Component* comp = GetComponentPtr(world, entityId, T::StaticName);
+                EntityComponent* comp = GetComponentPtr(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 return reinterpret_cast<const T*>(&comp->Data[0]);
             }
@@ -219,7 +261,7 @@ namespace Phoenix
             static T* AddComponent(WorldRef world, EntityId entityId, const T& defaultValue = {})
             {
                 static_assert(sizeof(T) < ECS_MAX_COMPONENT_SIZE);
-                Component* comp = AddComponent(world, entityId, T::StaticName);
+                EntityComponent* comp = AddComponent(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
                 *reinterpret_cast<T*>(&comp->Data[0]) = defaultValue;
                 return reinterpret_cast<T*>(&comp->Data[0]);
@@ -244,7 +286,7 @@ namespace Phoenix
 
                 while (compIndex != INDEX_NONE)
                 {
-                    Component& comp = block.Components[compIndex];
+                    EntityComponent& comp = block.Components[compIndex];
                     if (!callback(comp, compIndex))
                     {
                         return;
@@ -268,7 +310,7 @@ namespace Phoenix
 
                 while (compIndex != INDEX_NONE)
                 {
-                    const Component& comp = block.Components[compIndex];
+                    const EntityComponent& comp = block.Components[compIndex];
                     if (!callback(comp, compIndex))
                     {
                         return;
@@ -285,7 +327,7 @@ namespace Phoenix
 
         private:
 
-            static Component* AddComponent(WorldRef world, EntityId entityId, FName componentType);
+            static EntityComponent* AddComponent(WorldRef world, EntityId entityId, FName componentType);
 
             static void SortEntitiesByZCode(WorldRef world);
 
@@ -295,30 +337,6 @@ namespace Phoenix
             FeatureDefinition FeatureDefinition;
         };
 
-        template <size_t I = 0, typename... Ts>
-        std::enable_if_t<I == sizeof...(Ts), bool>
-        contains_nullptr(const std::tuple<Ts...>& t)
-        {
-            // Base case: end of tuple, no nullptr found
-            return false;
-        }
-
-        template <size_t I = 0, typename... Ts>
-        std::enable_if_t<(I < sizeof...(Ts)), bool>
-        contains_nullptr(const std::tuple<Ts...>& t)
-        {
-            using ElementType = std::tuple_element_t<I, std::tuple<Ts...>>;
-            if constexpr (std::is_pointer_v<ElementType>)
-            {
-                if (std::get<I>(t) == nullptr)
-                {
-                    return true;
-                }
-            }
-            // Recurse to the next element
-            return contains_nullptr<I + 1>(t);
-        }
-        
         template <class ... TComponents>
         void EntityComponentsContainer<TComponents...>::Refresh(WorldRef world)
         {
@@ -332,7 +350,7 @@ namespace Phoenix
                     continue;
             
                 auto components = std::make_tuple(&entity, FeatureECS::GetComponentDataPtr<TComponents>(world, entity.Id)...);
-                if (contains_nullptr(components))
+                if (ContainsNullptr(components))
                     continue;
 
                 Components.PushBack(components);

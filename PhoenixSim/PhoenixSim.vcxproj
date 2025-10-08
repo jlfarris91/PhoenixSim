@@ -104,6 +104,7 @@
     <ClInclude Include="Public\Features.h" />
     <ClInclude Include="Public\PhoenixSim.h" />
     <ClInclude Include="Public\Session.h" />
+    <ClInclude Include="Public\Utils.h" />
     <ClInclude Include="Public\Worlds.h" />
   </ItemGroup>
   <ItemGroup>
