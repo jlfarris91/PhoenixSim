@@ -7,8 +7,14 @@
 
 namespace Phoenix
 {
+    struct IDebugState;
+    struct IDebugRenderer;
     class Session;
 }
+
+#define DECLARE_FEATURE(feature) \
+    static constexpr FName StaticName = #feature##_n; \
+    virtual FName GetName() const override { return StaticName; }
 
 namespace Phoenix
 {
@@ -50,6 +56,8 @@ namespace Phoenix
         virtual void OnPreHandleAction(WorldRef world, const FeatureActionArgs& action);
         virtual void OnHandleAction(WorldRef world, const FeatureActionArgs& action);
         virtual void OnPostHandleAction(WorldRef world, const FeatureActionArgs& action);
+
+        virtual void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer);
 
     protected:
 
@@ -100,6 +108,17 @@ namespace Phoenix
         TArray<WorldBufferBlockArgs> Blocks;
         TArray<FeatureChannelInsertArgs> Channels;
         TArray<FName> DependentFeatures;
+
+        template <class TBlock>
+        void RegisterBlock()
+        {
+            Blocks.emplace_back(TBlock::StaticName, TBlock::StaticType, sizeof(TBlock));
+        }
+
+        void RegisterChannel(FName channel, const FeatureInsertPosition& insertPosition = FeatureInsertPosition::Default)
+        {
+            Channels.emplace_back(channel, insertPosition);
+        }
     };
 
     class PHOENIXSIM_API FeatureSet

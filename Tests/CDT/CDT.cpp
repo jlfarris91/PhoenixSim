@@ -200,17 +200,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
             for (const auto& point : GPoints)
             {
-                CDT_InsertPoint(GMesh, point);
+                GMesh.CDT_InsertPoint(point);
             }
 
             for (const auto& line : GLines)
             {
-                CDT_InsertEdge(GMesh, line);
+                GMesh.CDT_InsertEdge(line);
             }
 
             if (GLineStart.IsSet() && GLineEnd.IsSet() && !Vec2::Equals(*GLineStart, *GLineEnd))
             {
-                CDT_InsertEdge(GMesh, Line2(*GLineStart, *GLineEnd));
+                GMesh.CDT_InsertEdge(Line2(*GLineStart, *GLineEnd));
             }
         }
 
@@ -261,7 +261,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         // Redraw the edges of the face the mouse is within so that they draw on top
         for (size_t i = 0; i < GMesh.Faces.Num(); ++i)
         {
-            auto result = GMesh.PointInFace(int16(i), m);
+            auto result = GMesh.IsPointInFace(int16(i), m);
             if (result.Result == EPointInFaceResult::Inside)
             {
                 auto& color = queryCodeColors[i];
@@ -621,7 +621,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             auto et1 = edge1.Twin;
             auto et2 = edge2.Twin;
 
-            auto result = GMesh.PointInFace(int16(i), m);
+            auto result = GMesh.IsPointInFace(int16(i), m);
             switch (result.Result)
             {
                 case EPointInFaceResult::Inside:

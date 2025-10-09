@@ -28,7 +28,7 @@ namespace Phoenix
 
         struct PHOENIXSIM_API BodyComponent
         {
-            static constexpr FName StaticName = "Body"_n;
+            DECLARE_ECS_COMPONENT(BodyComponent)
 
             EBodyFlags Flags = EBodyFlags::None; 
 
@@ -60,8 +60,8 @@ namespace Phoenix
         class PHOENIXSIM_API PhysicsSystem : public ECS::ISystem
         {
         public:
-            static constexpr FName StaticName = "Physics"_n;
-            FName GetName() override;
+            DECLARE_ECS_SYSTEM(PhysicsSystem)
+
             void OnPreUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
         };
@@ -88,7 +88,8 @@ namespace Phoenix
 
         struct PHOENIXSIM_API FeaturePhysicsScratchBlock
         {
-            static const FName StaticName;
+            DECLARE_WORLD_BLOCK_SCRATCH(FeaturePhysicsScratchBlock)
+
             uint64 NumIterations = 0;
             uint64 NumCollisions = 0;
             uint64 MaxQueryBodyCount = 0;
@@ -108,11 +109,9 @@ namespace Phoenix
         {
         public:
 
-            static const FName StaticName;
+            DECLARE_FEATURE(FeaturePhysics)
 
             FeaturePhysics();
-
-            FName GetName() const override;
 
             FeatureDefinition GetFeatureDefinition() override;
 

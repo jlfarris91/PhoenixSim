@@ -64,11 +64,6 @@ FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
     }
 }
 
-FName FeatureECS::GetName() const
-{
-    return StaticName;
-}
-
 FeatureDefinition FeatureECS::GetFeatureDefinition()
 {
     return FeatureDefinition;

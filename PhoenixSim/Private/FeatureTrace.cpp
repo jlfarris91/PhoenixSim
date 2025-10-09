@@ -14,11 +14,6 @@ FeatureTrace::FeatureTrace()
     FeatureDefinition.Blocks.push_back(blockArgs);
 }
 
-FName FeatureTrace::GetName() const
-{
-    return StaticName;
-}
-
 FeatureDefinition FeatureTrace::GetFeatureDefinition()
 {
     return FeatureDefinition;

@@ -23,6 +23,13 @@
 #define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash_t) + sizeof(int32))) + 64
 #endif
 
+#define DECLARE_ECS_COMPONENT(component) \
+    static constexpr FName StaticName = #component##_n;
+
+#define DECLARE_ECS_SYSTEM(system) \
+    static constexpr FName StaticName = #system##_n; \
+    virtual FName GetName() const override { return StaticName; }
+
 namespace Phoenix
 {
     namespace ECS
@@ -72,7 +79,7 @@ namespace Phoenix
 
         struct PHOENIXSIM_API TransformComponent
         {
-            static constexpr FName StaticName = "Transform"_n;
+            DECLARE_ECS_COMPONENT(TransformComponent)
 
             // The id of another entity that the owning entity is attached to.
             // Note that this cannot be the entity that owns the body component.
@@ -125,7 +132,7 @@ namespace Phoenix
         public:
             virtual ~ISystem() = default;
 
-            virtual FName GetName() { return FName::None; }
+            virtual FName GetName() const { return FName::None; }
 
             virtual void OnPreUpdate(WorldRef world, const SystemUpdateArgs& args) {}
             virtual void OnUpdate(WorldRef world, const SystemUpdateArgs& args) {}
@@ -138,7 +145,7 @@ namespace Phoenix
 
         struct PHOENIXSIM_API FeatureECSDynamicBlock
         {
-            static constexpr FName StaticName = "FeatureECSDynamicBlock"_n;
+            DECLARE_WORLD_BLOCK_DYNAMIC(FeatureECSDynamicBlock)
 
             TFixedArray<Entity, ECS_MAX_ENTITIES> Entities;
             TFixedArray<EntityTag, ECS_MAX_TAGS> Tags;
@@ -155,13 +162,13 @@ namespace Phoenix
 
         struct PHOENIXSIM_API MovementComponent
         {
-            static constexpr FName StaticName = "MoveToCenterComponent"_n;
+            DECLARE_ECS_COMPONENT(MovementComponent)
             Speed Speed = 0;
         };
 
         struct PHOENIXSIM_API FeatureECSScratchBlock
         {
-            static constexpr FName StaticName = "FeatureECSScratchBlock"_n;
+            DECLARE_WORLD_BLOCK_SCRATCH(FeatureECSDynamicBlock)
 
             EntityComponentsContainer<TransformComponent> EntityTransforms;
             TFixedArray<EntityTransform, ECS_MAX_ENTITIES> SortedEntities;
@@ -176,12 +183,10 @@ namespace Phoenix
         {
         public:
 
-            static constexpr FName StaticName = "FeatureECS"_n;
+            DECLARE_FEATURE(FeatureECS)
 
             FeatureECS();
             FeatureECS(const FeatureECSCtorArgs& args);
-
-            FName GetName() const override;
             
             FeatureDefinition GetFeatureDefinition() override;
             

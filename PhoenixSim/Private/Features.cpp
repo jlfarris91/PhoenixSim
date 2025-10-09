@@ -52,6 +52,10 @@ void IFeature::OnPostHandleAction(WorldRef world, const FeatureActionArgs& args)
 {
 }
 
+void IFeature::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
+{
+}
+
 FeatureSharedPtr FeatureSet::GetFeature(const FName& name) const
 {
     auto&& feature = Features.find(name);

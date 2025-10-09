@@ -5,9 +5,32 @@
 
 namespace Phoenix
 {
+    struct IDebugRenderer;
+}
+
+namespace Phoenix
+{
+    struct IDebugState;
+}
+
+namespace Phoenix
+{
     class FeatureSet;
     class FeatureSet;
 }
+
+#define DECLARE_WORLD_BLOCK(block, type) \
+    static constexpr FName StaticName = #block##_n; \
+    static constexpr EWorldBufferBlockType StaticType = type;
+
+#define DECLARE_WORLD_BLOCK_STATIC(block) \
+    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Static)
+
+#define DECLARE_WORLD_BLOCK_DYNAMIC(block) \
+    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Dynamic)
+
+#define DECLARE_WORLD_BLOCK_SCRATCH(block) \
+    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Scratch)
 
 namespace Phoenix
 {
@@ -30,6 +53,8 @@ namespace Phoenix
         static constexpr FName PreHandleAction = "PreHandleAction"_n;
         static constexpr FName HandleAction = "HandleAction"_n;
         static constexpr FName PostHandleAction = "PostHandleAction"_n;
+
+        static constexpr FName DebugRender = "DebugRender"_n;
     };
 
     struct PHOENIXSIM_API WorldBufferBlockArgs

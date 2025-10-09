@@ -12,15 +12,7 @@ using namespace Phoenix;
 using namespace Phoenix::ECS;
 using namespace Phoenix::Physics;
 
-const FName FeaturePhysics::StaticName = "Physics"_n;
-const FName FeaturePhysicsScratchBlock::StaticName = "Physics_Scratch"_n;
-
 constexpr uint8 SLEEP_TIMER = 1;
-
-FName PhysicsSystem::GetName()
-{
-    return StaticName;
-}
 
 void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
@@ -438,11 +430,6 @@ FeaturePhysics::FeaturePhysics()
     FeatureDefinition.Blocks.push_back(blockArgs);
 
     FeatureDefinition.Channels.emplace_back(WorldChannels::HandleAction, FeatureInsertPosition::Default);
-}
-
-FName FeaturePhysics::GetName() const
-{
-    return StaticName;
 }
 
 FeatureDefinition FeaturePhysics::GetFeatureDefinition()

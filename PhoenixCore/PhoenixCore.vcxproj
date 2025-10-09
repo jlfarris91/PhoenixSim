@@ -91,10 +91,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Public\Color.h" />
     <ClInclude Include="Public\Containers\FixedArray.h" />
     <ClInclude Include="Public\Containers\FixedMap.h" />
     <ClInclude Include="Public\Containers\FixedQueue.h" />
     <ClInclude Include="Public\Containers\FixedSet.h" />
+    <ClInclude Include="Public\Debug.h" />
     <ClInclude Include="Public\FixedPoint\FixedCordic.h" />
     <ClInclude Include="Public\FixedPoint\FixedMath.h" />
     <ClInclude Include="Public\FixedPoint\FixedPoint.h" />
@@ -107,6 +109,7 @@
     <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
     <ClInclude Include="Public\Mesh\Mesh2.h" />
+    <ClInclude Include="Public\Mesh\Mesh2.inl" />
     <ClInclude Include="Public\Mesh\MeshPath.h" />
     <ClInclude Include="Public\MortonCode.h" />
     <ClInclude Include="Public\Name.h" />
@@ -115,6 +118,7 @@
     <ClInclude Include="Public\PlatformTypes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Private\Color.cpp" />
     <ClCompile Include="Private\FixedPoint\FixedMath.cpp" />
     <ClCompile Include="Private\FixedPoint\FixedPoint.cpp" />
     <ClCompile Include="Private\MortonCode.cpp" />

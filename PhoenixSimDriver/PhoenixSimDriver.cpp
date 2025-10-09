@@ -18,12 +18,17 @@
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 
+#include "Debug.h"
+#include "FeatureNavMesh.h"
+#include "SDLDebugRenderer.h"
+#include "SDLDebugState.h"
 #include "Mesh/Mesh2.h"
 
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
 using namespace Phoenix::Physics;
+using namespace Phoenix::Pathfinding;
 
 // the vertex input layout
 struct Vertex
@@ -62,6 +67,9 @@ FeaturePhysicsScratchBlock* GPhysicsScratchBlock = nullptr;
 TMap<uint8, bool> GMouseButtonStates;
 TMap<SDL_Keycode, bool> GKeyStates;
 
+SDLDebugState GDebugState;
+SDLDebugRenderer GDebugRenderer(GRenderer);
+
 struct EntityBodyShape
 {
     Transform2D Transform;
@@ -80,11 +88,13 @@ void InitSession()
 {
     TSharedPtr<FeatureTrace> traceFeature = std::make_shared<FeatureTrace>();
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
+    TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     
     SessionCtorArgs sessionArgs;
     sessionArgs.FeatureSetArgs.Features.push_back(traceFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
+    sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 
@@ -294,6 +304,20 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     //Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
     Vec2 mapCenter(0, 0);
+
+    if (GCurrWorld)
+    {
+        Vec2 mapCenter2(GWindowWidth >> 1, GWindowHeight >> 1);
+        GDebugRenderer.Renderer = GRenderer;
+        GDebugRenderer.MapCenter = mapCenter2;
+        GDebugState.MapCenter = mapCenter2;
+
+        TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
+        for (const auto& feature : channelFeatures)
+        {
+            feature->OnDebugRender(*GCurrWorld, GDebugState, GDebugRenderer);
+        }
+    }
 
     SDL_SetRenderDrawColor(GRenderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
 

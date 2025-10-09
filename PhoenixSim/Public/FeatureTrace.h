@@ -27,7 +27,7 @@ namespace Phoenix
 
     struct PHOENIXSIM_API FeatureTraceScratchBlock
     {
-        static constexpr FName StaticName = "FeatureTraceScratchBlock"_n;
+        DECLARE_WORLD_BLOCK_SCRATCH(FeatureTraceScratchBlock)
 
         TFixedArray<TraceEvent, MAX_TRACE_EVENTS> Events;
     };
@@ -36,11 +36,9 @@ namespace Phoenix
     {
     public:
 
-        static constexpr FName StaticName = "FeatureTrace"_n;
+        DECLARE_FEATURE(FeatureTrace)
 
         FeatureTrace();
-
-        FName GetName() const override;
 
         FeatureDefinition GetFeatureDefinition() override;
         

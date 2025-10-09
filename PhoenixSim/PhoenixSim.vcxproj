@@ -98,7 +98,7 @@
     <ClInclude Include="Public\Actions.h" />
     <ClInclude Include="Public\DLLExport.h" />
     <ClInclude Include="Public\FeatureECS.h" />
-    <ClInclude Include="Public\FeaturePathfinding.h" />
+    <ClInclude Include="Public\FeatureNavMesh.h" />
     <ClInclude Include="Public\FeaturePhysics.h" />
     <ClInclude Include="Public\FeatureTrace.h" />
     <ClInclude Include="Public\Features.h" />
@@ -110,7 +110,7 @@
   <ItemGroup>
     <ClCompile Include="Private\Actions.cpp" />
     <ClCompile Include="Private\FeatureECS.cpp" />
-    <ClCompile Include="Private\FeaturePathfinding.cpp" />
+    <ClCompile Include="Private\FeatureNavMesh.cpp" />
     <ClCompile Include="Private\FeaturePhysics.cpp" />
     <ClCompile Include="Private\FeatureTrace.cpp" />
     <ClCompile Include="Private\Features.cpp" />
