@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+#include "Color.h"
+#include "Debug.h"
 #include "FeatureTrace.h"
 #include "Flags.h"
 #include "MortonCode.h"
@@ -102,28 +104,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     br = scratchBlock.MapCenter + br1;
     tl = scratchBlock.MapCenter + tl1;
     tr = scratchBlock.MapCenter + tr1;
-
-    // scratchBlock.Rotation += 0.1f;
-
-    // scratchBlock.CollisionLines.Reset();
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(bl, br));
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(tr, br));
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(tr, tl));
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(bl, tl));
-    //
-    // Vec2 a1 = Vec2(offset.X, offset.Y) * 0.25f;
-    // Vec2 a2 = Vec2(offset.X, offset.Y) * -0.25f;
-    // a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation);
-    // a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation);
-    //
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
-    //
-    // a1 = Vec2(offset.X, offset.Y) * 0.25f;
-    // a2 = Vec2(offset.X, offset.Y) * -0.25f;
-    // a1 = scratchBlock.MapCenter + a1.Rotate(scratchBlock.Rotation + HALF_PI);
-    // a2 = scratchBlock.MapCenter + a2.Rotate(scratchBlock.Rotation + HALF_PI);
-    //
-    // scratchBlock.CollisionLines.EmplaceBack(Line2(a1, a2));
     
     // Determine contacts
     {
@@ -419,17 +399,31 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 }
 
+void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
+{
+    ISystem::OnDebugRender(world, state, renderer);
+
+    const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+    for (const CollisionLine& collisionLine : scratchBlock.CollisionLines)
+    {
+        renderer.DrawLine(collisionLine.Line.Start, collisionLine.Line.End, Color(0, 255, 0));
+    }
+
+    for (const Contact& contact : scratchBlock.Contacts)
+    {
+        Vec2 v = contact.Normal * contact.Bias;
+        Vec2 s = contact.TransformA->Transform.Position;
+        Vec2 e = s + v;
+        renderer.DrawLine(s, e, Color(255, 255, 255));
+    }
+}
+
 FeaturePhysics::FeaturePhysics()
 {
-    WorldBufferBlockArgs blockArgs;
-    blockArgs.Name = FeaturePhysicsScratchBlock::StaticName;
-    blockArgs.Size = sizeof(FeaturePhysicsScratchBlock);
-    blockArgs.BlockType = EWorldBufferBlockType::Scratch;
-
     FeatureDefinition.Name = StaticName;
-    FeatureDefinition.Blocks.push_back(blockArgs);
-
-    FeatureDefinition.Channels.emplace_back(WorldChannels::HandleAction, FeatureInsertPosition::Default);
+    FeatureDefinition.RegisterBlock<FeaturePhysicsScratchBlock>();
+    FeatureDefinition.RegisterChannel(WorldChannels::HandleAction);
 }
 
 FeatureDefinition FeaturePhysics::GetFeatureDefinition()

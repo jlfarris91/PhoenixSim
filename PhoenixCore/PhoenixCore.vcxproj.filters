@@ -21,7 +21,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Public\Color.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Containers\FixedArray.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Containers\FixedMap.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>
     <ClInclude Include="Public\Containers\FixedQueue.h">
@@ -29,6 +35,9 @@
     </ClInclude>
     <ClInclude Include="Public\Containers\FixedSet.h">
       <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Debug.h">
+      <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\FixedPoint\FixedCordic.h">
       <Filter>Public\FixedPoint</Filter>
@@ -63,13 +72,22 @@
     <ClInclude Include="Public\Hashing.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\Mesh\Mesh.h">
+    <ClInclude Include="Public\Mesh\Mesh2.h">
+      <Filter>Public\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Mesh\Mesh2.inl">
+      <Filter>Public\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Mesh\MeshPath.h">
       <Filter>Public\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="Public\MortonCode.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\Name.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Optional.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\PhoenixCore.h">
@@ -80,6 +98,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Private\Color.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
     <ClCompile Include="Private\FixedPoint\FixedMath.cpp">
       <Filter>Private\FixedPoint</Filter>
     </ClCompile>

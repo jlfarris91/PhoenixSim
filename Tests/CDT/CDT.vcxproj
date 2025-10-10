@@ -105,15 +105,15 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CDT.cpp" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\PhoenixCore\PhoenixCore.vcxproj">
       <Project>{E943B105-55F9-29FB-DEED-23D24AA220FF}</Project>
     </ProjectReference>
     <ProjectReference Include="..\..\PhoenixSim\PhoenixSim.vcxproj">
       <Project>{492615A3-35DE-56F0-9EE5-2F4C8ABCF1E0}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="CDT.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

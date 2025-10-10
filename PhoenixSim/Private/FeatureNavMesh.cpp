@@ -69,7 +69,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
     const FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
     const NavMesh& mesh = block.DynamicNavMesh;
-    Vec2 cursorPos = state.GetMousePos();
+    Vec2 cursorPos = state.GetWorldMousePos();
 
     if (bDebugDrawVertices)
     {

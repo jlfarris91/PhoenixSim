@@ -18,7 +18,7 @@
     <ClInclude Include="Public\FeatureECS.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\FeaturePathfinding.h">
+    <ClInclude Include="Public\FeatureNavMesh.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\FeaturePhysics.h">
@@ -36,6 +36,9 @@
     <ClInclude Include="Public\Session.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\Utils.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Worlds.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -47,7 +50,7 @@
     <ClCompile Include="Private\FeatureECS.cpp">
       <Filter>Private</Filter>
     </ClCompile>
-    <ClCompile Include="Private\FeaturePathfinding.cpp">
+    <ClCompile Include="Private\FeatureNavMesh.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\FeaturePhysics.cpp">

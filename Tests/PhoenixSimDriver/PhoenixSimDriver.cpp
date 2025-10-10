@@ -20,8 +20,10 @@
 
 #include "Debug.h"
 #include "FeatureNavMesh.h"
+#include "SDLCamera.h"
 #include "SDLDebugRenderer.h"
 #include "SDLDebugState.h"
+#include "SDLViewport.h"
 #include "Mesh/Mesh2.h"
 
 
@@ -54,6 +56,10 @@ uint32 GRendererFPSCounter = 0;
 uint64 GRendererFPSTimer = 0;
 float GRendererFPS = 0.0f;
 
+SDLCamera* GCamera;
+SDLViewport* GViewport;
+TOptional<SDL_FPoint> GCameraDragPos;
+
 Session* GSession;
 bool GSessionThreadWantsExit = false;
 std::thread* GSessionThread = nullptr;
@@ -67,8 +73,8 @@ FeaturePhysicsScratchBlock* GPhysicsScratchBlock = nullptr;
 TMap<uint8, bool> GMouseButtonStates;
 TMap<SDL_Keycode, bool> GKeyStates;
 
-SDLDebugState GDebugState;
-SDLDebugRenderer GDebugRenderer(GRenderer);
+SDLDebugState* GDebugState;
+SDLDebugRenderer* GDebugRenderer;
 
 struct EntityBodyShape
 {
@@ -194,6 +200,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
 
+    GCamera = new SDLCamera();
+    GViewport = new SDLViewport(GWindow, GCamera);
+
+    GDebugState = new SDLDebugState(GViewport);
+    GDebugRenderer = new SDLDebugRenderer(GRenderer, GViewport);
+
     SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
     Action action;
     action.Verb = "set_map_center"_n;
@@ -307,90 +319,61 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (GCurrWorld)
     {
-        Vec2 mapCenter2(GWindowWidth >> 1, GWindowHeight >> 1);
-        GDebugRenderer.Renderer = GRenderer;
-        GDebugRenderer.MapCenter = mapCenter2;
-        GDebugState.MapCenter = mapCenter2;
+        GDebugRenderer->Reset();
+
+        {
+            Vec2 bl = Vec2(Distance::Min, Distance::Min);
+            Vec2 br = Vec2(Distance::Max, Distance::Min);
+            Vec2 tl = Vec2(Distance::Min, Distance::Max);
+            Vec2 tr = Vec2(Distance::Max, Distance::Max);
+            GDebugRenderer->DrawLine(bl, br, Color::Red);
+            GDebugRenderer->DrawLine(br, tr, Color::Red);
+            GDebugRenderer->DrawLine(tr, tl, Color::Red);
+            GDebugRenderer->DrawLine(tl, bl, Color::Red);
+        }
+
+        // {
+        //     auto tl = GViewport->ViewportPosToWorldPos({ 0, 0 });
+        //     auto br = GViewport->ViewportPosToWorldPos({ (float)GWindowWidth, (float)GWindowHeight });
+        //
+        //     auto m = Max(br.X - tl.X, tl.Y - br.Y);
+        //
+        //     Distance step = 1;
+        //     int32 steps = int32(m / step);
+        //
+        //     for (int32 i = -steps; i < steps; ++i)
+        //     {
+        //         Distance x = i * step;
+        //         Distance y = i * step;
+        //         GDebugRenderer->DrawLine(Vec2(x, Distance::Min), Vec2(x, Distance::Max), Color(30, 30, 30));
+        //         GDebugRenderer->DrawLine(Vec2(Distance::Min, y), Vec2(Distance::Max, y), Color(30, 30, 30));
+        //     }
+        // }
 
         TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
         for (const auto& feature : channelFeatures)
         {
-            feature->OnDebugRender(*GCurrWorld, GDebugState, GDebugRenderer);
-        }
-    }
-
-    SDL_SetRenderDrawColor(GRenderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
-
-    for (int32 i = 0; i < ceil(GWindowWidth / 10); ++i)
-    {
-        float x = i * (1 << MortonCodeGridBits);
-        SDL_RenderLine(GRenderer, x, 0, x, GWindowHeight);
-    }
-    
-    for (int32 i = 0; i < ceil(GWindowHeight / 10); ++i)
-    {
-        float y = i * (1 << MortonCodeGridBits);
-        SDL_RenderLine(GRenderer, 0, y, GWindowWidth, y);
-    }
-
-    SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
-
-
-    static TArray<TTuple<uint32, uint32, uint32>> queryCodeColors;
-    if (queryCodeColors.empty())
-    {
-        for (int32 i = 0; i < 1000; ++i)
-        {
-            queryCodeColors.emplace_back(rand() % 255, rand() % 255, rand() % 255);
+            feature->OnDebugRender(*GCurrWorld, *GDebugState, *GDebugRenderer);
         }
     }
 
     SDL_SetRenderDrawColor(GRenderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
-
-    if (GPhysicsScratchBlock)
-    {
-        for (const CollisionLine& collisionLine : GPhysicsScratchBlock->CollisionLines)
-        {
-            SDL_RenderLine(GRenderer,
-                (float)mapCenter.X + (float)collisionLine.Line.Start.X,
-                (float)mapCenter.Y + (float)collisionLine.Line.Start.Y,
-                (float)mapCenter.X + (float)collisionLine.Line.End.X,
-                (float)mapCenter.Y + (float)collisionLine.Line.End.Y);
-
-            // Vec2 v = Line2::VectorToLine(collisionLine.Line, Vec2(mx, my));
-            // int32 vX = (int32)v.X;
-            // int32 vY = (int32)v.Y;
-            // SDL_RenderLine(GRenderer, mx, my, mx + vX, my + vY);
-        }
-
-        // for (const Contact& contact : GPhysicsScratchBlock->Contacts)
-        // {
-        //     Vec2 v = contact.Normal * contact.Bias;
-        //     Vec2 s = contact.TransformA->Transform.Position;
-        //     Vec2 e = s + v;
-        //     SDL_RenderLine(GRenderer, s.X, s.Y, e.X, e.Y);
-        // }
-    }
 
     for (const EntityBodyShape& entityBodyShape : GEntityBodies)
     {
-        SDL_SetRenderDrawColor(GRenderer, entityBodyShape.Color.r, entityBodyShape.Color.g, entityBodyShape.Color.b, SDL_ALPHA_OPAQUE);
-
         Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
         Vec2 pt2 = pt1.Rotate(Deg2Rad(-135));
         Vec2 pt3 = pt1.Rotate(Deg2Rad(135));
 
         Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
-        pt1 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt1);
-        pt2 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt2);
-        pt3 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt3);
+        pt1 = entityBodyShape.Transform.Position + transform.RotateVector(pt1);
+        pt2 = entityBodyShape.Transform.Position + transform.RotateVector(pt2);
+        pt3 = entityBodyShape.Transform.Position + transform.RotateVector(pt3);
 
-        SDL_FPoint points[4];
-        points[0] = { (float)pt1.X, (float)pt1.Y };
-        points[1] = { (float)pt2.X, (float)pt2.Y };
-        points[2] = { (float)pt3.X, (float)pt3.Y };
-        points[3] = { (float)pt1.X, (float)pt1.Y };
-        SDL_RenderLines(GRenderer, points, 4);
+        Vec2 points[4] = { pt1, pt2, pt3, pt1 };
+
+        Color color(entityBodyShape.Color.r, entityBodyShape.Color.g, entityBodyShape.Color.b);
+        GDebugRenderer->DrawLines(points, 4, color);
     }
 
     // Render some debug text for each body
@@ -451,7 +434,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     RenderDebugText("Sim: %.2f", GSessionFPS)
     RenderDebugText("Bodies: %llu", GEntityBodies.size())
 
-    RenderDebugText("%.0f, %.0f", mx, my)
+    RenderDebugText("VP: %.2f, %.2f", mx, my)
+
+    Vec2 mouseWorldPos = GViewport->ViewportPosToWorldPos({mx, my});
+    RenderDebugText("WP: %.2f, %.2f", (float)mouseWorldPos.X, (float)mouseWorldPos.Y);
+    RenderDebugText("CP: %.2f, %.2f", (float)GCamera->Position.X, (float)GCamera->Position.Y);
+    RenderDebugText("Zoom: %.2f", (float)GCamera->Zoom);
 
     if (GPhysicsScratchBlock)
     {
@@ -598,19 +586,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
 
-    if (GMouseButtonStates.contains(SDL_BUTTON_RIGHT) && GMouseButtonStates[SDL_BUTTON_RIGHT])
-    {
-        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
-    }
-
     if (GKeyStates.contains(SDLK_X) && GKeyStates[SDLK_X])
     {
-        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+        GDebugRenderer->DrawCircle(mouseWorldPos, 64.0f, Color::White);
     }
 
     if (GKeyStates.contains(SDLK_F) && GKeyStates[SDLK_F])
     {
-        SDL_RenderCircle(GRenderer, mx, my, 64.0f);
+        GDebugRenderer->DrawCircle(mouseWorldPos, 64.0f, Color::White);
     }
 
     SDL_RenderPresent(GRenderer);  /* put it all on the screen! */
@@ -626,8 +609,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         return SDL_APP_SUCCESS;
     }
 
-    auto mapCenterX = 0; //GWindowWidth >> 1;
-    auto mapCenterY = 0; //GWindowHeight >> 1;
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
+
+    SDL_FPoint mouseWindowPos = { mx, my };
+
+    Vec2 mouseWorldPos = GViewport->ViewportPosToWorldPos(mouseWindowPos);
 
     if (event->type == SDL_EVENT_WINDOW_RESIZED)
     {
@@ -647,8 +634,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.x - mapCenterX;
-            action.Data[2].Distance = mousePos.y - mapCenterY;
+            action.Data[1].Distance = mouseWorldPos.X;
+            action.Data[2].Distance = mouseWorldPos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
             action.Data[4].UInt32 = 1;
             GSession->QueueAction(action);
@@ -660,8 +647,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             Action action;
             action.Verb = "spawn_entity"_n;
             action.Data[0].Name = "Unit"_n;
-            action.Data[1].Distance = mousePos.x - mapCenterX;
-            action.Data[2].Distance = mousePos.y - mapCenterY;
+            action.Data[1].Distance = mouseWorldPos.X;
+            action.Data[2].Distance = mouseWorldPos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
             action.Data[4].UInt32 = 1;
             action.Data[5].Speed = 10;
@@ -673,8 +660,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "push_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.x - mapCenterX;
-            action.Data[1].Distance = mousePos.y - mapCenterY;
+            action.Data[0].Distance = mouseWorldPos.X;
+            action.Data[1].Distance = mouseWorldPos.Y;
             action.Data[2].Distance = 64.0f;
             action.Data[3].Value = 10000.0f;
             GSession->QueueAction(action);
@@ -685,20 +672,47 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         {
             Action action;
             action.Verb = "release_entities_in_range"_n;
-            action.Data[0].Distance = mousePos.x - mapCenterX;
-            action.Data[1].Distance = mousePos.y - mapCenterY;
+            action.Data[0].Distance = mouseWorldPos.X;
+            action.Data[1].Distance = mouseWorldPos.Y;
             action.Data[2].Distance = 64.0f;
             GSession->QueueAction(action);
+        }
+
+        if (GCameraDragPos.IsSet())
+        {
+            Vec2 lastMouseWorldPos = GViewport->ViewportPosToWorldPos(*GCameraDragPos);
+            Vec2 mouseDelta = mouseWorldPos - lastMouseWorldPos;
+            GCamera->Position -= mouseDelta;
+            GCameraDragPos = mousePos;
         }
     };
 
     if (event->type == SDL_EVENT_KEY_DOWN)
     {
         GKeyStates[event->key.key] = true;
+        onMouseDownOrMoved(mouseWindowPos);
 
-        SDL_FPoint mousePos;
-        SDL_GetMouseState(&mousePos.x, &mousePos.y);
-        onMouseDownOrMoved(mousePos);
+        const float CameraSpeed = 100.0f;
+
+        if (event->key.key == SDLK_LEFT)
+        {
+            GCamera->Position.X -= CameraSpeed;
+        }
+
+        if (event->key.key == SDLK_RIGHT)
+        {
+            GCamera->Position.X += CameraSpeed;
+        }
+
+        if (event->key.key == SDLK_UP)
+        {
+            GCamera->Position.Y += CameraSpeed;
+        }
+
+        if (event->key.key == SDLK_DOWN)
+        {
+            GCamera->Position.Y -= CameraSpeed;
+        }
     }
 
     if (event->type == SDL_EVENT_KEY_UP)
@@ -710,20 +724,36 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         GMouseButtonStates[event->button.button] = true;
 
-        SDL_FPoint mousePos = { event->button.x, event->button.y };
-        onMouseDownOrMoved(mousePos);
+        if (event->button.button == SDL_BUTTON_RIGHT)
+        {
+            GCameraDragPos = mouseWindowPos;
+        }
+
+        onMouseDownOrMoved(mouseWindowPos);
     }
 
     if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
     {
         GMouseButtonStates[event->button.button] = false;
+
+        if (event->button.button == SDL_BUTTON_RIGHT)
+        {
+            GCameraDragPos.Reset();
+        }
     }
 
     if (event->type == SDL_EVENT_MOUSE_MOTION)
     {
-        SDL_FPoint mousePos = { event->button.x, event->button.y };
-        onMouseDownOrMoved(mousePos);
+        onMouseDownOrMoved(mouseWindowPos);
     }
+
+    if (event->type == SDL_EVENT_MOUSE_WHEEL)
+    {
+        float zoomScale = 1.0f + (float)event->wheel.integer_y * 0.1f;
+        GViewport->Camera->Zoom = Max(GViewport->Camera->Zoom * zoomScale, 0.01);
+    }
+
+    GDebugState->ProcessAppEvent(appstate, event);
 
     return SDL_APP_CONTINUE;
 }

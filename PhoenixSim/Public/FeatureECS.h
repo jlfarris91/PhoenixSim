@@ -141,6 +141,8 @@ namespace Phoenix
             virtual void OnPreHandleAction(WorldRef world, const SystemActionArgs& args) {}
             virtual void OnHandleAction(WorldRef world, const SystemActionArgs& args) {}
             virtual void OnPostHandleAction(WorldRef world, const SystemActionArgs& args) {}
+
+            virtual void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) {}
         };
 
         struct PHOENIXSIM_API FeatureECSDynamicBlock
@@ -168,7 +170,7 @@ namespace Phoenix
 
         struct PHOENIXSIM_API FeatureECSScratchBlock
         {
-            DECLARE_WORLD_BLOCK_SCRATCH(FeatureECSDynamicBlock)
+            DECLARE_WORLD_BLOCK_SCRATCH(FeatureECSScratchBlock)
 
             EntityComponentsContainer<TransformComponent> EntityTransforms;
             TFixedArray<EntityTransform, ECS_MAX_ENTITIES> SortedEntities;
@@ -193,8 +195,10 @@ namespace Phoenix
             void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
-            
+
             void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
+
+            void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
 
             static bool IsEntityValid(WorldConstRef world, EntityId entityId);
 

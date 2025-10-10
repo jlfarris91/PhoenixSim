@@ -4,6 +4,8 @@
 #include "Worlds.h"
 
 // REMOVE ME!
+#include "Color.h"
+#include "Debug.h"
 #include "FeaturePhysics.h"
 #include "FeatureTrace.h"
 #include "Flags.h"
@@ -29,30 +31,16 @@ FeatureECS::FeatureECS()
 {
     FeatureDefinition.Name = StaticName;
 
-    // Dynamic block
-    {
-        WorldBufferBlockArgs blockArgs;
-        blockArgs.Name = FeatureECSDynamicBlock::StaticName;
-        blockArgs.Size = sizeof(FeatureECSDynamicBlock);
-        blockArgs.BlockType = EWorldBufferBlockType::Dynamic;
-        FeatureDefinition.Blocks.push_back(blockArgs);
-    }
+    FeatureDefinition.RegisterBlock<FeatureECSDynamicBlock>();
+    FeatureDefinition.RegisterBlock<FeatureECSScratchBlock>();
 
-    // Scratch block
-    {
-        WorldBufferBlockArgs blockArgs;
-        blockArgs.Name = FeatureECSScratchBlock::StaticName;
-        blockArgs.Size = sizeof(FeatureECSScratchBlock);
-        blockArgs.BlockType = EWorldBufferBlockType::Scratch;
-        FeatureDefinition.Blocks.push_back(blockArgs);
-    }
-
-    FeatureDefinition.Channels.emplace_back(WorldChannels::PreUpdate, FeatureInsertPosition::Default);
-    FeatureDefinition.Channels.emplace_back(WorldChannels::Update, FeatureInsertPosition::Default);
-    FeatureDefinition.Channels.emplace_back(WorldChannels::PostUpdate, FeatureInsertPosition::Default);
-    FeatureDefinition.Channels.emplace_back(WorldChannels::PreHandleAction, FeatureInsertPosition::Default);
-    FeatureDefinition.Channels.emplace_back(WorldChannels::HandleAction, FeatureInsertPosition::Default);
-    FeatureDefinition.Channels.emplace_back(WorldChannels::PostHandleAction, FeatureInsertPosition::Default);
+    FeatureDefinition.RegisterChannel(WorldChannels::PreUpdate);
+    FeatureDefinition.RegisterChannel(WorldChannels::Update);
+    FeatureDefinition.RegisterChannel(WorldChannels::PostUpdate);
+    FeatureDefinition.RegisterChannel(WorldChannels::PreHandleAction);
+    FeatureDefinition.RegisterChannel(WorldChannels::HandleAction);
+    FeatureDefinition.RegisterChannel(WorldChannels::PostHandleAction);
+    FeatureDefinition.RegisterChannel(WorldChannels::DebugRender);
 }
 
 FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
@@ -129,7 +117,7 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
 
             Physics::BodyComponent* bodyComp = AddComponent<Physics::BodyComponent>(world, entityId);
             bodyComp->CollisionMask = 1;
-            bodyComp->Radius = 16;
+            bodyComp->Radius = 1;
             bodyComp->InvMass = OneDivBy<Value>(1.0f);
             bodyComp->LinearDamping = 5.f;
             SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
@@ -140,6 +128,42 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
                 moveComp->Speed = action.Action.Data[5].Speed;
             }
         }
+    }
+
+    SystemActionArgs systemActionArgs;
+    systemActionArgs.SimTime = action.SimTime;
+    systemActionArgs.Action = action.Action;
+
+    for (const TSharedPtr<ISystem>& system : Systems)
+    {
+        ScopedTrace trace(world, "SysHandleAction"_n, system->GetName());
+        system->OnHandleAction(world, systemActionArgs);
+    }
+}
+
+void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
+{
+    IFeature::OnDebugRender(world, state, renderer);
+
+    // Render morton code boundaries
+    {
+        TVec2<Value> viewportSize(Distance::Max, Distance::Max);
+
+        Distance step = (1 << MortonCodeGridBits);
+        uint32 steps = (uint32)(Distance::Max / step);
+
+        for (uint32 i = 0; i < steps; ++i)
+        {
+            Distance x = i * step;
+            renderer.DrawLine(Vec2(x, 0), Vec2(x, viewportSize.Y), Color(30, 30, 30));
+            Distance y = i * step;
+            renderer.DrawLine(Vec2(0, y), Vec2(viewportSize.X, y), Color(30, 30, 30));
+        }
+    }
+
+    for (const TSharedPtr<ISystem>& system : Systems)
+    {
+        system->OnDebugRender(world, state, renderer);
     }
 }
 
@@ -157,6 +181,8 @@ Entity* FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
+    if (!block.Entities.IsValidIndex(index))
+        return nullptr;
     Entity& entity = block.Entities[index];
     return entity.Id == entityId ? &entity : nullptr;
 }
@@ -165,6 +191,8 @@ const Entity* FeatureECS::GetEntityPtr(WorldConstRef world, EntityId entityId)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
+    if (!block.Entities.IsValidIndex(index))
+        return nullptr;
     const Entity& entity = block.Entities[index];
     return entity.Id == entityId ? &entity : nullptr;
 }
@@ -190,7 +218,7 @@ EntityId FeatureECS::AcquireEntity(WorldRef world, FName kind)
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
     // Find the first invalid entity index
-    uint16 entityIdx = 1;
+    uint32 entityIdx = 1;
     for (; entityIdx < ECS_MAX_ENTITIES; ++entityIdx)
     {
         if (block.Entities[entityIdx].Id == EntityId::Invalid)

@@ -98,15 +98,15 @@ project "PhoenixSimDriver"
    language "C++"
    cppdialect "C++20"
    staticruntime "on"
-   location "../PhoenixSimDriver"
+   location "../Tests/PhoenixSimDriver"
    
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
 
    files {
-      "../PhoenixSimDriver/**.h",
-      "../PhoenixSimDriver/**.inl",
-      "../PhoenixSimDriver/**.cpp"
+      "../Tests/PhoenixSimDriver/**.h",
+      "../Tests/PhoenixSimDriver/**.inl",
+      "../Tests/PhoenixSimDriver/**.cpp"
    }
 
    includedirs {
@@ -162,9 +162,9 @@ project "CDT"
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
 
    files {
-      "../CDT/**.h",
-      "../CDT/**.inl",
-      "../CDT/**.cpp"
+      "../Tests/CDT/**.h",
+      "../Tests/CDT/**.inl",
+      "../Tests/CDT/**.cpp"
    }
 
    includedirs {

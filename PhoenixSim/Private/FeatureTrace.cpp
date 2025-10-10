@@ -5,13 +5,8 @@ using namespace Phoenix;
 
 FeatureTrace::FeatureTrace()
 {
-    WorldBufferBlockArgs blockArgs;
-    blockArgs.Name = FeatureTraceScratchBlock::StaticName;
-    blockArgs.Size = sizeof(FeatureTraceScratchBlock);
-    blockArgs.BlockType = EWorldBufferBlockType::Scratch;
-
     FeatureDefinition.Name = StaticName;
-    FeatureDefinition.Blocks.push_back(blockArgs);
+    FeatureDefinition.RegisterBlock<FeatureTraceScratchBlock>();
 }
 
 FeatureDefinition FeatureTrace::GetFeatureDefinition()

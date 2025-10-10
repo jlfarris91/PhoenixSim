@@ -80,5 +80,5 @@ void Phoenix::MortonCodeQuery(const MortonCodeAABB& query, TMortonCodeRangeArray
     if (gridBits == 0 || gridBits > 32) return;
 
     // start at root: cell covering [0, 2^B - 1]
-    PhoenixMortonCodeImpl::MortonCodeQuery(query, outRanges, 0u, 0u, gridBits);
+    PhoenixMortonCodeImpl::MortonCodeQuery(query, outRanges, 0u, 0u, 31);
 }
