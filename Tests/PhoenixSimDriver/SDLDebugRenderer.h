@@ -28,6 +28,8 @@ namespace Phoenix
 
         void DrawLines(const Vec2* points, size_t num, const Color& color) override;
 
+        void DrawRect(const Vec2& min, const Vec2& max, const Color& color) override;
+
         void DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color) override;
 
         void PushScale(float scale);

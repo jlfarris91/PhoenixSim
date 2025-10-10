@@ -77,6 +77,18 @@ void SDLDebugRenderer::DrawLines(const Vec2* points, size_t num, const Color& co
     }
 }
 
+void SDLDebugRenderer::DrawRect(const Vec2& min, const Vec2& max, const Color& color)
+{
+    Vec2 points[4] =
+    {
+        { min.X, min.Y },
+        { max.X, min.Y },
+        { max.X, max.Y },
+        { min.X, max.Y }
+    };
+    DrawLines(points, 4, color);
+}
+
 void SDLDebugRenderer::DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color)
 {
     SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt);

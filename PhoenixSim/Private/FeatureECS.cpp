@@ -163,6 +163,22 @@ void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, ID
         }
     }
 
+    if (bDebugDrawEntityZCodes)
+    {
+        const FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
+        for (const auto& entityTransform : scratchBlock.SortedEntities)
+        {
+            Vec2 pt = entityTransform.TransformComponent->Transform.Position + Vec2::YAxis;
+
+            uint8 quad = GetMortonCodeQuad(entityTransform.ZCode);
+            uint64 zcode = GetMortonCodeValue(entityTransform.ZCode);
+
+            char zcodeStr[256] = { '\0' };
+            sprintf_s(zcodeStr, _countof(zcodeStr), "%u:%llu", quad, zcode);
+            renderer.DrawDebugText(pt, zcodeStr, _countof(zcodeStr), Color::White);
+        }
+    }
+
     for (const TSharedPtr<ISystem>& system : Systems)
     {
         system->OnDebugRender(world, state, renderer);
@@ -648,9 +664,7 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
     scratchBlock.SortedEntities.Reset();
     for (auto && [entity, transformComp] : scratchBlock.EntityTransforms)
     {
-        uint32 x = (uint32)transformComp->Transform.Position.X >> MortonCodeGridBits;
-        uint32 y = (uint32)transformComp->Transform.Position.Y >> MortonCodeGridBits;
-        transformComp->ZCode = MortonCode(x, y);
+        transformComp->ZCode = ToMortonCode(transformComp->Transform.Position);
         scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, transformComp->ZCode);
     }
 }

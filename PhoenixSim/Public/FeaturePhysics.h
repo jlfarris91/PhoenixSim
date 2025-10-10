@@ -65,6 +65,8 @@ namespace Phoenix
             void OnPreUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
+
+            bool bAllowSleep = false;
         };
 
         struct EntityBody

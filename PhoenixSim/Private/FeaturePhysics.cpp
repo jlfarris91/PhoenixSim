@@ -316,20 +316,23 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                bool isMoving = bodyComp->LinearVelocity.Length() > Distance(1E-1);
-                if (isMoving)
+                if (bAllowSleep)
                 {
-                    bodyComp->SleepTimer = SLEEP_TIMER;
-                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
-                }
-                else if (bodyComp->SleepTimer > 0)
-                {
-                    --bodyComp->SleepTimer;
-                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
-                }
-                else
-                {
-                    SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, false);
+                    bool isMoving = bodyComp->LinearVelocity.Length() > Distance(1E-1);
+                    if (isMoving)
+                    {
+                        bodyComp->SleepTimer = SLEEP_TIMER;
+                        SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
+                    }
+                    else if (bodyComp->SleepTimer > 0)
+                    {
+                        --bodyComp->SleepTimer;
+                        SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
+                    }
+                    else
+                    {
+                        SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, false);
+                    }
                 }
                 
                 transformComp->Transform.Position += bodyComp->LinearVelocity * dt;

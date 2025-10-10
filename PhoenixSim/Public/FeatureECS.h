@@ -345,6 +345,7 @@ namespace Phoenix
             TArray<TSharedPtr<ISystem>> Systems;
             FeatureDefinition FeatureDefinition;
             bool bDebugDrawMortonCodeBoundaries = false;
+            bool bDebugDrawEntityZCodes = true;
         };
 
         template <class ... TComponents>

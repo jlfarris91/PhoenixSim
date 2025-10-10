@@ -239,9 +239,14 @@ void DrawGrid()
     auto tl = GViewport->ViewportPosToWorldPos({ 0, 0 });
     auto br = GViewport->ViewportPosToWorldPos({ (float)GWindowWidth, (float)GWindowHeight });
 
+    tl.X = Clamp(tl.X, Distance::Min, Distance::Max);
+    tl.Y = Clamp(tl.Y, Distance::Min, Distance::Max);
+    br.X = Clamp(br.X, Distance::Min, Distance::Max);
+    br.Y = Clamp(br.Y, Distance::Min, Distance::Max);
+
     auto m = Max((float)br.X - (float)tl.X, (float)tl.Y - (float)br.Y);
 
-    int32 step = 1;
+    int32 step = 1 << MortonCodeGridBits;
 
     while (GViewport->WorldVecToViewportVec(Vec2(step, 0)).x <= 10)
     {
@@ -377,6 +382,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     float mx, my;
     SDL_GetMouseState(&mx, &my);
 
+    Vec2 mouseWorldPos = GViewport->ViewportPosToWorldPos({mx, my});
+
     SDL_GetWindowSizeInPixels(GWindow, &GWindowWidth, &GWindowHeight);
 
     /* as you can see from this, rendering draws over whatever was drawn before it. */
@@ -442,35 +449,40 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         GDebugRenderer->DrawLines(points, 4, color);
     }
 
-    // Render some debug text for each body
-    if (0)
+    const Distance radius = 10.0;
+    const Vec2 queryPos = mouseWorldPos;
+    // const Vec2 queryPos = Vec2(0, 0);
+    
+    if (GCurrWorld)
     {
-        constexpr float scale = 2.0f;
-        SDL_SetRenderDrawColor(GRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-        SDL_SetRenderScale(GRenderer, scale, scale);
-    
-        for (const EntityBodyShape& entityBodyShape : GEntityBodies)
+        TMortonCodeRangeArray ranges;
+        MortonCodeAABB aabb = ToMortonCodeAABB(queryPos, radius);
+        MortonCodeQuery(aabb, ranges);
+
+        Vec2 min = queryPos - Vec2(radius);
+        Vec2 max = queryPos + Vec2(radius);
+        GDebugRenderer->DrawRect(min, max, Color::Green);
+
+        Distance step = (1 << MortonCodeGridBits) >> 1;
+
+        for (auto && [rangeMin, rangeMax] : ranges)
         {
-            Vec2 pt1 = Vec2::XAxis * entityBodyShape.Radius;
-            Transform2D transform(Vec2::Zero, entityBodyShape.Transform.Rotation, 1.0f);
-            pt1 = mapCenter + entityBodyShape.Transform.Position + transform.RotateVector(pt1);
-    
-            char zcodeStr[256] = { '\0' };
-            sprintf_s(zcodeStr, _countof(zcodeStr), "%llu", entityBodyShape.ZCode);
-            SDL_RenderDebugText(GRenderer, (float)pt1.X / scale, (float)pt1.Y / scale, zcodeStr);
+            if (rangeMin != rangeMax)
+            {
+                for (auto r = rangeMin; r < rangeMax; ++r)
+                {
+                    Vec2 a = FromMortonCode(r) + step;
+                    Vec2 b = FromMortonCode(r + 1) + step;
+                    GDebugRenderer->DrawLine(a, b, Color::Green);
+                }
+            }
+            else
+            {
+                Vec2 pt = FromMortonCode(rangeMin) + step;
+                GDebugRenderer->DrawCircle(pt, 2.0f, Color::Green);
+            }
         }
-    
-        SDL_SetRenderScale(GRenderer, 1.0f, 1.0f);
     }
-    
-    /* top right quarter of the window. */
-    // SDL_Rect viewport;
-    // viewport.x = 0;
-    // viewport.y = 0;
-    // viewport.w = windowWidth;
-    // viewport.h = windowHeight;
-    // SDL_SetRenderViewport(renderer, &viewport);
-    // SDL_SetRenderClipRect(renderer, &viewport);
 
     ++GRendererFPSCounter;
     Uint64 currTicks = SDL_GetTicks();
@@ -502,7 +514,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     RenderDebugText("VP: %.2f, %.2f", mx, my)
 
-    Vec2 mouseWorldPos = GViewport->ViewportPosToWorldPos({mx, my});
     RenderDebugText("WP: %.2f, %.2f", (float)mouseWorldPos.X, (float)mouseWorldPos.Y);
     RenderDebugText("CP: %.2f, %.2f", (float)GCamera->Position.X, (float)GCamera->Position.Y);
     RenderDebugText("Zoom: %.2f", (float)GCamera->Zoom);
@@ -513,6 +524,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         RenderDebugText("Num Iterations: %llu", GPhysicsScratchBlock->NumIterations)
         RenderDebugText("Max Query Bodies: %llu", GPhysicsScratchBlock->MaxQueryBodyCount)
         RenderDebugText("Num Contacts: %llu", GPhysicsScratchBlock->Contacts.Num())
+    }
+    
+    if (GCurrWorld)
+    {
+        TMortonCodeRangeArray ranges;
+        MortonCodeAABB aabb = ToMortonCodeAABB(queryPos, radius);
+        MortonCodeQuery(aabb, ranges);
+
+        RenderDebugText("ZQ: (%i, %i) (%i, %i)", aabb.MinX, aabb.MinY, aabb.MaxX, aabb.MaxY)
+
+        for (auto && [rangeMin, rangeMax] : ranges)
+        {
+            uint8 minQuad = GetMortonCodeQuad(rangeMin);
+            uint64 minZCode = GetMortonCodeValue(rangeMin);
+            uint8 maxQuad = GetMortonCodeQuad(rangeMax);
+            uint64 maxZCode = GetMortonCodeValue(rangeMax);
+
+            RenderDebugText(" > %u:%llu, %u:%llu", minQuad, minZCode, maxQuad, maxZCode)
+        }
     }
 
     FeatureTraceScratchBlock& traceBlock = GCurrWorld->GetBlockRef<FeatureTraceScratchBlock>();
@@ -569,7 +599,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         if (traceEvent.Flag == ETraceFlags::Counter)
         {
-            aggEvent->Count += traceEvent.Counter;            
+            aggEvent->Count += traceEvent.Counter;
         }
     }
 
@@ -654,7 +684,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (GKeyStates.contains(SDLK_X) && GKeyStates[SDLK_X])
     {
-        GDebugRenderer->DrawCircle(mouseWorldPos, 64.0f, Color::White);
+        GDebugRenderer->DrawCircle(mouseWorldPos, 10.0f, Color::White);
     }
 
     if (GKeyStates.contains(SDLK_F) && GKeyStates[SDLK_F])
@@ -703,7 +733,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[1].Distance = mouseWorldPos.X;
             action.Data[2].Distance = mouseWorldPos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
-            action.Data[4].UInt32 = 100;
+            action.Data[4].UInt32 = 1;
             GSession->QueueAction(action);
         }
 
@@ -740,7 +770,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Verb = "release_entities_in_range"_n;
             action.Data[0].Distance = mouseWorldPos.X;
             action.Data[1].Distance = mouseWorldPos.Y;
-            action.Data[2].Distance = 64.0f;
+            action.Data[2].Distance = 10.0f;
             GSession->QueueAction(action);
         }
 

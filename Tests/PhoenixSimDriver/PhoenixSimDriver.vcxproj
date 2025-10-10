@@ -64,7 +64,6 @@
       <AdditionalIncludeDirectories>..\..\PhoenixCore\Public;..\..\PhoenixCore\Public\Containers;..\..\PhoenixCore\Public\FixedPoint;..\..\PhoenixCore\Public\Mesh;..\..\PhoenixSim\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <ExternalWarningLevel>Level3</ExternalWarningLevel>
     </ClCompile>
