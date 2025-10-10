@@ -109,6 +109,8 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
         for (uint32 i = 0; i < action.Action.Data[4].UInt32; ++i)
         {
             EntityId entityId = AcquireEntity(world, action.Action.Data[0].Name);
+            if (entityId == EntityId::Invalid)
+                break;
 
             TransformComponent* transformComp = AddComponent<TransformComponent>(world, entityId);
             transformComp->Transform.Position.X = action.Action.Data[1].Distance;
@@ -145,7 +147,7 @@ void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, ID
 {
     IFeature::OnDebugRender(world, state, renderer);
 
-    // Render morton code boundaries
+    if (bDebugDrawMortonCodeBoundaries)
     {
         TVec2<Value> viewportSize(Distance::Max, Distance::Max);
 

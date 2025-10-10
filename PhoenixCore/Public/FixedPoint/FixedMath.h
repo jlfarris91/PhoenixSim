@@ -65,6 +65,12 @@ namespace Phoenix
         return a > b ? a : b;
     }
 
+    template <class A>
+    constexpr auto Clamp(const A& value, const A& min, const A& max)
+    {
+        return value >= max ? max : value <= min ? min : value;
+    }
+
     template <class T>
     constexpr auto Wrap(T value, T minInclusive, T maxExclusive)
     {

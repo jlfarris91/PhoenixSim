@@ -316,7 +316,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                bool isMoving = bodyComp->LinearVelocity.Length() > Distance::Epsilon;
+                bool isMoving = bodyComp->LinearVelocity.Length() > Distance(1E-1);
                 if (isMoving)
                 {
                     bodyComp->SleepTimer = SLEEP_TIMER;
@@ -387,12 +387,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                     Value correction = 0.01f * pen;
                     contact.TransformA->Transform.Position -= contact.Normal * correction * contact.BodyA->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
                     contact.TransformB->Transform.Position += contact.Normal * correction * contact.BodyB->InvMass / (contact.BodyA->InvMass + contact.BodyB->InvMass);
-            
-                    SetFlagRef(contact.BodyA->Flags, EBodyFlags::Awake, true);
-                    SetFlagRef(contact.BodyB->Flags, EBodyFlags::Awake, true);
-            
-                    contact.BodyA->SleepTimer = SLEEP_TIMER;
-                    contact.BodyB->SleepTimer = SLEEP_TIMER;
                 }
             }
         }

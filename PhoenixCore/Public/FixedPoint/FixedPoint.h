@@ -109,7 +109,13 @@ namespace Phoenix
         static const TFixed Max;
         static const TFixed Step;
 
-        template <class U> static constexpr T ToFixedValue(U v) { return static_cast<T>((int64(v * D))); }
+        template <class U> static constexpr T ToFixedValue(U v)
+        {
+            int64 val = int64(v * D);
+            if (val > (T)QMAX) return (T)QMAX;
+            if (val < (T)QMIN) return (T)QMIN;
+            return static_cast<T>(val);
+        }
         template <class U> static constexpr U FromFixedValue(T v) { return static_cast<U>(v) / D; }
 
         constexpr TFixed() : Value(0){}
@@ -127,6 +133,10 @@ namespace Phoenix
 
         constexpr explicit operator Q32() const { return (Q32)FromFixedValue<double>(Value); }
         constexpr explicit operator Q64() const { return (Q64)FromFixedValue<double>(Value); }
+        constexpr explicit operator int8() const { return (int8)FromFixedValue<double>(Value); }
+        constexpr explicit operator uint8() const { return (uint8)FromFixedValue<double>(Value); }
+        constexpr explicit operator int16() const { return (int16)FromFixedValue<double>(Value); }
+        constexpr explicit operator uint16() const { return (uint16)FromFixedValue<double>(Value); }
         constexpr explicit operator int32() const { return (int32)FromFixedValue<double>(Value); }
         constexpr explicit operator uint32() const { return (uint32)FromFixedValue<double>(Value); }
         constexpr explicit operator int64() const { return (int64)FromFixedValue<double>(Value); }
@@ -139,7 +149,10 @@ namespace Phoenix
         {
             constexpr int64 Td = 1 << Tb;
             constexpr int64 Ud = 1 << Ub;
-            return T(int64(other.Value * Td / Ud));
+            int64 val = int64(other.Value * Td / Ud);
+            if (val > (T)QMAX) return (T)QMAX;
+            if (val < (T)QMIN) return (T)QMIN;
+            return T(val);
         }
 
         T Value;

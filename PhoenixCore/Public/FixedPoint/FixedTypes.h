@@ -6,7 +6,7 @@
 namespace Phoenix
 {
     using Value = TFixed<12>;
-    using Distance = TFixed<16>;
+    using Distance = TFixed<12>;
     using Time = Fixed32_4;
     using DeltaTime = TInvFixed2<Time>;
     using Speed = Fixed32_16;

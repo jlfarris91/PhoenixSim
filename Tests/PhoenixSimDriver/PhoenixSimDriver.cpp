@@ -234,6 +234,88 @@ void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, 
     SDL_RenderLines(renderer, points.data(), segments);
 }
 
+void DrawGrid()
+{
+    auto tl = GViewport->ViewportPosToWorldPos({ 0, 0 });
+    auto br = GViewport->ViewportPosToWorldPos({ (float)GWindowWidth, (float)GWindowHeight });
+
+    auto m = Max((float)br.X - (float)tl.X, (float)tl.Y - (float)br.Y);
+
+    int32 step = 1;
+
+    while (GViewport->WorldVecToViewportVec(Vec2(step, 0)).x <= 10)
+    {
+        step *= 10;
+    }
+
+    float minVisStep = step / 10.0f;
+    float minVisStepAlpha = GViewport->WorldVecToViewportVec(Vec2(minVisStep, 0)).x;
+    minVisStepAlpha = Clamp(minVisStepAlpha / 10.0f, 0.0f, 1.0f);
+
+    int32 steps = int32(m / step);
+
+    m *= 0.5;
+
+    auto minX = (int32)(((float)GCamera->Position.X - m) / step) * step;
+    auto minY = (int32)(((float)GCamera->Position.Y - m) / step) * step;
+
+    auto calculateColor = [minVisStepAlpha, step](int32 s, Color& color)
+    {
+        if (s == 0)
+        {
+            color = Color::White;
+            return;
+        }
+
+        int32 a = s;
+        int32 n = 0;
+        while (a % (step * 10) == 0)
+        {
+            color *= 1.5;
+            a /= 10;
+            n++;
+            if (a == 0)
+                break;
+        }
+
+        if (n == 0)
+        {
+            color.A = uint8(minVisStepAlpha * 255);
+        }
+        else
+        {
+            color.A = 255;
+        }
+    };
+
+    Color color(30, 30, 30);
+
+    int32 a = step;
+    while (a > 1)
+    {
+        a /= 10;
+        color *= 1.5;
+    }
+
+    for (int32 i = 0; i < steps; ++i)
+    {
+        Color colorX = color;
+        Color colorY = color;
+
+        int32 stepX = minX + i * step;
+        calculateColor(stepX, colorX);
+
+        int32 stepY = minY + i * step;
+        calculateColor(stepY, colorY);
+
+        Distance x = stepX;
+        Distance y = stepY;
+
+        GDebugRenderer->DrawLine(Vec2(x, Distance::Min), Vec2(x, Distance::Max), colorX);
+        GDebugRenderer->DrawLine(Vec2(Distance::Min, y), Vec2(Distance::Max, y), colorY);
+    }
+}
+
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     {
@@ -332,23 +414,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             GDebugRenderer->DrawLine(tl, bl, Color::Red);
         }
 
-        // {
-        //     auto tl = GViewport->ViewportPosToWorldPos({ 0, 0 });
-        //     auto br = GViewport->ViewportPosToWorldPos({ (float)GWindowWidth, (float)GWindowHeight });
-        //
-        //     auto m = Max(br.X - tl.X, tl.Y - br.Y);
-        //
-        //     Distance step = 1;
-        //     int32 steps = int32(m / step);
-        //
-        //     for (int32 i = -steps; i < steps; ++i)
-        //     {
-        //         Distance x = i * step;
-        //         Distance y = i * step;
-        //         GDebugRenderer->DrawLine(Vec2(x, Distance::Min), Vec2(x, Distance::Max), Color(30, 30, 30));
-        //         GDebugRenderer->DrawLine(Vec2(Distance::Min, y), Vec2(Distance::Max, y), Color(30, 30, 30));
-        //     }
-        // }
+        DrawGrid();
 
         TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
         for (const auto& feature : channelFeatures)
@@ -637,7 +703,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[1].Distance = mouseWorldPos.X;
             action.Data[2].Distance = mouseWorldPos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
-            action.Data[4].UInt32 = 1;
+            action.Data[4].UInt32 = 100;
             GSession->QueueAction(action);
         }
 
@@ -663,7 +729,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
             action.Data[0].Distance = mouseWorldPos.X;
             action.Data[1].Distance = mouseWorldPos.Y;
             action.Data[2].Distance = 64.0f;
-            action.Data[3].Value = 10000.0f;
+            action.Data[3].Value = 1000.0f;
             GSession->QueueAction(action);
         }
 
@@ -750,7 +816,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_MOUSE_WHEEL)
     {
         float zoomScale = 1.0f + (float)event->wheel.integer_y * 0.1f;
-        GViewport->Camera->Zoom = Max(GViewport->Camera->Zoom * zoomScale, 0.01);
+        GViewport->Camera->Zoom = Max(GViewport->Camera->Zoom * zoomScale, 0.001);
     }
 
     GDebugState->ProcessAppEvent(appstate, event);

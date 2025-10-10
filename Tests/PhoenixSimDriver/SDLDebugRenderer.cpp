@@ -37,7 +37,7 @@ SDLDebugRenderer::SDLDebugRenderer(SDL_Renderer* renderer, SDLViewport* viewport
 {
     for (Color& color : Colors)
     {
-        color = Color(rand() % 255, rand() % 255, rand() % 255);
+        color = Color(rand() % 255, rand() % 255, rand() % 255, 255);
     }
 }
 
@@ -45,13 +45,14 @@ void SDLDebugRenderer::Reset()
 {
     ScaleStack.clear();
     // PushScale(Viewport->Camera->Zoom);
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_BLEND);
 }
 
 void SDLDebugRenderer::DrawCircle(const Vec2& pt, Distance radius, const Color& color, int32 segments)
 {
     SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt);
     SDL_FPoint sdlRadius = Viewport->WorldVecToViewportVec(Vec2(radius, 0));
-    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDLDebugRenderer_Private::SDL_RenderCircle(Renderer, sdlPt.x, sdlPt.y, sdlRadius.x, segments);
 }
 
@@ -59,7 +60,7 @@ void SDLDebugRenderer::DrawLine(const Vec2& pt0, const Vec2& pt1, const Color& c
 {
     SDL_FPoint sdlPt0 = Viewport->WorldPosToViewportPos(pt0);
     SDL_FPoint sdlPt1 = Viewport->WorldPosToViewportPos(pt1);
-    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDL_RenderLine(Renderer, sdlPt0.x, sdlPt0.y, sdlPt1.x, sdlPt1.y);
 }
 
@@ -79,7 +80,7 @@ void SDLDebugRenderer::DrawLines(const Vec2* points, size_t num, const Color& co
 void SDLDebugRenderer::DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color)
 {
     SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt);
-    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDL_RenderDebugText(Renderer, sdlPt.x, sdlPt.y, str);
 }
 

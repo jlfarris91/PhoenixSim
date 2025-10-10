@@ -241,11 +241,11 @@ namespace Phoenix
         constexpr int64 Ud = 1 << Ub;
         if constexpr (Tb < Ub)
         {
-            return TFixed<Ub, U>(Q64(int64(lhs.Value) * Ud / Td + rhs.Value));
+            return TFixed<Ub, int64>(Q64(int64(lhs.Value) * Ud / Td + rhs.Value));
         }
         else
         {
-            return TFixed<Tb, T>(Q64(lhs.Value + int64(rhs.Value) * Td / Ud));
+            return TFixed<Tb, int64>(Q64(lhs.Value + int64(rhs.Value) * Td / Ud));
         }
     }
 
