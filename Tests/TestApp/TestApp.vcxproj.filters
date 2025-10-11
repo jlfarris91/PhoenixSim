@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="External">
+      <UniqueIdentifier>{089DB854-F469-1360-1D83-010809AF48EE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\imgui">
+      <UniqueIdentifier>{72501853-5E1E-0C59-47B2-7C7F331FE8BD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\imgui\backends">
+      <UniqueIdentifier>{DC6ABC55-48A2-04ED-51AC-6810BD622BE6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\External\imgui\backends\imgui_impl_sdl3.h">
+      <Filter>External\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\backends\imgui_impl_sdlrenderer3.h">
+      <Filter>External\imgui\backends</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imconfig.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imgui.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imgui_internal.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imstb_rectpack.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imstb_textedit.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\External\imgui\imstb_truetype.h">
+      <Filter>External\imgui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\External\imgui\backends\imgui_impl_sdl3.cpp">
+      <Filter>External\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\backends\imgui_impl_sdlrenderer3.cpp">
+      <Filter>External\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\imgui.cpp">
+      <Filter>External\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\imgui_demo.cpp">
+      <Filter>External\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\imgui_draw.cpp">
+      <Filter>External\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\imgui_tables.cpp">
+      <Filter>External\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\External\imgui\imgui_widgets.cpp">
+      <Filter>External\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\External\imgui\.editorconfig">
+      <Filter>External\imgui</Filter>
+    </None>
+    <None Include="..\..\External\imgui\.gitattributes">
+      <Filter>External\imgui</Filter>
+    </None>
+    <None Include="..\..\External\imgui\.gitignore">
+      <Filter>External\imgui</Filter>
+    </None>
+    <None Include="..\..\External\imgui\LICENSE.txt">
+      <Filter>External\imgui</Filter>
+    </None>
+  </ItemGroup>
+</Project>

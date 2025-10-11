@@ -97,7 +97,7 @@ project "PhoenixSimDriver"
    kind "ConsoleApp"
    language "C++"
    cppdialect "C++20"
-   staticruntime "on"
+   staticruntime "off"
    location "../Tests/PhoenixSimDriver"
    
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
@@ -117,7 +117,9 @@ project "PhoenixSimDriver"
    }
 
    externalincludedirs {
-      "../External/"
+      "../External/",
+      "../External/imgui/",
+      "../External/imgui/**"
    }
 
    libdirs {
@@ -155,7 +157,7 @@ project "CDT"
    kind "ConsoleApp"
    language "C++"
    cppdialect "C++20"
-   staticruntime "on"
+   staticruntime "off"
    location "../Tests/CDT"
    
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
@@ -174,6 +176,73 @@ project "CDT"
 
    externalincludedirs {
       "../External/"
+   }
+
+   libdirs {
+      "../External/SDL3/x64/Debug"
+   }
+
+   links {
+      "PhoenixCore",
+      "PhoenixSim",
+      "SDL3"
+   }
+
+   filter "system:windows"
+      systemversion "latest"
+
+   filter "configurations:Debug"
+      defines { "DEBUG" }
+      runtime "Debug"
+      symbols "On"
+
+      postbuildcommands {
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
+      }
+
+   filter "configurations:Release"
+      defines { "NDEBUG" }
+      runtime "Release"
+      optimize "On"
+      
+      postbuildcommands {
+        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
+      }
+
+project "TestApp"
+   kind "ConsoleApp"
+   language "C++"
+   cppdialect "C++20"
+   staticruntime "off"
+   location "../Tests/TestApp"
+   
+   targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+   objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+
+   files {
+      "../Tests/TestApp/**.h",
+      "../Tests/TestApp/**.inl",
+      "../Tests/TestApp/**.cpp",
+
+      "../External/imgui/*",
+      "../External/imgui/backends/imgui_impl_sdl3.h",
+      "../External/imgui/backends/imgui_impl_sdl3.cpp",
+      "../External/imgui/backends/imgui_impl_sdlrenderer3.h",
+      "../External/imgui/backends/imgui_impl_sdlrenderer3.cpp"
+   }
+
+   includedirs {
+      "../PhoenixCore/Public/",
+      "../PhoenixCore/Public/**",
+      "../PhoenixSim/Public/",
+      "../PhoenixSim/Public/**",
+      "../External/imgui/**"
+   }
+
+   externalincludedirs {
+      "../External/",
+      "../External/imgui/",
+      "../External/imgui/**"
    }
 
    libdirs {

@@ -3,18 +3,15 @@
 
 #include <ctime>
 #include <windows.h>
-
-#include "FeatureECS.h"
-#include "Session.h"
-#include "Name.h"
-#include "FeaturePhysics.h"
-#include "MortonCode.h"
-#include "FeatureTrace.h"
-#include "Flags.h"
-#include "FixedPoint/FixedTransform.h"
-
-#define SDL_MAIN_USE_CALLBACKS
 #include <queue>
+
+// IMGUI
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
+
+// SDL3
+#define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL.h>
 
@@ -25,7 +22,14 @@
 #include "SDLDebugState.h"
 #include "SDLViewport.h"
 #include "Mesh/Mesh2.h"
-
+#include "FeatureECS.h"
+#include "Session.h"
+#include "Name.h"
+#include "FeaturePhysics.h"
+#include "MortonCode.h"
+#include "FeatureTrace.h"
+#include "Flags.h"
+#include "FixedPoint/FixedTransform.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -112,46 +116,6 @@ void InitSession()
 
     auto primaryWorld = worldManager->NewWorld("TestWorld"_n);
 
-    // int32 n = 10;
-    // int32 sp = 1 << MortonCodeGridBits;
-    // for (int32 x = 0; x < n; ++x)
-    // {
-    //     for (int32 y = 0; y < n; ++y)
-    //     {
-    //         ECS::EntityId entityId = ecs->AcquireEntity(*primaryWorld, "Unit"_n);
-    //         ECS::BodyComponent* bodyComponent = ecs->AddComponent<ECS::BodyComponent>(*primaryWorld, entityId);
-    //         bodyComponent->CollisionMask = 1;
-    //         bodyComponent->Radius = 12.0f;
-    //         bodyComponent->Transform.Position.X = sp + sp * 0.5 + x * sp;
-    //         bodyComponent->Transform.Position.Y = sp + sp * 0.5 + y * sp;
-    //         // bodyComponent->Transform.Rotation = Vec2::RandUnitVector().AsDegrees();
-    //         // bodyComponent->Mass = (rand() % 1000) / 1000.0f * 1.0f;
-    //     }
-    // }
-
-    for (int32 i = 0; i < 00; ++i)
-    {
-        EntityId entityId = ecsFeature->AcquireEntity(*primaryWorld, "Unit"_n);
-
-        TransformComponent* transformComp = ecsFeature->AddComponent<TransformComponent>(*primaryWorld, entityId);
-        transformComp->Transform.Position.X = 2000;
-        transformComp->Transform.Position.Y = 1000;
-        transformComp->Transform.Rotation = Vec2::RandUnitVector().AsDegrees();
-        
-        BodyComponent* bodyComp = ecsFeature->AddComponent<BodyComponent>(*primaryWorld, entityId);
-        bodyComp->CollisionMask = 1;
-        bodyComp->Radius = 16.0f;
-        // bodyComponent->Mass = (rand() % 1000) / 1000.0f * 1.0f;
-
-        // ECS::EntityId entityId2 = ecs->AcquireEntity(*primaryWorld, "Unit"_n);
-        // ECS::BodyComponent* bodyComponent2 = ecs->AddComponent<ECS::BodyComponent>(*primaryWorld, entityId2);
-        // bodyComponent2->AttachParent = entityId;
-        // bodyComponent2->Movement = ECS::EBodyMovement::Attached;
-        // bodyComponent2->Radius = 6.0f;
-        // bodyComponent2->Transform.Position = Vec2::XAxis * -bodyComponent->Radius;
-        // bodyComponent2->Transform.Rotation = bodyComponent->Transform.Rotation + 180.0f;
-    }
-
     GSessionThread = new std::thread(UpdateSessionWorker);
 }
 
@@ -199,6 +163,28 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+
+    float mainScale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+
+    // Setup scaling
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.ScaleAllSizes(mainScale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
+    style.FontScaleDpi = mainScale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplSDL3_InitForSDLRenderer(GWindow, GRenderer);
+    ImGui_ImplSDLRenderer3_Init(GRenderer);
 
     GCamera = new SDLCamera();
     GViewport = new SDLViewport(GWindow, GCamera);
