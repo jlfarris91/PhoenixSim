@@ -10,6 +10,12 @@
     <Filter Include="External\imgui\backends">
       <UniqueIdentifier>{DC6ABC55-48A2-04ED-51AC-6810BD622BE6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="External\tracy">
+      <UniqueIdentifier>{1A00E253-06CE-D559-EF61-4680DBCEB1BE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDL">
+      <UniqueIdentifier>{081D880B-7426-887C-FDA1-9E7C69AA937C}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\External\imgui\backends\imgui_impl_sdl3.h">
@@ -36,6 +42,18 @@
     <ClInclude Include="..\..\External\imgui\imstb_truetype.h">
       <Filter>External\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="SDL\SDLCamera.h">
+      <Filter>SDL</Filter>
+    </ClInclude>
+    <ClInclude Include="SDL\SDLDebugRenderer.h">
+      <Filter>SDL</Filter>
+    </ClInclude>
+    <ClInclude Include="SDL\SDLDebugState.h">
+      <Filter>SDL</Filter>
+    </ClInclude>
+    <ClInclude Include="SDL\SDLViewport.h">
+      <Filter>SDL</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\External\imgui\backends\imgui_impl_sdl3.cpp">
@@ -59,6 +77,22 @@
     <ClCompile Include="..\..\External\imgui\imgui_widgets.cpp">
       <Filter>External\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\External\tracy\TracyClient.cpp">
+      <Filter>External\tracy</Filter>
+    </ClCompile>
+    <ClCompile Include="SDL\SDLCamera.cpp">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="SDL\SDLDebugRenderer.cpp">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="SDL\SDLDebugState.cpp">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="SDL\SDLViewport.cpp">
+      <Filter>SDL</Filter>
+    </ClCompile>
+    <ClCompile Include="app.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>

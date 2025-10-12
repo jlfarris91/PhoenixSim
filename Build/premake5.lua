@@ -219,6 +219,8 @@ project "TestApp"
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
 
+   defines { "TRACY_ENABLE" }
+
    files {
       "../Tests/TestApp/**.h",
       "../Tests/TestApp/**.inl",
@@ -228,7 +230,9 @@ project "TestApp"
       "../External/imgui/backends/imgui_impl_sdl3.h",
       "../External/imgui/backends/imgui_impl_sdl3.cpp",
       "../External/imgui/backends/imgui_impl_sdlrenderer3.h",
-      "../External/imgui/backends/imgui_impl_sdlrenderer3.cpp"
+      "../External/imgui/backends/imgui_impl_sdlrenderer3.cpp",
+      
+      "../External/tracy/TracyClient.cpp"
    }
 
    includedirs {
@@ -236,7 +240,8 @@ project "TestApp"
       "../PhoenixCore/Public/**",
       "../PhoenixSim/Public/",
       "../PhoenixSim/Public/**",
-      "../External/imgui/**"
+      "../External/imgui/**",
+      "../External/tracy/**"
    }
 
    externalincludedirs {
