@@ -214,6 +214,12 @@ namespace Phoenix
         Action Action;
         FName WorldName = FName::None;
     };
+
+    struct PHOENIXSIM_API WorldDynamicBlock
+    {
+        DECLARE_WORLD_BLOCK_DYNAMIC(WorldDynamicBlock)
+        dt_t SimTime = 0;
+    };
     
     class PHOENIXSIM_API WorldManager
     {

@@ -42,7 +42,7 @@ Vec2 SDLDebugState::GetWorldMousePos() const
     return Viewport->ViewportPosToWorldPos(SDL_FPoint(mx, my));
 }
 
-void SDLDebugState::ProcessAppEvent(void* appstate, SDL_Event* event)
+void SDLDebugState::ProcessAppEvent(SDL_Event* event)
 {
     if (event->type == SDL_EVENT_KEY_DOWN)
     {

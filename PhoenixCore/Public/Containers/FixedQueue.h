@@ -18,7 +18,7 @@ namespace Phoenix
 
         constexpr bool IsFull() const
         {
-            return Num() == N;
+            return Num() == N - 1;
         }
 
         constexpr size_t Num() const

@@ -190,6 +190,8 @@ WorldManager::WorldManager(const WorldManagerCtorArgs& args)
     : FeatureSet(args.FeatureSet)
     , OnPostWorldUpdate(args.OnPostWorldUpdate)
 {
+    WorldBufferCtorArgs.Blocks.emplace_back(WorldDynamicBlock::StaticName, WorldDynamicBlock::StaticType, sizeof(WorldDynamicBlock));
+
     for (const FeatureSharedPtr& feature : FeatureSet->GetFeatures())
     {
         FeatureDefinition worldFeatureDef = feature->GetFeatureDefinition();
@@ -299,6 +301,8 @@ void WorldManager::ShutdownWorld(WorldRef world) const
 
 void WorldManager::UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) const
 {
+    ScopedTrace trace(world, "UpdateWorld"_n);
+
     FeatureTraceScratchBlock& block = world.GetBlockRef<FeatureTraceScratchBlock>();
     block.Events.Reset();
 

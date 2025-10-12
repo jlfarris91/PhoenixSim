@@ -78,6 +78,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
     auto dt = args.DeltaTime;
 
+    FeaturePhysicsDynamicBlock& dynamicBlock = world.GetBlockRef<FeaturePhysicsDynamicBlock>();
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
     TMortonCodeRangeArray ranges;
@@ -316,7 +317,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             }
             else 
             {
-                if (bAllowSleep)
+                if (dynamicBlock.bAllowSleep)
                 {
                     bool isMoving = bodyComp->LinearVelocity.Length() > Distance(1E-1);
                     if (isMoving)
@@ -418,22 +419,14 @@ void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state,
 
 FeaturePhysics::FeaturePhysics()
 {
-    FeatureDefinition.Name = StaticName;
-    FeatureDefinition.RegisterBlock<FeaturePhysicsScratchBlock>();
-    FeatureDefinition.RegisterChannel(WorldChannels::HandleAction);
-}
-
-FeatureDefinition FeaturePhysics::GetFeatureDefinition()
-{
-    return FeatureDefinition;
 }
 
 void FeaturePhysics::Initialize()
 {
-    std::shared_ptr<PhysicsSystem> physicsSystem = std::make_shared<PhysicsSystem>();
+    PhysicsSystem = MakeShared<Physics::PhysicsSystem>();
 
     TSharedPtr<FeatureECS> featureECS = Session->GetFeatureSet()->GetFeature<FeatureECS>();
-    featureECS->RegisterSystem(physicsSystem);
+    featureECS->RegisterSystem(PhysicsSystem);
 }
 
 void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
@@ -464,12 +457,6 @@ void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         Distance range = action.Action.Data[2].Distance;
         Value force = action.Action.Data[3].Distance;
         AddExplosionForceToEntitiesInRange(world, pos, range, force);
-    }
-
-    if (action.Action.Verb == "set_map_center"_n)
-    {
-        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
-        scratchBlock.MapCenter = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
     }
 }
 

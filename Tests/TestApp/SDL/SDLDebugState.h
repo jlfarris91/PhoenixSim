@@ -22,7 +22,7 @@ namespace Phoenix
 
         Vec2 GetWorldMousePos() const override;
 
-        void ProcessAppEvent(void *appstate, SDL_Event* event);
+        void ProcessAppEvent(SDL_Event* event);
 
         SDLViewport* Viewport;
         TMap<uint8, bool> MouseButtonStates;

@@ -3,6 +3,7 @@
 #include <map>
 
 #include "PhoenixSim.h"
+#include "Reflection.h"
 #include "Worlds.h"
 
 namespace Phoenix
@@ -12,9 +13,29 @@ namespace Phoenix
     class Session;
 }
 
-#define DECLARE_FEATURE(feature) \
-    static constexpr FName StaticName = #feature##_n; \
-    virtual FName GetName() const override { return StaticName; }
+#define FEATURE_BEGIN(feature) \
+    public: \
+        using ThisType = feature; \
+        static constexpr FName StaticName = #feature##_n; \
+        virtual FName GetName() const override { return StaticName; } \
+    private: \
+        struct SFeatureDefinition { \
+            static constexpr FName StaticName = #feature##_n; \
+            static constexpr const char* StaticDisplayName = #feature; \
+            static FeatureDefinition Construct() \
+            { \
+                Phoenix::FeatureDefinition definition; \
+                definition.Name = StaticName; \
+                definition.DisplayName = StaticDisplayName; \
+
+#define FEATURE_END(feature) \
+                return definition; \
+            } \
+        }; \
+        const FeatureDefinition& GetFeatureDefinition() override { static FeatureDefinition fd = SFeatureDefinition::Construct(); return fd; }
+
+#define FEATURE_BLOCK(block) definition.RegisterBlock<block>();
+#define FEATURE_CHANNEL(...) definition.RegisterChannel(__VA_ARGS__);
 
 namespace Phoenix
 {
@@ -40,8 +61,8 @@ namespace Phoenix
         virtual ~IFeature() = default;
 
         virtual FName GetName() const;
-        
-        virtual struct FeatureDefinition GetFeatureDefinition();
+
+        virtual const struct FeatureDefinition& GetFeatureDefinition() = 0;
 
         virtual void Initialize();
         virtual void Shutdown();
@@ -102,9 +123,10 @@ namespace Phoenix
         TArray<FeatureSharedPtr> Features;
     };
 
-    struct FeatureDefinition
+    struct FeatureDefinition : StructDescriptor
     {
         FName Name;
+        PHXString DisplayName;
         TArray<WorldBufferBlockArgs> Blocks;
         TArray<FeatureChannelInsertArgs> Channels;
         TArray<FName> DependentFeatures;

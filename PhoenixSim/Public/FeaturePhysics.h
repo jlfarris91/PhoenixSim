@@ -65,8 +65,6 @@ namespace Phoenix
             void OnPreUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
-
-            bool bAllowSleep = false;
         };
 
         struct EntityBody
@@ -87,6 +85,13 @@ namespace Phoenix
             Value EffMass;
             Value Bias;
             Value Impulse;
+        };
+
+        struct PHOENIXSIM_API FeaturePhysicsDynamicBlock
+        {
+            DECLARE_WORLD_BLOCK_SCRATCH(FeaturePhysicsDynamicBlock)
+
+            bool bAllowSleep = false;
         };
 
         struct PHOENIXSIM_API FeaturePhysicsScratchBlock
@@ -110,13 +115,15 @@ namespace Phoenix
 
         class PHOENIXSIM_API FeaturePhysics : public IFeature
         {
+            FEATURE_BEGIN(FeaturePhysics)
+                FEATURE_BLOCK(FeaturePhysicsDynamicBlock)
+                FEATURE_BLOCK(FeaturePhysicsScratchBlock)
+                FEATURE_CHANNEL(WorldChannels::HandleAction)
+            FEATURE_END()
+
         public:
 
-            DECLARE_FEATURE(FeaturePhysics)
-
             FeaturePhysics();
-
-            FeatureDefinition GetFeatureDefinition() override;
 
             void Initialize() override;
 
@@ -130,9 +137,7 @@ namespace Phoenix
                 Distance range,
                 Value force);
 
-        private:
-
-            FeatureDefinition FeatureDefinition;
+            TSharedPtr<PhysicsSystem> PhysicsSystem;
         };
-    }    
+    }
 }

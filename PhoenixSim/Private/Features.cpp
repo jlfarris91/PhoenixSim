@@ -7,11 +7,6 @@ FName IFeature::GetName() const
     return FName::None;
 }
 
-FeatureDefinition IFeature::GetFeatureDefinition()
-{
-    return {};
-}
-
 void IFeature::Initialize()
 {
 }

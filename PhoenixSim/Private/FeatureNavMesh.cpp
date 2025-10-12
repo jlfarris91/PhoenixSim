@@ -10,18 +10,6 @@ using namespace Phoenix::Pathfinding;
 
 FeatureNavMesh::FeatureNavMesh()
 {
-    FeatureDefinition.Name = StaticName;
-    FeatureDefinition.RegisterBlock<FeatureNavMeshStaticBlock>();
-    FeatureDefinition.RegisterBlock<FeatureNavMeshDynamicBlock>();
-    FeatureDefinition.RegisterBlock<FeatureNavMeshScratchBlock>();
-    FeatureDefinition.RegisterChannel(WorldChannels::PreUpdate);
-    FeatureDefinition.RegisterChannel(WorldChannels::HandleAction);
-    FeatureDefinition.RegisterChannel(WorldChannels::DebugRender);
-}
-
-FeatureDefinition FeatureNavMesh::GetFeatureDefinition()
-{
-    return FeatureDefinition;
 }
 
 void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)

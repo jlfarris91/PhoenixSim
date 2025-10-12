@@ -34,20 +34,16 @@ namespace Phoenix
     
     class PHOENIXSIM_API FeatureTrace : public IFeature
     {
+        FEATURE_BEGIN(FeatureTrace)
+            FEATURE_BLOCK(FeatureTraceScratchBlock)
+        FEATURE_END()
+
     public:
 
-        DECLARE_FEATURE(FeatureTrace)
-
         FeatureTrace();
-
-        FeatureDefinition GetFeatureDefinition() override;
         
         // Use ScopedTrace instead
         static void PushTrace(WorldRef world, FName name, FName id, ETraceFlags flags, int32 counter = 0);
-
-    private:
-
-        FeatureDefinition FeatureDefinition;
     };
 
     struct PHOENIXSIM_API ScopedTrace

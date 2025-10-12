@@ -29,6 +29,12 @@ namespace Phoenix
     template <class T> using TSharedAsThis = std::enable_shared_from_this<T>;
     template <class T> using TWeakPtr = std::weak_ptr<T>;
 
+    template <class T, class ...TArgs>
+    TSharedPtr<T> MakeShared(TArgs&&... args)
+    {
+        return std::make_shared<T>(std::forward<TArgs>(args)...);
+    }
+
     typedef int64 dt_t;
     typedef uint64 simtime_t;
 

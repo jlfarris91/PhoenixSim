@@ -116,6 +116,7 @@
     <ClInclude Include="Public\Optional.h" />
     <ClInclude Include="Public\PhoenixCore.h" />
     <ClInclude Include="Public\PlatformTypes.h" />
+    <ClInclude Include="Public\Reflection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Private\Color.cpp" />

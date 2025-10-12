@@ -29,18 +29,6 @@ EntityId& EntityId::operator=(const entityid_t& id)
 
 FeatureECS::FeatureECS()
 {
-    FeatureDefinition.Name = StaticName;
-
-    FeatureDefinition.RegisterBlock<FeatureECSDynamicBlock>();
-    FeatureDefinition.RegisterBlock<FeatureECSScratchBlock>();
-
-    FeatureDefinition.RegisterChannel(WorldChannels::PreUpdate);
-    FeatureDefinition.RegisterChannel(WorldChannels::Update);
-    FeatureDefinition.RegisterChannel(WorldChannels::PostUpdate);
-    FeatureDefinition.RegisterChannel(WorldChannels::PreHandleAction);
-    FeatureDefinition.RegisterChannel(WorldChannels::HandleAction);
-    FeatureDefinition.RegisterChannel(WorldChannels::PostHandleAction);
-    FeatureDefinition.RegisterChannel(WorldChannels::DebugRender);
 }
 
 FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
@@ -50,11 +38,6 @@ FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
     {
         Systems.push_back(system);
     }
-}
-
-FeatureDefinition FeatureECS::GetFeatureDefinition()
-{
-    return FeatureDefinition;
 }
 
 void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)

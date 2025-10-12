@@ -183,14 +183,22 @@ namespace Phoenix
 
         class PHOENIXSIM_API FeatureECS : public IFeature
         {
-        public:
+            FEATURE_BEGIN(FeatureECS)
+                FEATURE_BLOCK(FeatureECSDynamicBlock)
+                FEATURE_BLOCK(FeatureECSScratchBlock)
+                FEATURE_CHANNEL(WorldChannels::PreUpdate)
+                FEATURE_CHANNEL(WorldChannels::Update)
+                FEATURE_CHANNEL(WorldChannels::PostUpdate)
+                FEATURE_CHANNEL(WorldChannels::PreHandleAction)
+                FEATURE_CHANNEL(WorldChannels::HandleAction)
+                FEATURE_CHANNEL(WorldChannels::PostHandleAction)
+                FEATURE_CHANNEL(WorldChannels::DebugRender)
+            FEATURE_END()
 
-            DECLARE_FEATURE(FeatureECS)
+        public:
 
             FeatureECS();
             FeatureECS(const FeatureECSCtorArgs& args);
-            
-            FeatureDefinition GetFeatureDefinition() override;
             
             void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
@@ -343,7 +351,6 @@ namespace Phoenix
             static void CompactWorldBuffer(WorldRef world);
 
             TArray<TSharedPtr<ISystem>> Systems;
-            FeatureDefinition FeatureDefinition;
             bool bDebugDrawMortonCodeBoundaries = false;
             bool bDebugDrawEntityZCodes = true;
         };

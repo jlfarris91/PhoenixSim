@@ -42,19 +42,24 @@ namespace Phoenix
 
         class PHOENIXSIM_API FeatureNavMesh : public IFeature
         {
-        public:
+            FEATURE_BEGIN(FeatureNavMesh)
+                FEATURE_BLOCK(FeatureNavMeshStaticBlock)
+                FEATURE_BLOCK(FeatureNavMeshDynamicBlock)
+                FEATURE_BLOCK(FeatureNavMeshScratchBlock)
+                FEATURE_CHANNEL(WorldChannels::PreUpdate)
+                FEATURE_CHANNEL(WorldChannels::HandleAction)
+                FEATURE_CHANNEL(WorldChannels::DebugRender)
+            FEATURE_END()
 
-            DECLARE_FEATURE(FeatureNavMesh)
+        public:
 
             FeatureNavMesh();
 
-            FeatureDefinition GetFeatureDefinition() override;
+            void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
-            virtual void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
 
-            virtual void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
-
-            virtual void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
+            void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
 
             // Inserts a new point into the dynamic nav mesh.
             static NavMesh::TIndex InsertPoint(WorldRef world, const NavMesh::TVert& pt);
@@ -77,8 +82,6 @@ namespace Phoenix
                 NavMesh::TVertComp radius);
 
         private:
-
-            FeatureDefinition FeatureDefinition;
 
             bool bDebugDrawVertices = true;
             bool bDebugDrawVertexIds = true;
