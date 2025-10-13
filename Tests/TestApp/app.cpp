@@ -1,7 +1,17 @@
 
+#include <ranges>
+
+// Tracy
+#include "PhoenixTracyImpl.h"
+
+// ImGui
+#include "imgui.h"
+#include "imgui_internal.h"
+
 // SDL3
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
+#include <SDL3/SDL_timer.h>
 
 // Phoenix
 #include "Session.h"
@@ -16,11 +26,6 @@
 #include "MortonCode.h"
 
 // SDL impl
-#include <ranges>
-#include <SDL3/SDL_timer.h>
-
-#include "imgui.h"
-#include "imgui_internal.h"
 #include "SDL/SDLCamera.h"
 #include "SDL/SDLDebugRenderer.h"
 #include "SDL/SDLDebugState.h"
@@ -37,6 +42,8 @@ SDL_Renderer* GRenderer;
 uint32 GRendererFPSCounter = 0;
 uint64 GRendererFPSTimer = 0;
 float GRendererFPS = 0.0f;
+
+Profiling::TracyProfiler GTracyProfiler;
 
 Session* GSession;
 bool GSessionThreadWantsExit = false;
@@ -146,6 +153,8 @@ void DrawGrid();
 
 void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 {
+    SetProfiler(&GTracyProfiler);
+
     InitSession();
 
     GWindow = window;
@@ -494,23 +503,6 @@ void OnAppRenderUI()
                     }
                 }
             }
-        }
-
-        ImGui::End();
-    }
-
-    if (ImGui::Begin("Trace"))
-    {
-        std::vector<float> values;
-        for (const TraceFrame& frame : GTraceFrames)
-        {
-            values.push_back((float)frame.Duration / CLOCKS_PER_SEC);
-        }
-
-        ImGuiPlotArrayGetterData2 data(values.data(), 0);
-        auto hoveredFrameIndex = ImGui::PlotEx(ImGuiPlotType_Histogram, "Frames", &Plot_ArrayGetter, (void*)&data, values.size(), 0, NULL, 0.0f, 1.0f, ImVec2(0, 80.0f));
-        if (hoveredFrameIndex != INDEX_NONE)
-        {
         }
 
         ImGui::End();

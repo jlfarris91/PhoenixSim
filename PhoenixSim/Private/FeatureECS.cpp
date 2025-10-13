@@ -10,6 +10,7 @@
 #include "FeatureTrace.h"
 #include "Flags.h"
 #include "MortonCode.h"
+#include "Profiling.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -42,6 +43,8 @@ FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
 
 void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     SortEntitiesByZCode(world);
 
     SystemUpdateArgs systemUpdateArgs;
@@ -57,6 +60,8 @@ void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
 void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     SystemUpdateArgs systemUpdateArgs;
     systemUpdateArgs.SimTime = args.SimTime;
     systemUpdateArgs.DeltaTime = OneDivBy(Time(args.StepHz));
@@ -70,6 +75,8 @@ void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
 void FeatureECS::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     SystemUpdateArgs systemUpdateArgs;
     systemUpdateArgs.SimTime = args.SimTime;
     systemUpdateArgs.DeltaTime = OneDivBy(Time(args.StepHz));
@@ -613,6 +620,8 @@ void FeatureECS::QueryEntitiesInRange(
     Distance range,
     TArray<EntityTransform>& outEntities)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     const FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
 
     // Query for overlapping morton ranges
@@ -633,6 +642,8 @@ void FeatureECS::QueryEntitiesInRange(
 
 void FeatureECS::SortEntitiesByZCode(WorldRef world)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     ScopedTrace trace(world, "SortEntitiesByZCode"_n);
     
     FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();

@@ -3,7 +3,7 @@
 workspace "Phoenix"
    architecture "x64"
    configurations { "Debug", "Release" }
-   startproject "PhoenixSimDriver"
+   startproject "TestApp"
    location "../"
 
    group "Core"
@@ -13,9 +13,10 @@ workspace "Phoenix"
    group "Tests"
       project "PhoenixSimDriver"
       project "CDT"
+      project "TestApp"
 
 project "PhoenixCore"
-   kind "StaticLib"
+   kind "SharedLib"
    language "C++"
    cppdialect "C++20"
    staticruntime "off"
@@ -38,7 +39,7 @@ project "PhoenixCore"
 
    filter "system:windows"
       systemversion "latest"
-      defines { "DLL_EXPORTS" }
+      defines { "PHOENIXCORE_DLL_EXPORTS" }
 
    filter "configurations:Debug"
       defines { "DEBUG" }
@@ -59,6 +60,8 @@ project "PhoenixSim"
    
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
+
+   defines { "PHX_PROFILE_ENABLE" }
 
    files {
       "../PhoenixSim/Public/**.h",
@@ -81,7 +84,7 @@ project "PhoenixSim"
 
    filter "system:windows"
       systemversion "latest"
-      defines { "DLL_EXPORTS" }
+      defines { "PHOENIXSIM_DLL_EXPORTS" }
 
    filter "configurations:Debug"
       defines { "DEBUG" }
@@ -219,7 +222,7 @@ project "TestApp"
    targetdir ("./Binaries/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
    objdir ("./Intermediate/%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}")
 
-   defines { "TRACY_ENABLE" }
+   defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
 
    files {
       "../Tests/TestApp/**.h",

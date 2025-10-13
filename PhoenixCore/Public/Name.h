@@ -7,7 +7,7 @@
 
 namespace Phoenix
 {
-    struct FName
+    struct PHOENIXCORE_API FName
     {
         static const FName None;
         static const FName Empty;
@@ -37,7 +37,7 @@ namespace Phoenix
 #endif
     };
 
-    constexpr FName operator ""_n(const char* chars, size_t len)
+    PHOENIXCORE_API constexpr FName operator ""_n(const char* chars, size_t len)
     {
         return FName(chars, len);
     }

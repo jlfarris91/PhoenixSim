@@ -11,6 +11,7 @@
 #include <cassert>
 #include <functional>
 
+#include "DLLExport.h"
 #include "Name.h"
 #include "FixedPoint/FixedTypes.h"
 
@@ -44,4 +45,30 @@ namespace Phoenix
     constexpr int32 INDEX_NONE = Index<int32>::None;
 
 #define PHX_ASSERT(...) assert(__VA_ARGS__)
+
+#ifndef PHX_CONCAT
+#   define PHX_CONCAT(x, y) PHX_CONCAT_INDIRECT(x, y)
+#endif
+
+#ifndef PHX_CONCAT_INDIRECT
+#   define PHX_CONCAT_INDIRECT(x, y) x##y
+#endif
+
+#ifndef PHX_FILE
+#   define PHX_FILE __FILE__
+#endif
+
+#ifndef PHX_LINE
+#   define PHX_LINE PHX_CONCAT(__LINE__, U)
+#endif
+
+#ifndef PHX_FUNCTION
+#   define PHX_FUNCTION __FUNCTION__
+#endif
+
+#if defined(_MSC_VER)
+#   define PHX_FORCE_INLINE __forceinline
+#else
+#   define PHX_FORCE_INLINE inline
+#endif
 }

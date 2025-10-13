@@ -1,14 +1,12 @@
 
 #pragma once
+
 #include <memory>
 
 #include "PhoenixCore.h"
 
 namespace Phoenix
 {
-    struct IPropertyAccessor;
-    struct IMethodPointer;
-
     enum class EPropertyValueType
     {
         Unknown,
@@ -27,18 +25,18 @@ namespace Phoenix
         COUNT
     };
 
-    struct MethodDescriptor
-    {
-        PHXString Name;
-        TSharedPtr<IMethodPointer> MethodPointer;
-    };
-
-    struct IMethodPointer
+    struct PHOENIXCORE_API IMethodPointer
     {
         virtual ~IMethodPointer() = default;
         virtual bool IsStatic() const = 0;
         virtual void Execute(void* obj) const = 0;
         virtual bool CanExecute(void* obj) const = 0;
+    };
+
+    struct PHOENIXCORE_API MethodDescriptor
+    {
+        PHXString Name;
+        TSharedPtr<IMethodPointer> MethodPointer;
     };
 
     template <class T>
@@ -113,7 +111,7 @@ namespace Phoenix
         TCanExecutePtr CanExecutePtr = nullptr;
     };
 
-    struct StaticFunctionPointer : IMethodPointer
+    struct PHOENIXCORE_API StaticFunctionPointer : IMethodPointer
     {
         using TExecutePtr = void(*)();
         using TCanExecutePtr = bool(*)();
@@ -147,14 +145,7 @@ namespace Phoenix
         TCanExecutePtr CanExecutePtr = nullptr;
     };
 
-    struct PropertyDescriptor
-    {
-        PHXString Name;
-        EPropertyValueType ValueType = EPropertyValueType::Unknown;
-        TSharedPtr<IPropertyAccessor> PropertyAccessor;
-    };
-
-    struct IPropertyAccessor
+    struct PHOENIXCORE_API IPropertyAccessor
     {
         virtual ~IPropertyAccessor() = default;
         virtual bool IsReadOnly() const = 0;
@@ -162,6 +153,13 @@ namespace Phoenix
         virtual void Get(const void* obj, void* value, size_t len) const = 0;
         virtual void Set(void* obj, const void* value, size_t len) const = 0;
         virtual void Initialize(void* memory) const = 0;
+    };
+
+    struct PHOENIXCORE_API PropertyDescriptor
+    {
+        PHXString Name;
+        EPropertyValueType ValueType = EPropertyValueType::Unknown;
+        TSharedPtr<IPropertyAccessor> PropertyAccessor;
     };
 
     template <class T, class TValue>
@@ -406,9 +404,9 @@ namespace Phoenix
         return EPropertyValueType::Unknown;
     }
 
-    struct StructDescriptor
+    struct PHOENIXCORE_API StructDescriptor
     {
-        virtual ~StructDescriptor() = default;
+        virtual ~StructDescriptor();
 
         template <class T, class TValue>
         const PropertyDescriptor& RegisterProperty(
@@ -499,7 +497,7 @@ namespace Phoenix
         TMap<PHXString, MethodDescriptor> Methods;
     };
 
-    #define REGISTER_FIELD(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::name);
+#define REGISTER_FIELD(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::name);
     #define REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
     #define REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
     #define REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);

@@ -36,6 +36,9 @@
     <ClInclude Include="Public\Containers\FixedSet.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>
+    <ClInclude Include="Public\DLLExport.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Debug.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -96,6 +99,9 @@
     <ClInclude Include="Public\PlatformTypes.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\Profiling.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Reflection.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -114,6 +120,12 @@
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Name.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Profiling.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\dllmain.cpp">
       <Filter>Private</Filter>
     </ClCompile>
   </ItemGroup>

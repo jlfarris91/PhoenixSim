@@ -1,12 +1,13 @@
 
 #pragma once
 
+#include "DLLExport.h"
 #include "PlatformTypes.h"
 #include "FixedPoint/FixedTypes.h"
 
 namespace Phoenix
 {
-    struct Color
+    struct PHOENIXCORE_API Color
     {
         static const Color White;
         static const Color Red;

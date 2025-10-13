@@ -4,6 +4,7 @@
 #include "Color.h"
 #include "Debug.h"
 #include "FixedVector.h"
+#include "Profiling.h"
 
 using namespace Phoenix;
 using namespace Phoenix::Pathfinding;
@@ -14,6 +15,8 @@ FeatureNavMesh::FeatureNavMesh()
 
 void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     IFeature::OnPreUpdate(world, args);
 
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();

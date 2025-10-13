@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "Profiling.h"
+
 using namespace Phoenix;
 
 Session::Session(const SessionCtorArgs& args)
@@ -55,6 +57,8 @@ void Session::QueueAction(const Action& action)
 
 void Session::Tick(const SessionStepArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     clock_t currTime = clock();
     clock_t dt = currTime - CurrTickTime;
     CurrTickTime = currTime;
@@ -101,6 +105,8 @@ void Session::Tick(const SessionStepArgs& args)
 
 void Session::Step(const SessionStepArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     LastStepTime = clock();
     SimTime += 1;
 
@@ -151,6 +157,8 @@ WorldManager* Session::GetWorldManager() const
 
 void Session::ProcessActions(simtime_t time)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     // Process incoming actions
     {
         std::lock_guard lock(ActionQueueMutex);

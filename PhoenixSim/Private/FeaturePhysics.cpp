@@ -8,6 +8,7 @@
 #include "FeatureTrace.h"
 #include "Flags.h"
 #include "MortonCode.h"
+#include "Profiling.h"
 #include "Session.h"
 
 using namespace Phoenix;
@@ -18,6 +19,8 @@ constexpr uint8 SLEEP_TIMER = 1;
 
 void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     DeltaTime dt = args.DeltaTime;
 
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
@@ -30,13 +33,15 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
     
     // Gather all transform + body component pairs
     {
-        ScopedTrace trace(world, "GatherBodyComponents"_n);
+        PHX_PROFILE_ZONE_SCOPED_N("GatherBodyComponents");
+
         scratchBlock.EntityBodies.Refresh(world);
     }
 
     // Sort entity bodies by z-code (calculated by FeatureECS)
     {
-        ScopedTrace trace(world, "SortBodiesByZCode"_n);
+        PHX_PROFILE_ZONE_SCOPED_N("SortBodiesByZCode");
+
         scratchBlock.SortedEntities.Reset();
         for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
         {
@@ -52,7 +57,8 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 
     {
-        ScopedTrace trace(world, "MoveBodies"_n);
+        PHX_PROFILE_ZONE_SCOPED_N("MoveBodies");
+
         scratchBlock.MoveBodies.Refresh(world);
 
         for (auto && [entity, transComp, bodyComp, moveComp] : scratchBlock.MoveBodies)
@@ -76,6 +82,8 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 
 void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     auto dt = args.DeltaTime;
 
     FeaturePhysicsDynamicBlock& dynamicBlock = world.GetBlockRef<FeaturePhysicsDynamicBlock>();
@@ -108,7 +116,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     
     // Determine contacts
     {
-        ScopedTrace trace(world, "CalculateContacts"_n);
+        PHX_PROFILE_ZONE_SCOPED_N("CalculateContacts");
+
         for (const EntityBody& entityBodyA : scratchBlock.SortedEntities)
         {
             TransformComponent* transformCompA = entityBodyA.TransformComponent;
@@ -148,7 +157,7 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
             // Query for overlapping morton ranges
             TArray<const EntityBody*> overlappingBodies;
             {
-                ScopedTrace trace2(world, "OverlapQuery"_n);
+                PHX_PROFILE_ZONE_SCOPED_N("OverlapQuery");
 
                 MortonCodeAABB aabb = ToMortonCodeAABB(projectedPos, bodyCompA->Radius);
         
@@ -259,8 +268,9 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
 
     // Multi-pass solver
     if (1)
-    {        
-        ScopedTrace trace(world, "PGS"_n);
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("PGS");
+
         for (uint32 iter = 0; iter < 4; ++iter)
         {
             for (Contact& contact : scratchBlock.Contacts)
@@ -305,7 +315,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     // Integrate velocities
     if (1)
     {
-        ScopedTrace trace(world, "Integrate"_n);
+        PHX_PROFILE_ZONE_SCOPED_N("Integrate");
+
         for (const EntityBody& entityBody : scratchBlock.SortedEntities)
         {
             BodyComponent* bodyComp = entityBody.BodyComponent;
@@ -346,6 +357,8 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     // Multi-pass overlap separation
     if (1)
     {
+        PHX_PROFILE_ZONE_SCOPED_N("MultiPassOverlapSeparation");
+
         for (uint32 i = 0; i < 4; ++i)
         {
             for (auto entityBody : scratchBlock.SortedEntities)
@@ -466,6 +479,8 @@ void FeaturePhysics::QueryEntitiesInRange(
     Distance range,
     TArray<EntityBody>& outEntities)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
     TMortonCodeRangeArray ranges;

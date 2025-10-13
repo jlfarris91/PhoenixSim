@@ -1,15 +1,16 @@
 
 #pragma once
 
+#include "DLLExport.h"
 #include "FixedPoint/FixedVector.h"
 
 namespace Phoenix
 {
     struct Color;
 
-    struct IDebugState
+    struct PHOENIXCORE_API IDebugState
     {
-        virtual ~IDebugState() = default;
+        virtual ~IDebugState();
 
         virtual bool KeyDown(uint32 keycode) const = 0;
         virtual bool KeyUp(uint32 keycode) const = 0;
@@ -20,9 +21,9 @@ namespace Phoenix
         virtual Vec2 GetWorldMousePos() const = 0;
     };
 
-    struct IDebugRenderer
+    struct PHOENIXCORE_API IDebugRenderer
     {
-        virtual ~IDebugRenderer() = default;
+        virtual ~IDebugRenderer();
 
         virtual void DrawCircle(const Vec2& pt, Distance radius, const Color& color, int32 segments = 32) = 0;
         virtual void DrawLine(const Vec2& v0, const Vec2& v1, const Color& color) = 0;

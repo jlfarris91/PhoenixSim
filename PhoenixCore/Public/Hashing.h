@@ -1,11 +1,12 @@
 
 #pragma once
+#include "DLLExport.h"
 
 namespace Phoenix
 {
     typedef size_t hash_t;
 
-    struct Hashing
+    struct PHOENIXCORE_API Hashing
     {
         static constexpr hash_t FN1VA32(const char* data, size_t length)
         {

@@ -58,8 +58,8 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>DLL_EXPORTS;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;Public\Features;Public\Features\ECS;Public\Features\Pathing;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PHX_PROFILE_ENABLE;PHOENIXSIM_DLL_EXPORTS;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -76,8 +76,8 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>DLL_EXPORTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;Public\Features;Public\Features\ECS;Public\Features\Pathing;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>PHX_PROFILE_ENABLE;PHOENIXSIM_DLL_EXPORTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\PhoenixCore\Public;..\PhoenixCore\Public\Containers;..\PhoenixCore\Public\FixedPoint;..\PhoenixCore\Public\Mesh;Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>

@@ -42,6 +42,7 @@
     <ClInclude Include="..\..\External\imgui\imstb_truetype.h">
       <Filter>External\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="PhoenixTracyImpl.h" />
     <ClInclude Include="SDL\SDLCamera.h">
       <Filter>SDL</Filter>
     </ClInclude>
@@ -80,6 +81,7 @@
     <ClCompile Include="..\..\External\tracy\TracyClient.cpp">
       <Filter>External\tracy</Filter>
     </ClCompile>
+    <ClCompile Include="PhoenixTracyImpl.cpp" />
     <ClCompile Include="SDL\SDLCamera.cpp">
       <Filter>SDL</Filter>
     </ClCompile>

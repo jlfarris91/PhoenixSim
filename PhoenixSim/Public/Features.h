@@ -28,7 +28,7 @@ namespace Phoenix
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
 
-#define FEATURE_END(feature) \
+#define FEATURE_END() \
                 return definition; \
             } \
         }; \
@@ -123,7 +123,7 @@ namespace Phoenix
         TArray<FeatureSharedPtr> Features;
     };
 
-    struct FeatureDefinition : StructDescriptor
+    struct PHOENIXSIM_API FeatureDefinition : StructDescriptor
     {
         FName Name;
         PHXString DisplayName;
