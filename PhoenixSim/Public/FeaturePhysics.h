@@ -65,6 +65,8 @@ namespace Phoenix
             void OnPreUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnUpdate(WorldRef world, const ECS::SystemUpdateArgs& args) override;
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
+
+            bool bDebugDrawContacts = false;
         };
 
         struct EntityBody
@@ -119,6 +121,7 @@ namespace Phoenix
                 FEATURE_BLOCK(FeaturePhysicsDynamicBlock)
                 FEATURE_BLOCK(FeaturePhysicsScratchBlock)
                 FEATURE_CHANNEL(WorldChannels::HandleAction)
+                REGISTER_PROPERTY(bool, DebugDrawContacts)
             FEATURE_END()
 
         public:
@@ -136,6 +139,9 @@ namespace Phoenix
                 const Vec2& pos,
                 Distance range,
                 Value force);
+
+            bool GetDebugDrawContacts() const;
+            void SetDebugDrawContacts(const bool& value);
 
             TSharedPtr<PhysicsSystem> PhysicsSystem;
         };

@@ -26,6 +26,8 @@
 #include "MortonCode.h"
 
 // SDL impl
+#include <Tracy.hpp>
+
 #include "SDL/SDLCamera.h"
 #include "SDL/SDLDebugRenderer.h"
 #include "SDL/SDLDebugState.h"
@@ -122,11 +124,15 @@ void InitSession()
 
 void UpdateSessionWorker()
 {
+    PHX_PROFILE_SET_THREAD_NAME("Sim", 0);
+
     clock_t lastClockTime = 0;
     GSessionThreadWantsExit = false;
 
     while (!GSessionThreadWantsExit)
     {
+        FrameMarkNamed("Sim");
+
         clock_t currClockTime = clock();
         clock_t deltaClockTime = currClockTime - lastClockTime;
         lastClockTime = currClockTime;
@@ -192,83 +198,6 @@ void OnAppRenderWorld()
 
         if (!GWorldUpdateQueue.empty())
         {
-            for (const World& world : GWorldUpdateQueue)
-            {
-                const FeatureTraceScratchBlock* traceBlock = world.GetBlock<FeatureTraceScratchBlock>();
-                if (!traceBlock)
-                    continue;
-
-                TraceFrame frame;
-                frame.Frame = world.GetBlockRef<WorldDynamicBlock>().SimTime;
-
-                if (!traceBlock->Events.IsEmpty())
-                    frame.TimeStamp = traceBlock->Events[0].Time;
-
-                TArray<uint32> stack;
-
-                for (const auto& event : traceBlock->Events)
-                {
-                    TraceEntry* entry = nullptr;
-
-                    if (event.Flag == ETraceFlags::Begin)
-                    {
-                        entry = &frame.Entries.emplace_back();
-                        entry->Name = event.Name;
-                        entry->Id = event.Id;
-                        entry->Duration = 0;
-                        entry->StartTime = event.Time;
-
-                        char name[256];
-                        if (entry->Id == FName::None)
-                        {
-                            sprintf_s(name, _countof(name), "%s", event.Name.Debug);
-                        }
-                        else
-                        {
-                            sprintf_s(name, _countof(name), "%s:%s", event.Name.Debug, event.Id.Debug);
-                        }
-                        entry->DisplayName = name;
-
-                        if (!stack.empty())
-                        {
-                            frame.Entries[stack.back()].NumChildren++;
-                        }
-
-                        stack.push_back(frame.Entries.size() - 1);
-                    }
-
-                    if (event.Flag == ETraceFlags::End)
-                    {
-                        for (int32 i = frame.Entries.size() - 1; i >= 0; --i)
-                        {
-                            if (frame.Entries[i].Name == event.Name && frame.Entries[i].Id == event.Id)
-                            {
-                                entry = &frame.Entries[i];
-                                break;
-                            }
-                        }
-
-                        if (entry)
-                        {
-                            entry->Duration = event.Time - entry->StartTime;
-
-                            stack.pop_back();
-                            if (stack.empty())
-                            {
-                                frame.Duration = event.Time - frame.TimeStamp;
-                            }
-                        }
-                    }
-                }
-
-                if (GTraceFrames.IsFull())
-                {
-                    GTraceFrames.Dequeue();
-                }
-
-                GTraceFrames.Enqueue(frame);
-            }
-
             World& world = GWorldUpdateQueue[GWorldUpdateQueue.size() - 1];
 
             if (!GCurrWorld)
@@ -448,6 +377,17 @@ void OnAppRenderUI()
         ImGui::Text("SDL FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
         ImGui::Text("ImGui FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
+        if (GCurrWorld)
+        {
+            const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorld->GetBlockRef<FeatureECSDynamicBlock>();
+
+            ImGui::Text("ECS: E:%u C:%u T:%u G:%u",
+                ecsDynamicBlock.Entities.Num(),
+                ecsDynamicBlock.Components.Num(),
+                ecsDynamicBlock.Tags.Num(),
+                ecsDynamicBlock.Groups.Num());
+        }
+
         if (ImGui::CollapsingHeader("Features"))
         {
             for (const auto& feature : GSession->GetFeatureSet()->GetFeatures())
@@ -624,7 +564,7 @@ void OnAppEvent(SDL_Event* event)
             action.Data[1].Distance = mouseWorldPos.X;
             action.Data[2].Distance = mouseWorldPos.Y;
             action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
-            action.Data[4].UInt32 = 100;
+            action.Data[4].UInt32 = 10;
             GSession->QueueAction(action);
         }
 
@@ -698,6 +638,21 @@ void OnAppEvent(SDL_Event* event)
         if (event->key.key == SDLK_DOWN)
         {
             GCamera->Position.Y -= CameraSpeed;
+        }
+    }
+
+    if (event->type == SDL_EVENT_KEY_UP)
+    {
+        if (event->key.key == SDLK_T)
+        {
+            Action action;
+            action.Verb = "spawn_entity"_n;
+            action.Data[0].Name = "Unit"_n;
+            action.Data[1].Distance = mouseWorldPos.X;
+            action.Data[2].Distance = mouseWorldPos.Y;
+            action.Data[3].Degrees = Vec2::RandUnitVector().AsRadians();
+            action.Data[4].UInt32 = decltype(FeatureECSDynamicBlock::Entities)::Capacity;
+            GSession->QueueAction(action);
         }
     }
     

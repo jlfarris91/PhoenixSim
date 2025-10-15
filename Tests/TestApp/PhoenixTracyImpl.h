@@ -9,6 +9,7 @@ namespace Phoenix
     {
         struct TracyProfiler : IProfiler
         {
+            void SetThreadName(const char* txt, int32_t hint) override;
             void BeginZone(const SourceLocation* srcLoc, int32 depth = INDEX_NONE) override;
             void EndZone() override;
             void Text(const char* txt, size_t size) override;

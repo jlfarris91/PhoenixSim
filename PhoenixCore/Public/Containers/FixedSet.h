@@ -3,14 +3,16 @@
 
 #include <functional>
 
+#include "CTZ.h"
+
 namespace Phoenix
 {
-    template <class TKey, size_t N, class THash = std::hash<TKey>>
+    template <class TKey, size_t N, class THasher = std::hash<TKey>>
     class TFixedSet
     {
     public:
 
-        static constexpr size_t Capacity = N;
+        static constexpr size_t Capacity = RoundUpPowerOf2(N);
 
         TFixedSet()
         {
@@ -19,7 +21,7 @@ namespace Phoenix
         
         bool IsFull() const
         {
-            return Size == N;
+            return Size == Capacity;
         }
 
         bool IsEmpty() const
@@ -35,71 +37,59 @@ namespace Phoenix
         void Reset()
         {
             Size = 0;
-            memset(&Table[0], 0, sizeof(Element) * N);
+            memset(&Items[0], 0, sizeof(TKey) * Capacity);
         }
 
-        bool Insert(const TKey& key, size_t* outProbeLen = nullptr)
+        bool Insert(const TKey& key)
         {
-            if (IsFull())
+            PHX_ASSERT(key != 0);
+
+            size_t index = FindSlot(key);
+            if (Items[index] != 0)
             {
+                // Already in set
+                if (Items[index] == key)
+                    return true;
+
+                // Set is full
                 return false;
             }
 
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
-            {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
-                {
-                    Table[probe].Occupied += 1;
-                    return true;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    Table[probe].Occupied += 1;
-                    Table[probe].Key = key;
-                    ++Size;
-                    return true;
-                }
-                if (outProbeLen) (*outProbeLen)++;
-            }
+            Items[index] = key;
+            ++Size;
 
-            return false;
+            return true;
         }
 
-        bool Contains(const TKey& key, size_t* outProbeLen = nullptr) const
+        bool Contains(const TKey& key) const
         {
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
+            size_t index = FindSlot(key);
+            return Items[index] == key; 
+        }
+
+        size_t FindSlot(const TKey& key) const
+        {
+            size_t hash = Hash(key);
+            size_t index = hash & (Capacity - 1);
+            size_t startIndex = index;
+            while (Items[index] != 0 && Items[index] != key)
             {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
-                {
-                    return true;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    return false;
-                }
-                if (outProbeLen) (*outProbeLen)++;
+                index = (index + 1) & (Capacity - 1);
+                if (index == startIndex)
+                    break;
             }
-            return false;
+            return index;
         }
 
     private:
 
         static size_t Hash(const TKey& key)
         {
-            return THash{}(key) % N;
+            static const THasher hasher;
+            return hasher(key);
         }
 
-        struct Element
-        {
-            uint8 Occupied = 0;
-            TKey Key;
-        };
-
-        Element Table[N];
+        TKey Items[Capacity];
         size_t Size = 0;
     };
 }

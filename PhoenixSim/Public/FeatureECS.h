@@ -193,6 +193,8 @@ namespace Phoenix
                 FEATURE_CHANNEL(WorldChannels::HandleAction)
                 FEATURE_CHANNEL(WorldChannels::PostHandleAction)
                 FEATURE_CHANNEL(WorldChannels::DebugRender)
+                REGISTER_FIELD(bool, bDebugDrawMortonCodeBoundaries)
+                REGISTER_FIELD(bool, bDebugDrawEntityZCodes)
             FEATURE_END()
 
         public:
@@ -342,6 +344,9 @@ namespace Phoenix
 
             static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
 
+            bool bDebugDrawMortonCodeBoundaries = false;
+            bool bDebugDrawEntityZCodes = false;
+
         private:
 
             static EntityComponent* AddComponent(WorldRef world, EntityId entityId, FName componentType);
@@ -351,8 +356,6 @@ namespace Phoenix
             static void CompactWorldBuffer(WorldRef world);
 
             TArray<TSharedPtr<ISystem>> Systems;
-            bool bDebugDrawMortonCodeBoundaries = false;
-            bool bDebugDrawEntityZCodes = true;
         };
 
         template <class ... TComponents>

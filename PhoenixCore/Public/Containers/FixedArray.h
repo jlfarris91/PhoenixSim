@@ -133,6 +133,11 @@ namespace Phoenix
                 PopBack();
         }
 
+        void SetSize(size_t newSize)
+        {
+            Size = newSize >= Capacity ? Capacity : newSize;
+        }
+
         void Fill(const T& value = {})
         {
             SetNum(Capacity, value);

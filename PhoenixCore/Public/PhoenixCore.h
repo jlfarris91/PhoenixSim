@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 #include <functional>
+#include <unordered_set>
 
 #include "DLLExport.h"
 #include "Name.h"
@@ -22,6 +23,7 @@ namespace Phoenix
     typedef std::string PHXString;
 
     template <class T> using TArray = std::vector<T>;
+    template <class T, class THasher> using TSet = std::unordered_set<T, THasher>;
     template <class ...TArgs> using TTuple = std::tuple<TArgs...>;
     template <class TKey, class TValue> using TMap = std::map<TKey, TValue>;
     template <class T> using TDelegate = std::function<T>;
@@ -29,6 +31,8 @@ namespace Phoenix
     template <class T> using TSharedPtr = std::shared_ptr<T>;
     template <class T> using TSharedAsThis = std::enable_shared_from_this<T>;
     template <class T> using TWeakPtr = std::weak_ptr<T>;
+
+    template <class T> using TAtomic = std::atomic<T>;
 
     template <class T, class ...TArgs>
     TSharedPtr<T> MakeShared(TArgs&&... args)

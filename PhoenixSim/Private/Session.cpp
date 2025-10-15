@@ -57,8 +57,6 @@ void Session::QueueAction(const Action& action)
 
 void Session::Tick(const SessionStepArgs& args)
 {
-    PHX_PROFILE_ZONE_SCOPED;
-
     clock_t currTime = clock();
     clock_t dt = currTime - CurrTickTime;
     CurrTickTime = currTime;

@@ -21,6 +21,8 @@ namespace Phoenix
         {
             virtual ~IProfiler() = default;
 
+            virtual void SetThreadName(const char* txt, int32_t hint) = 0;
+
             virtual void BeginZone(const SourceLocation* srcLoc, int32 depth = INDEX_NONE) = 0;
             virtual void EndZone() = 0;
             virtual void Text(const char* txt, size_t size) = 0;
@@ -85,6 +87,8 @@ namespace Phoenix
 #ifndef PHX_PROFILE_CALLSTACK
 #define PHX_PROFILE_CALLSTACK 0
 #endif
+
+#define PHX_PROFILE_SET_THREAD_NAME(name, hint) Phoenix::Profiling::GetProfiler().SetThreadName(name, hint)
 
 #ifdef PHX_PROFILE_ENABLE
 

@@ -95,11 +95,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Public\CTZ.h" />
     <ClInclude Include="Public\Color.h" />
     <ClInclude Include="Public\Containers\FixedArray.h" />
     <ClInclude Include="Public\Containers\FixedMap.h" />
     <ClInclude Include="Public\Containers\FixedQueue.h" />
     <ClInclude Include="Public\Containers\FixedSet.h" />
+    <ClInclude Include="Public\Containers\MPMCQueue.h" />
     <ClInclude Include="Public\DLLExport.h" />
     <ClInclude Include="Public\Debug.h" />
     <ClInclude Include="Public\FixedPoint\FixedCordic.h" />
@@ -113,6 +115,7 @@
     <ClInclude Include="Public\FixedPoint\FixedVector.h" />
     <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
+    <ClInclude Include="Public\Parallel.h" />
     <ClInclude Include="Public\Mesh\Mesh2.h" />
     <ClInclude Include="Public\Mesh\Mesh2.inl" />
     <ClInclude Include="Public\Mesh\MeshPath.h" />
@@ -131,6 +134,7 @@
     <ClCompile Include="Private\FixedPoint\FixedPoint.cpp" />
     <ClCompile Include="Private\MortonCode.cpp" />
     <ClCompile Include="Private\Name.cpp" />
+    <ClCompile Include="Private\Parallel.cpp" />
     <ClCompile Include="Private\Profiling.cpp" />
     <ClCompile Include="Private\dllmain.cpp" />
     <ClCompile Include="Private\Reflection.cpp" />

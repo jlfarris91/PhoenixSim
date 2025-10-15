@@ -176,7 +176,15 @@ namespace Phoenix
             });
             for (auto itr = itrLo; itr != itrHi; ++itr)
             {
-                predicate(*itr);
+                if constexpr(std::is_same_v<decltype(predicate(std::declval<decltype(*sorted.begin())>())), bool>)
+                {
+                    if (predicate(*itr))
+                        break;
+                }
+                else
+                {
+                    predicate(*itr);
+                }
             }
         }
     }

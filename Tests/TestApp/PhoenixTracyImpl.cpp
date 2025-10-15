@@ -4,6 +4,11 @@
 
 using namespace tracy;
 
+void Phoenix::Profiling::TracyProfiler::SetThreadName(const char* txt, int32_t hint)
+{
+    SetThreadNameWithHint(txt, hint);
+}
+
 void Phoenix::Profiling::TracyProfiler::BeginZone(const SourceLocation* srcLoc, int32 depth)
 {
     auto zoneQueue = QueueType::ZoneBegin;
