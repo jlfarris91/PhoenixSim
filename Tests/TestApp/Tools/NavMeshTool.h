@@ -23,6 +23,7 @@ namespace Phoenix
             REGISTER_FIELD(bool, bDrawFaceCircumcircles)
             REGISTER_FIELD(bool, bDrawPathPortals)
             REGISTER_FIELD(float, AgentRadius)
+            REGISTER_METHOD(LoadMeshFromFile)
         DECLARE_TYPE_END()
 
         NavMeshTool(Session* session);
@@ -39,6 +40,8 @@ namespace Phoenix
             const Pathfinding::NavMesh& mesh,
             const TMeshPath<Pathfinding::NavMesh>& meshPath);
 
+        void LoadMeshFromFile();
+
         Session* Session;
 
         float BrushSize = 10.0f;
@@ -54,5 +57,10 @@ namespace Phoenix
 
         TOptional<Vec2> PathStart, PathGoal;
         float AgentRadius = 10.0;
+
+        using SGDistance = TFixed<14>;
+        using SGVec2 = TVec2<SGDistance>;
+        std::vector<SGVec2> LoadedVerts;
+        uint32 LoadedVertIndex = 0;
     };
 }

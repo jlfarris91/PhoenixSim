@@ -115,13 +115,13 @@
     <ClInclude Include="Public\FixedPoint\FixedVector.h" />
     <ClInclude Include="Public\Flags.h" />
     <ClInclude Include="Public\Hashing.h" />
-    <ClInclude Include="Public\Parallel.h" />
     <ClInclude Include="Public\Mesh\Mesh2.h" />
     <ClInclude Include="Public\Mesh\Mesh2.inl" />
     <ClInclude Include="Public\Mesh\MeshPath.h" />
     <ClInclude Include="Public\MortonCode.h" />
     <ClInclude Include="Public\Name.h" />
     <ClInclude Include="Public\Optional.h" />
+    <ClInclude Include="Public\Parallel.h" />
     <ClInclude Include="Public\PhoenixCore.h" />
     <ClInclude Include="Public\PlatformTypes.h" />
     <ClInclude Include="Public\Profiling.h" />
@@ -136,8 +136,8 @@
     <ClCompile Include="Private\Name.cpp" />
     <ClCompile Include="Private\Parallel.cpp" />
     <ClCompile Include="Private\Profiling.cpp" />
-    <ClCompile Include="Private\dllmain.cpp" />
     <ClCompile Include="Private\Reflection.cpp" />
+    <ClCompile Include="Private\dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

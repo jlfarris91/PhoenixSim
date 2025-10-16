@@ -1,6 +1,7 @@
 
 #include "NavMeshTool.h"
 
+#include <fstream>
 #include <SDL3/SDL_events.h>
 
 #include "Actions.h"
@@ -9,6 +10,7 @@
 #include "Session.h"
 #include "../SDL/SDLDebugState.h"
 #include "../SDL/SDLDebugRenderer.h"
+#include "nlohmann/json.hpp"
 
 using namespace Phoenix;
 using namespace Phoenix::Pathfinding;
@@ -25,6 +27,11 @@ void NavMeshTool::OnAppRenderWorld(WorldConstRef& world, SDLDebugState& state, S
     if (const FeatureNavMeshDynamicBlock* dynamicBlock = world.GetBlock<FeatureNavMeshDynamicBlock>())
     {
         RenderMesh(state, renderer, dynamicBlock->DynamicNavMesh);
+
+        for (const Vec2& vert : dynamicBlock->DynamicPoints)
+        {
+            renderer.DrawCircle(vert, 0.1f, Color::Red);
+        }
 
         if (const FeatureNavMeshScratchBlock* scratchBlock = world.GetBlock<FeatureNavMeshScratchBlock>())
         {
@@ -118,6 +125,16 @@ void NavMeshTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
             Session->QueueAction(action);
         }
     }
+
+    if (state.KeyDown(SDLK_SPACE) && LoadedVertIndex < LoadedVerts.size())
+    {
+        Action action;
+        action.Verb = "insert_point"_n;
+        action.Data[0].Distance = LoadedVerts[LoadedVertIndex].X;
+        action.Data[1].Distance = LoadedVerts[LoadedVertIndex].Y;
+        Session->QueueAction(action);
+        LoadedVertIndex++;
+    }
 }
 
 void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, const NavMesh& mesh)
@@ -128,7 +145,7 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
     {
         for (const Vec2& vert : mesh.Vertices)
         {
-            renderer.DrawCircle(vert, 3.0f, Color::White);
+            renderer.DrawCircle(vert, 0.1f, Color::White);
         }
     }
 
@@ -361,5 +378,49 @@ void NavMeshTool::RenderPath(
             const Vec2& v1 = meshPath.Path[i + 1];
             renderer.DrawLine(v0, v1, Color::Blue);
         }
+    }
+}
+
+void NavMeshTool::LoadMeshFromFile()
+{
+    std::ifstream file("J:\\Pegasus\\jfarris_pegasus_main_1\\PegasusGame\\Pegasus\\Content\\data\\maps\\TitansCausewayV2\\pathing_mesh.json");
+
+    auto json = nlohmann::json::parse(file);
+
+    SGVec2 mapSize(192, 192);
+    LoadedVerts.clear();
+    LoadedVertIndex = 0;
+
+    for (auto & vert : json["verts"])
+    {
+        SGDistance x = mapSize.X / 2 + SGDistance(Q32(vert[0].get<int32>()));
+        SGDistance y = mapSize.Y / 2 + SGDistance(Q32(vert[1].get<int32>()));
+        LoadedVerts.emplace_back(x, y);
+    }
+
+    for (const SGVec2& vert : LoadedVerts)
+    {
+        Action action;
+        action.Verb = "insert_point"_n;
+        action.Data[0].Distance = vert.X;
+        action.Data[1].Distance = vert.Y;
+        Session->QueueAction(action);
+    }
+
+    for (auto & vert : json["edges"])
+    {
+        uint32 vertAIdx = vert[0].get<uint32>();
+        uint32 vertBIdx = vert[1].get<uint32>();
+    
+        const SGVec2& vertA = LoadedVerts[vertAIdx];
+        const SGVec2& vertB = LoadedVerts[vertBIdx];
+    
+        Action action;
+        action.Verb = "insert_edge"_n;
+        action.Data[0].Distance = vertA.X;
+        action.Data[1].Distance = vertA.Y;
+        action.Data[2].Distance = vertB.X;
+        action.Data[3].Distance = vertB.Y;
+        Session->QueueAction(action);
     }
 }

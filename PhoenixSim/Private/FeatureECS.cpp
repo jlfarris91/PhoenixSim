@@ -109,7 +109,7 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
 
             Physics::BodyComponent* bodyComp = AddComponent<Physics::BodyComponent>(world, entityId);
             bodyComp->CollisionMask = 1;
-            bodyComp->Radius = 1;
+            bodyComp->Radius = 0.6; // Lancer :)
             bodyComp->InvMass = OneDivBy<Value>(1.0f);
             bodyComp->LinearDamping = 5.f;
             SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);

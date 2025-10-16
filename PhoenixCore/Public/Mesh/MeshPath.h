@@ -28,7 +28,7 @@ namespace Phoenix
             TIdx FromEdge = Index<TIdx>::None;
             TVert Center;
             bool Discarded = false;
-            bool Visited = false;
+            uint8 Visited = 0;
             Value GetF() const { return G + H; }
         };
 
@@ -46,12 +46,12 @@ namespace Phoenix
         TIdx GoalFaceIndex = Index<TIdx>::None;
         TIdx CurrEdgeIndex = Index<TIdx>::None;
         uint32 Steps = 0;
-        TFixedQueue<TIdx, 1024> OpenSet;
-        TFixedMap<TIdx, Node, 1024> Nodes;
+        TFixedQueue<TIdx, 4098> OpenSet;
+        TFixedMap<TIdx, Node, 4098> Nodes;
         EStepResult LastStepResult = EStepResult::Continue;
 
-        TFixedArray<TVert, 1024> Path;
-        TFixedArray<TIdx, 1024> PathEdges;
+        TFixedArray<TVert, 4098> Path;
+        TFixedArray<TIdx, 4098> PathEdges;
 
         TMeshFunnel<TMesh> Funnel;
 
@@ -129,7 +129,7 @@ namespace Phoenix
             }
 
             Node& currNode = FindOrAddNode(mesh, currEdgeIndex);
-            currNode.Visited = true;
+            currNode.Visited = 2;
 
             const THalfEdge& edge = mesh.HalfEdges[currEdgeIndex];
             if (edge.bLocked)
@@ -176,7 +176,7 @@ namespace Phoenix
                     }
 
                     const THalfEdge& twinTwin = mesh.HalfEdges[twinHalfEdgeN.Twin];
-                    if (Nodes.Contains(twinHalfEdgeN.Twin) && Nodes[twinHalfEdgeN.Twin].Visited)
+                    if (Nodes.Contains(twinHalfEdgeN.Twin) && Nodes[twinHalfEdgeN.Twin].Visited == 2)
                     {
                         twinEdgeIndex = twinHalfEdgeN.Next;
                         continue;
@@ -203,8 +203,11 @@ namespace Phoenix
                             neighborNode.G = score;
                         }
 
-                        if (!neighborNode.Visited)
+                        if (neighborNode.Visited == 0)
+                        {
+                            neighborNode.Visited = 1;
                             OpenSet.Enqueue(twinEdgeIndex);
+                        }
                     }
 
                     twinEdgeIndex = twinHalfEdgeN.Next;
@@ -214,7 +217,9 @@ namespace Phoenix
             if (!OpenSet.IsEmpty())
             {
                 std::sort(OpenSet.begin(), OpenSet.end(), [&](TIdx a, TIdx b)
-                    {
+                    { 
+                        PHX_ASSERT(Nodes.Contains(a));
+                        PHX_ASSERT(Nodes.Contains(b));
                         return Nodes[a].GetF() < Nodes[b].GetF();
                     });
             }
@@ -228,7 +233,7 @@ namespace Phoenix
             if (!Nodes.Contains(halfEdgeIndex))
             {
                 Node& node = Nodes.InsertDefaulted_GetRef(halfEdgeIndex);
-                node.Visited = false;
+                node.Visited = 0;
                 node.Discarded = mesh.GetEdgeLength(halfEdgeIndex) < Radius;
                 mesh.GetEdgeCenter(halfEdgeIndex, node.Center);
                 node.FromEdge = Index<TIdx>::None;

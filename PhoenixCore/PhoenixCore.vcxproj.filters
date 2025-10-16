@@ -21,6 +21,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Public\CTZ.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Color.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -34,6 +37,9 @@
       <Filter>Public\Containers</Filter>
     </ClInclude>
     <ClInclude Include="Public\Containers\FixedSet.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Containers\MPMCQueue.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>
     <ClInclude Include="Public\DLLExport.h">
@@ -93,6 +99,9 @@
     <ClInclude Include="Public\Optional.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\Parallel.h">
+      <Filter>Public</Filter>
+    </ClInclude>
     <ClInclude Include="Public\PhoenixCore.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -110,6 +119,9 @@
     <ClCompile Include="Private\Color.cpp">
       <Filter>Private</Filter>
     </ClCompile>
+    <ClCompile Include="Private\Debug.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
     <ClCompile Include="Private\FixedPoint\FixedMath.cpp">
       <Filter>Private\FixedPoint</Filter>
     </ClCompile>
@@ -122,7 +134,13 @@
     <ClCompile Include="Private\Name.cpp">
       <Filter>Private</Filter>
     </ClCompile>
+    <ClCompile Include="Private\Parallel.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
     <ClCompile Include="Private\Profiling.cpp">
+      <Filter>Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Private\Reflection.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\dllmain.cpp">

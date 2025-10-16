@@ -22,9 +22,9 @@ void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
     auto bl = Vec2(0, 0);
-    auto br = Vec2(512, 0);
-    auto tl = Vec2(0, 512);
-    auto tr = Vec2(512, 512);
+    auto br = Vec2(192, 0);
+    auto tl = Vec2(0, 192);
+    auto tr = Vec2(192, 192);
 
     block.DynamicNavMesh.Reset();
     block.DynamicNavMesh.InsertFace(bl, tr, tl, 1);

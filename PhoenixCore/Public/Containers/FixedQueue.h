@@ -66,7 +66,7 @@ namespace Phoenix
             End = 0;
         }
 
-        static size_t MoveIndex(int32 i, int32 n)
+        static constexpr size_t MoveIndex(int32 i, int32 n)
         {
             i += n;
             if (i < 0) return N + i;
@@ -112,9 +112,11 @@ namespace Phoenix
                 return *this;
             }
 
-            Iter operator++(int32 n) const
+            Iter operator++(int32) const
             {
-                return { DataPtr, MoveIndex(Index, n) };
+                auto prev = *this;
+                ++*this;
+                return prev;
             }
 
             Iter& operator--()
@@ -123,9 +125,11 @@ namespace Phoenix
                 return *this;
             }
 
-            Iter operator--(int32 n) const
+            Iter operator--(int32) const
             {
-                return { DataPtr, MoveIndex(Index, -n) };
+                auto prev = *this;
+                --*this;
+                return prev;
             }
 
             Iter& operator+=(int32 n)
@@ -134,39 +138,37 @@ namespace Phoenix
                 return *this;
             }
 
+            Iter operator+(int32 n)
+            {
+                auto next = *this;
+                next += n;
+                return next;
+            }
+
             Iter& operator-=(int32 n)
             {
                 Index = MoveIndex(Index, -n);
                 return *this;
             }
 
-            friend auto operator<=>(Iter, Iter) = default;
-
-            friend long operator-(const Iter& a, const Iter& b)
+            Iter operator-(int32 n)
             {
-                if (a.Index > b.Index) return a.Index - b.Index;
-                return a.Index + N - b.Index;
+                auto next = *this;
+                next -= n;
+                return next;
             }
 
-            friend Iter operator+(Iter i, int32 n)
+            size_t operator-(const Iter& other) const
             {
-                return { i.DataPtr, MoveIndex(i.Index, n) };
-            }
-
-            friend Iter operator-(Iter i, int32 n)
-            {
-                return { i.DataPtr, MoveIndex(i.Index, -n) };
-            }
-
-            friend Iter operator+(int32 n, Iter i)
-            {
-                return { i.DataPtr, MoveIndex(i.Index, n) };
+                return Index - other.Index;
             }
 
             bool operator==(const Iter& other) const
             {
                 return DataPtr == other.DataPtr && Index == other.Index;
             }
+
+            friend auto operator<=>(const Iter&, const Iter&) = default;
 
         private:
             T* DataPtr;
@@ -288,4 +290,18 @@ namespace Phoenix
         T Data[N];
         size_t Start = 0, End = 0;
     };
+
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 32) == 0);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 31) == 31);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 30) == 30);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 3) == 3);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 2) == 2);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 1) == 1);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, 0) == 0);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -1) == 31);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -2) == 30);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -3) == 29);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -32) == 0);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -31) == 1);
+    static_assert(TFixedQueue<int, 32>::MoveIndex(0, -30) == 2);
 }

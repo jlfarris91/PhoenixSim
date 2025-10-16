@@ -762,7 +762,7 @@ namespace Phoenix
     MESH_TEMPLATE
     void MESH_CLASS::FixDelaunayConditions(TIdx vi)
     {
-        TFixedQueue<int16, 64> stack;
+        TFixedQueue<int16, 128> stack;
 
         for (size_t i = 0; i < HalfEdges.Num(); ++i)
         {
@@ -983,15 +983,16 @@ namespace Phoenix
                 continue;
             }
 
+            if (result.Result == EPointInFaceResult::OnEdge)
+            {
+                containingEdge = result.OnEdgeIndex;
+                break;
+            }
+
             if (result.Result == EPointInFaceResult::Inside)
             {
                 containingFace = faceIndex;
-            }
-            else if (result.Result == EPointInFaceResult::OnEdge)
-            {
-                // TODO (jfarris): fix edge splitting
-                // containingEdge = result.OnEdgeIndex;
-                continue;
+                break;
             }
         }
 
@@ -1159,10 +1160,20 @@ namespace Phoenix
 
         auto lockedEdge = FindEdge(v0, v1);
 
-        PHX_ASSERT(lockedEdge.HalfEdge0 != Index<TIdx>::None);
-        PHX_ASSERT(lockedEdge.HalfEdge1 != Index<TIdx>::None);
-        HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
-        HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
+        if (lockedEdge.HalfEdge0 != Index<TIdx>::None)
+        {
+            HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
+        }
+
+        if (lockedEdge.HalfEdge1 != Index<TIdx>::None)
+        {
+            HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
+        }
+
+        // PHX_ASSERT(lockedEdge.HalfEdge0 != Index<TIdx>::None);
+        // PHX_ASSERT(lockedEdge.HalfEdge1 != Index<TIdx>::None);
+        // HalfEdges[lockedEdge.HalfEdge0].bLocked = true;
+        // HalfEdges[lockedEdge.HalfEdge1].bLocked = true;
 
         // Re-triangluate to respect delaunay
         if (fixDelaunayConditions)

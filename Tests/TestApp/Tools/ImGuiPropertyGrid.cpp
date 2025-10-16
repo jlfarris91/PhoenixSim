@@ -8,13 +8,13 @@ using namespace Phoenix;
 
 void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDesc)
 {
-#define NUMERIC_EDITOR(type) \
+#define NUMERIC_EDITOR(type, imgui_type) \
     { \
         type v_min = std::numeric_limits<type>::min(), v_max = std::numeric_limits<type>::max(); \
         ImGui::SetNextItemWidth(-FLT_MIN); \
         type v; \
         propertyDesc.PropertyAccessor->Get(obj, &v, sizeof(type)); \
-        if (ImGui::DragScalar("##Editor", ImGuiDataType_S8, &v, 1.0f, &v_min, &v_max)) \
+        if (ImGui::DragScalar("##Editor", imgui_type, &v, 1.0f, &v_min, &v_max)) \
         { \
             propertyDesc.PropertyAccessor->Set(obj, &v, sizeof(type)); \
         } \
@@ -22,16 +22,16 @@ void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDe
 
     switch (propertyDesc.ValueType)
     {
-        case EPropertyValueType::Int8:      NUMERIC_EDITOR(int8) break;
-        case EPropertyValueType::UInt8:     NUMERIC_EDITOR(uint8) break;
-        case EPropertyValueType::Int16:     NUMERIC_EDITOR(int16) break;
-        case EPropertyValueType::UInt16:    NUMERIC_EDITOR(uint16) break;
-        case EPropertyValueType::Int32:     NUMERIC_EDITOR(int32) break;
-        case EPropertyValueType::UInt32:    NUMERIC_EDITOR(uint32) break;
-        case EPropertyValueType::Int64:     NUMERIC_EDITOR(int64) break;
-        case EPropertyValueType::UInt64:    NUMERIC_EDITOR(uint64) break;
-        case EPropertyValueType::Float:     NUMERIC_EDITOR(float) break;
-        case EPropertyValueType::Double:    NUMERIC_EDITOR(double) break;
+        case EPropertyValueType::Int8:      NUMERIC_EDITOR(int8, ImGuiDataType_S8) break;
+        case EPropertyValueType::UInt8:     NUMERIC_EDITOR(uint8, ImGuiDataType_U8) break;
+        case EPropertyValueType::Int16:     NUMERIC_EDITOR(int16, ImGuiDataType_S16) break;
+        case EPropertyValueType::UInt16:    NUMERIC_EDITOR(uint16, ImGuiDataType_U16) break;
+        case EPropertyValueType::Int32:     NUMERIC_EDITOR(int32, ImGuiDataType_S32) break;
+        case EPropertyValueType::UInt32:    NUMERIC_EDITOR(uint32, ImGuiDataType_U32) break;
+        case EPropertyValueType::Int64:     NUMERIC_EDITOR(int64, ImGuiDataType_S64) break;
+        case EPropertyValueType::UInt64:    NUMERIC_EDITOR(uint64, ImGuiDataType_U64) break;
+        case EPropertyValueType::Float:     NUMERIC_EDITOR(float, ImGuiDataType_Float) break;
+        case EPropertyValueType::Double:    NUMERIC_EDITOR(double, ImGuiDataType_Double) break;
         case EPropertyValueType::Bool:
             {
                 bool v;

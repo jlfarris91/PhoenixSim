@@ -90,9 +90,9 @@ namespace Phoenix
     }
 
     template <class T>
-    auto Orient(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& p)
+    auto Orient(const TVec2<T>& p, const TVec2<T>& a, const TVec2<T>& b)
     {
-        return (b.X - a.X) * (p.Y - a.Y) - (b.Y - a.Y) * (p.X - a.X);
+        return (p.X - b.X) * (a.Y - b.Y) - (a.X - b.X) * (p.Y - b.Y);
     }
 
     enum class EPointInFaceResult
@@ -139,27 +139,26 @@ namespace Phoenix
     template <class T = Distance, class TIdx = uint8>
     PointInFaceResult<TIdx> PointInTriangle(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& c, const TVec2<T>& p)
     {
-        auto a0 = Orient(a, b, p);
-        if (a0 == 0)
+        auto acX = a.X - c.X;
+        auto acY = a.Y - c.Y;
+        auto bcY = b.Y - c.Y;
+        auto caY = c.Y - a.Y;
+        auto cbX = c.X - b.X;
+        auto pc = p - c;
+
+        auto d = bcY * acX + cbX * acY;
+        if (d == 0)
         {
-            return { EPointInFaceResult::OnEdge, 0 };
+            return { EPointInFaceResult::Outside };
         }
 
-        auto b0 = Orient(b, c, p);
-        if (b0 == 0)
-        {
-            return { EPointInFaceResult::OnEdge, 1 };
-        }
+        auto a0 = (bcY * pc.X + cbX * pc.Y) / d;
+        auto b0 = (caY * pc.X + acX * pc.Y) / d;
+        auto c0 = 1 - a0 - b0;
 
-        auto c0 = Orient(c, a, p);
-        if (c0 == 0)
-        {
-            return { EPointInFaceResult::OnEdge, 2 };
-        }
-
-        bool allPos = a0 > 0 && b0 > 0 && c0 > 0;
-        bool allNeg = a0 < 0 && b0 < 0 && c0 < 0;
-        if (allPos || allNeg)
+        if (0 <= a0 && a0 <= 1 &&
+            0 <= b0 && b0 <= 1 &&
+            0 <= c0 && c0 <= 1)
         {
             return { EPointInFaceResult::Inside };
         }
