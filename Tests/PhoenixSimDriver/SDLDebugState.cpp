@@ -22,13 +22,13 @@ bool SDLDebugState::KeyUp(uint32 keycode) const
     return iter == KeyStates.end() || !iter->second;
 }
 
-bool SDLDebugState::MouseDown(uint8 button) const
+bool SDLDebugState::MouseButtonDown(uint8 button) const
 {
     auto iter = MouseButtonStates.find(button);
     return iter != MouseButtonStates.end() && iter->second;
 }
 
-bool SDLDebugState::MouseUp(uint8 button) const
+bool SDLDebugState::MouseButtonUp(uint8 button) const
 {
     auto iter = MouseButtonStates.find(button);
     return iter == MouseButtonStates.end() || !iter->second;

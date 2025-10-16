@@ -10,6 +10,11 @@
 
 using namespace Phoenix;
 
+SDL_FPoint operator/(const SDL_FPoint& fp, float scalar)
+{
+    return { fp.x / scalar, fp.y / scalar };
+}
+
 namespace SDLDebugRenderer_Private
 {
     void SDL_RenderCircle(SDL_Renderer *renderer, float x1, float y1, float radius, int32 segments = 32)
@@ -50,16 +55,16 @@ void SDLDebugRenderer::Reset()
 
 void SDLDebugRenderer::DrawCircle(const Vec2& pt, Distance radius, const Color& color, int32 segments)
 {
-    SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt);
-    SDL_FPoint sdlRadius = Viewport->WorldVecToViewportVec(Vec2(radius, 0));
+    SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt) / GetScale();
+    SDL_FPoint sdlRadius = Viewport->WorldVecToViewportVec(Vec2(radius, 0)) / GetScale();
     SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDLDebugRenderer_Private::SDL_RenderCircle(Renderer, sdlPt.x, sdlPt.y, sdlRadius.x, segments);
 }
 
 void SDLDebugRenderer::DrawLine(const Vec2& pt0, const Vec2& pt1, const Color& color)
 {
-    SDL_FPoint sdlPt0 = Viewport->WorldPosToViewportPos(pt0);
-    SDL_FPoint sdlPt1 = Viewport->WorldPosToViewportPos(pt1);
+    SDL_FPoint sdlPt0 = Viewport->WorldPosToViewportPos(pt0) / GetScale();
+    SDL_FPoint sdlPt1 = Viewport->WorldPosToViewportPos(pt1) / GetScale();
     SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDL_RenderLine(Renderer, sdlPt0.x, sdlPt0.y, sdlPt1.x, sdlPt1.y);
 }
@@ -91,9 +96,14 @@ void SDLDebugRenderer::DrawRect(const Vec2& min, const Vec2& max, const Color& c
 
 void SDLDebugRenderer::DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color)
 {
-    SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt);
+    SDL_FPoint sdlPt = Viewport->WorldPosToViewportPos(pt) / GetScale();
     SDL_SetRenderDrawColor(Renderer, color.R, color.G, color.B, color.A);
     SDL_RenderDebugText(Renderer, sdlPt.x, sdlPt.y, str);
+}
+
+float SDLDebugRenderer::GetScale() const
+{
+    return ScaleStack.empty() ? 1.0f : ScaleStack.back();
 }
 
 void SDLDebugRenderer::PushScale(float scale)
@@ -109,7 +119,7 @@ void SDLDebugRenderer::PopScale()
     SDL_SetRenderScale(Renderer, scale, scale);
 }
 
-Color SDLDebugRenderer::GetColor(uint32 index) const
+Color SDLDebugRenderer::GetColor(size_t index) const
 {
     return Colors[index % _countof(Colors)];
 }

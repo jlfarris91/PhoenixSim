@@ -118,6 +118,11 @@
     <ClInclude Include="SDL\SDLDebugRenderer.h" />
     <ClInclude Include="SDL\SDLDebugState.h" />
     <ClInclude Include="SDL\SDLViewport.h" />
+    <ClInclude Include="SDL\SDLTool.h" />
+    <ClInclude Include="Tools\CameraTool.h" />
+    <ClInclude Include="Tools\EntityTool.h" />
+    <ClInclude Include="Tools\ImGuiPropertyGrid.h" />
+    <ClInclude Include="Tools\NavMeshTool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\External\imgui\backends\imgui_impl_sdl3.cpp" />
@@ -135,6 +140,10 @@
     <ClCompile Include="SDL\SDLViewport.cpp" />
     <ClCompile Include="app.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Tools\CameraTool.cpp" />
+    <ClCompile Include="Tools\EntityTool.cpp" />
+    <ClCompile Include="Tools\ImGuiPropertyGrid.cpp" />
+    <ClCompile Include="Tools\NavMeshTool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\External\imgui\.editorconfig" />

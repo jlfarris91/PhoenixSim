@@ -21,26 +21,38 @@ void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
-    Vec2 mapSize(512, 512);
-    auto bl = Vec2(-mapSize.X / 2, -mapSize.Y / 2);
-    auto br = Vec2(mapSize.X / 2, -mapSize.Y / 2);
-    auto tl = Vec2(-mapSize.X / 2, mapSize.Y / 2);
-    auto tr = Vec2(mapSize.X / 2, mapSize.Y / 2);
+    auto bl = Vec2(0, 0);
+    auto br = Vec2(512, 0);
+    auto tl = Vec2(0, 512);
+    auto tr = Vec2(512, 512);
 
     block.DynamicNavMesh.Reset();
     block.DynamicNavMesh.InsertFace(bl, tr, tl, 1);
     block.DynamicNavMesh.InsertFace(bl, br, tr, 2);
+
+    for (const auto& point : block.DynamicPoints)
+    {
+        block.DynamicNavMesh.CDT_InsertPoint(point);
+    }
+
+    for (const auto& edge : block.DynamicEdges)
+    {
+        block.DynamicNavMesh.CDT_InsertEdge(edge);
+    }
 }
 
 void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
 {
     IFeature::OnHandleAction(world, action);
 
+    FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
+    FeatureNavMeshScratchBlock& scratchBlock = world.GetBlockRef<FeatureNavMeshScratchBlock>();
+
     if (action.Action.Verb == "insert_point"_n)
     {
         auto ptx = action.Action.Data[0].Distance;
         auto pty = action.Action.Data[1].Distance;
-        InsertPoint(world, { ptx, pty });
+        dynamicBlock.DynamicPoints.EmplaceBack(ptx, pty);
     }
 
     if (action.Action.Verb == "insert_edge"_n)
@@ -49,7 +61,51 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         auto pt0y = action.Action.Data[1].Distance;
         auto pt1x = action.Action.Data[2].Distance;
         auto pt1y = action.Action.Data[3].Distance;
-        InsertEdge(world, { pt0x, pt0y }, { pt1x, pt1y });
+        dynamicBlock.DynamicEdges.EmplaceBack(Vec2{ pt0x, pt0y }, Vec2{ pt1x, pt1y });
+    }
+
+    if (action.Action.Verb == "find_path"_n)
+    {
+        auto pt0x = action.Action.Data[0].Distance;
+        auto pt0y = action.Action.Data[1].Distance;
+        auto pt1x = action.Action.Data[2].Distance;
+        auto pt1y = action.Action.Data[3].Distance;
+        auto r = action.Action.Data[4].Distance;
+        scratchBlock.MeshPath.FindPath(dynamicBlock.DynamicNavMesh, { pt0x, pt0y }, { pt1x, pt1y }, r, false);
+        if (scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+        {
+            scratchBlock.MeshPath.ResolvePath(dynamicBlock.DynamicNavMesh, false);
+        }
+    }
+
+    if (action.Action.Verb == "delete_edges_and_points"_n)
+    {
+        Vec2 pos = {action.Action.Data[0].Distance, action.Action.Data[1].Distance};
+        Distance radius = action.Action.Data[2].Distance;
+
+        for (size_t i = 0; i < dynamicBlock.DynamicPoints.Num();)
+        {
+            if (Vec2::Distance(dynamicBlock.DynamicPoints[i], pos) < radius)
+            {
+                dynamicBlock.DynamicPoints.RemoveAt(i);
+            }
+            else
+            {
+                ++i;
+            }
+        }
+
+        for (size_t i = 0; i < dynamicBlock.DynamicEdges.Num();)
+        {
+            if (Line2::DistanceToLine(dynamicBlock.DynamicEdges[i], pos) < radius)
+            {
+                dynamicBlock.DynamicEdges.RemoveAt(i);
+            }
+            else
+            {
+                ++i;
+            }
+        }
     }
 }
 

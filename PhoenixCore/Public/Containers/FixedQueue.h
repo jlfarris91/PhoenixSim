@@ -183,6 +183,106 @@ namespace Phoenix
             return Iter(&Data[0], End);
         }
 
+        struct ConstIter
+        {
+            using value_type = T;
+            using element_type = T;
+            using iterator_category = std::contiguous_iterator_tag;
+
+            ConstIter(const T* data, size_t index) : DataPtr(data), Index(index) {}
+
+            const T* operator->() const
+            {
+                return DataPtr + Index;
+            }
+
+            const T& operator*() const
+            {
+                return *(DataPtr + Index);
+            }
+
+            const T& operator[](int32 n) const
+            {
+                return *(DataPtr + MoveIndex(Index, n));
+            }
+
+            ConstIter& operator++()
+            {
+                Index = MoveIndex(Index, 1);
+                return *this;
+            }
+
+            ConstIter operator++(int32 n) const
+            {
+                return { DataPtr, MoveIndex(Index, n) };
+            }
+
+            ConstIter& operator--()
+            {
+                Index = MoveIndex(Index, -1);
+                return *this;
+            }
+
+            ConstIter operator--(int32 n) const
+            {
+                return { DataPtr, MoveIndex(Index, -n) };
+            }
+
+            ConstIter& operator+=(int32 n)
+            {
+                Index = MoveIndex(Index, n);
+                return *this;
+            }
+
+            ConstIter& operator-=(int32 n)
+            {
+                Index = MoveIndex(Index, -n);
+                return *this;
+            }
+
+            friend auto operator<=>(ConstIter, ConstIter) = default;
+
+            friend long operator-(const ConstIter& a, const ConstIter& b)
+            {
+                if (a.Index > b.Index) return a.Index - b.Index;
+                return a.Index + N - b.Index;
+            }
+
+            friend ConstIter operator+(ConstIter i, int32 n)
+            {
+                return { i.DataPtr, MoveIndex(i.Index, n) };
+            }
+
+            friend ConstIter operator-(ConstIter i, int32 n)
+            {
+                return { i.DataPtr, MoveIndex(i.Index, -n) };
+            }
+
+            friend ConstIter operator+(int32 n, ConstIter i)
+            {
+                return { i.DataPtr, MoveIndex(i.Index, n) };
+            }
+
+            bool operator==(const ConstIter& other) const
+            {
+                return DataPtr == other.DataPtr && Index == other.Index;
+            }
+
+        private:
+            const T* DataPtr;
+            size_t Index;
+        };
+
+        ConstIter begin() const
+        {
+            return ConstIter(&Data[0], Start);
+        }
+
+        ConstIter end() const
+        {
+            return ConstIter(&Data[0], End);
+        }
+
     private:
 
         T Data[N];

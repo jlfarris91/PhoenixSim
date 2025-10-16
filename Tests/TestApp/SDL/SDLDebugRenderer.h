@@ -32,10 +32,11 @@ namespace Phoenix
 
         void DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color) override;
 
+        float GetScale() const;
         void PushScale(float scale);
         void PopScale();
 
-        Color GetColor(uint32 index) const override;
+        Color GetColor(size_t index) const override;
 
         SDL_Renderer* Renderer;
         SDLViewport* Viewport;

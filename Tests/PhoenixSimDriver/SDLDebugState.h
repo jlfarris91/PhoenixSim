@@ -17,8 +17,8 @@ namespace Phoenix
         bool KeyDown(uint32 keycode) const override;
         bool KeyUp(uint32 keycode) const override;
 
-        bool MouseDown(uint8 button) const override;
-        bool MouseUp(uint8 button) const override;
+        bool MouseButtonDown(uint8 button) const override;
+        bool MouseButtonUp(uint8 button) const override;
 
         Vec2 GetWorldMousePos() const override;
 

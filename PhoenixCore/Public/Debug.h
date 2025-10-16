@@ -14,9 +14,13 @@ namespace Phoenix
 
         virtual bool KeyDown(uint32 keycode) const = 0;
         virtual bool KeyUp(uint32 keycode) const = 0;
+        virtual bool KeyPressed(uint32 keycode) const = 0;
+        virtual bool KeyReleased(uint32 keycode) const = 0;
 
-        virtual bool MouseDown(uint8 keycode) const = 0;
-        virtual bool MouseUp(uint8 keycode) const = 0;
+        virtual bool MouseButtonDown(uint8 button) const = 0;
+        virtual bool MouseButtonUp(uint8 button) const = 0;
+        virtual bool MouseButtonPressed(uint8 button) const = 0;
+        virtual bool MouseButtonReleased(uint8 button) const = 0;
 
         virtual Vec2 GetWorldMousePos() const = 0;
     };
@@ -32,6 +36,6 @@ namespace Phoenix
         virtual void DrawRect(const Vec2& min, const Vec2& max, const Color& color) = 0;
         virtual void DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color) = 0;
 
-        virtual Color GetColor(uint32 index) const = 0;
+        virtual Color GetColor(size_t index) const = 0;
     };
 }

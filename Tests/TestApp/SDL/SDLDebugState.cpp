@@ -22,16 +22,52 @@ bool SDLDebugState::KeyUp(uint32 keycode) const
     return iter == KeyStates.end() || !iter->second;
 }
 
-bool SDLDebugState::MouseDown(uint8 button) const
+bool SDLDebugState::KeyPressed(uint32 keycode) const
+{
+    if (!KeyDown(keycode))
+        return false;
+
+    auto prevIter = PrevKeyStates.find(keycode);
+    return prevIter == PrevKeyStates.end() || !prevIter->second;
+}
+
+bool SDLDebugState::KeyReleased(uint32 keycode) const
+{
+    if (!KeyUp(keycode))
+        return false;
+
+    auto prevIter = PrevKeyStates.find(keycode);
+    return prevIter != PrevKeyStates.end() && prevIter->second;
+}
+
+bool SDLDebugState::MouseButtonDown(uint8 button) const
 {
     auto iter = MouseButtonStates.find(button);
     return iter != MouseButtonStates.end() && iter->second;
 }
 
-bool SDLDebugState::MouseUp(uint8 button) const
+bool SDLDebugState::MouseButtonUp(uint8 button) const
 {
     auto iter = MouseButtonStates.find(button);
     return iter == MouseButtonStates.end() || !iter->second;
+}
+
+bool SDLDebugState::MouseButtonPressed(uint8 button) const
+{
+    if (!MouseButtonDown(button))
+        return false;
+
+    auto prevIter = PrevMouseButtonStates.find(button);
+    return prevIter == PrevMouseButtonStates.end() || !prevIter->second;
+}
+
+bool SDLDebugState::MouseButtonReleased(uint8 button) const
+{
+    if (!MouseButtonUp(button))
+        return false;
+
+    auto prevIter = PrevMouseButtonStates.find(button);
+    return prevIter != PrevMouseButtonStates.end() && prevIter->second;
 }
 
 Vec2 SDLDebugState::GetWorldMousePos() const
@@ -44,6 +80,9 @@ Vec2 SDLDebugState::GetWorldMousePos() const
 
 void SDLDebugState::ProcessAppEvent(SDL_Event* event)
 {
+    PrevKeyStates = KeyStates;
+    PrevMouseButtonStates = MouseButtonStates;
+
     if (event->type == SDL_EVENT_KEY_DOWN)
     {
         KeyStates[event->key.key] = true;

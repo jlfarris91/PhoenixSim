@@ -18,6 +18,8 @@ namespace Phoenix
         UInt32,
         Int64,
         UInt64,
+        Float,
+        Double,
         Bool,
         String,
         Name,
@@ -395,6 +397,8 @@ namespace Phoenix
         TYPE_TO_ENUM_VALUE(uint32, UInt32)
         TYPE_TO_ENUM_VALUE(int64, Int64)
         TYPE_TO_ENUM_VALUE(uint64, UInt64)
+        TYPE_TO_ENUM_VALUE(float, Float)
+        TYPE_TO_ENUM_VALUE(double, Double)
         TYPE_TO_ENUM_VALUE(bool, Bool)
         TYPE_TO_ENUM_VALUE(PHXString, String)
         TYPE_TO_ENUM_VALUE(FName, Name)
@@ -495,13 +499,40 @@ namespace Phoenix
 
         TMap<PHXString, PropertyDescriptor> Properties;
         TMap<PHXString, MethodDescriptor> Methods;
+        FName Name;
+        const char* DisplayName;
     };
 
+#define DECLARE_TYPE_BEGIN(type) \
+    public: \
+        using ThisType = type; \
+    private: \
+        struct SStructDescriptor { \
+            static constexpr FName StaticName = #type##_n; \
+            static constexpr const char* StaticDisplayName = #type; \
+            static StructDescriptor Construct() \
+            { \
+                StructDescriptor definition; \
+                definition.Name = StaticName; \
+                definition.DisplayName = StaticDisplayName; \
+
+#define DECLARE_TYPE_END() \
+                return definition; \
+            } \
+        }; \
+    public: \
+        static const StructDescriptor& GetStaticTypeDescriptor() { static StructDescriptor sd = SStructDescriptor::Construct(); return sd; } \
+        const StructDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
+
+#define DECLARE_TYPE(type) \
+    DECLARE_TYPE_BEGIN(type) \
+    DECLARE_TYPE_END()
+
 #define REGISTER_FIELD(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::name);
-    #define REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
-    #define REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
-    #define REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);
-    #define REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::##name);
-    #define REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::##name);
-    #define REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::##name);
+#define REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
+#define REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
+#define REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);
+#define REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::##name);
+#define REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::##name);
+#define REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::##name);
 }

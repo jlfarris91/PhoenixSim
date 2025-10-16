@@ -4,6 +4,7 @@
 #include "Mesh2.h"
 #include "MeshPath.h"
 
+
 namespace Phoenix
 {
     namespace Pathfinding
@@ -25,6 +26,8 @@ namespace Phoenix
             DECLARE_WORLD_BLOCK_DYNAMIC(FeatureNavMeshDynamicBlock)
 
             NavMesh DynamicNavMesh;
+            TFixedArray<Line2, NavMesh::Capacity> DynamicEdges;
+            TFixedArray<Vec2, NavMesh::Capacity> DynamicPoints;
         };
 
         struct PHOENIXSIM_API FeatureNavMeshScratchBlock
@@ -83,11 +86,11 @@ namespace Phoenix
 
         private:
 
-            bool bDebugDrawVertices = true;
-            bool bDebugDrawVertexIds = true;
-            bool bDebugDrawHalfEdges = true;
-            bool bDebugDrawHalfEdgeIds = true;
-            bool bDebugDrawFaceIds = true;
+            bool bDebugDrawVertices = false;
+            bool bDebugDrawVertexIds = false;
+            bool bDebugDrawHalfEdges = false;
+            bool bDebugDrawHalfEdgeIds = false;
+            bool bDebugDrawFaceIds = false;
         };
     }
 }

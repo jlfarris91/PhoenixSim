@@ -61,6 +61,7 @@ namespace Phoenix
         using TVert = TVec2<TVecComp>;
         using TVertComp = TVecComp;
         static constexpr TVertComp DefaultThreshold = 10.0;
+        static constexpr size_t Capacity = NFaces;
 
         // Resets the mesh clearing all vertices, edges and faces.
         void Reset();
