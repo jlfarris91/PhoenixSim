@@ -229,6 +229,8 @@ project "TestApp"
       "../Tests/TestApp/**.inl",
       "../Tests/TestApp/**.cpp",
 
+      "../External/nlohmann/*",
+
       "../External/imgui/*",
       "../External/imgui/backends/imgui_impl_sdl3.h",
       "../External/imgui/backends/imgui_impl_sdl3.cpp",
