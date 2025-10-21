@@ -68,10 +68,10 @@ Session* GSession;
 bool GSessionThreadWantsExit = false;
 std::thread* GSessionThread = nullptr;
 std::vector<World> GWorldUpdateQueue;
-std::mutex GWorldUpdateQueueMutex;
+std::mutex GWorldViewUpdateMutex;
 float GSessionFPS = 0;
 
-World* GCurrWorld = nullptr;
+World* GCurrWorldView = nullptr;
 FeaturePhysicsScratchBlock* GPhysicsScratchBlock = nullptr;
 
 TMap<uint8, bool> GMouseButtonStates;
@@ -144,7 +144,7 @@ void UpdateSessionWorker()
 
 void OnPostWorldUpdate(WorldConstRef world)
 {
-    std::lock_guard lock(GWorldUpdateQueueMutex);
+    std::lock_guard lock(GWorldViewUpdateMutex);
     GWorldUpdateQueue.push_back(world);
 }
 
@@ -310,22 +310,22 @@ void DrawGrid()
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     {
-        std::lock_guard lock(GWorldUpdateQueueMutex);
+        std::lock_guard lock(GWorldViewUpdateMutex);
 
         if (!GWorldUpdateQueue.empty())
         {
             World& world = GWorldUpdateQueue[GWorldUpdateQueue.size() - 1];
 
-            if (!GCurrWorld)
+            if (!GCurrWorldView)
             {
-                GCurrWorld = new World(world);
+                GCurrWorldView = new World(world);
             }
             else
             {
-                *GCurrWorld = world;
+                *GCurrWorldView = world;
             }
 
-            GPhysicsScratchBlock = GCurrWorld->GetBlock<FeaturePhysicsScratchBlock>();
+            GPhysicsScratchBlock = GCurrWorldView->GetBlock<FeaturePhysicsScratchBlock>();
 
             GEntityBodies.clear();
 
@@ -362,7 +362,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    if (!GCurrWorld)
+    if (!GCurrWorldView)
         return SDL_APP_CONTINUE;
 
     float mx, my;
@@ -392,7 +392,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     //Vec2 mapCenter(GWindowWidth >> 1, GWindowHeight >> 1);
     Vec2 mapCenter(0, 0);
 
-    if (GCurrWorld)
+    if (GCurrWorldView)
     {
         GDebugRenderer->Reset();
 
@@ -412,7 +412,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
         for (const auto& feature : channelFeatures)
         {
-            feature->OnDebugRender(*GCurrWorld, *GDebugState, *GDebugRenderer);
+            feature->OnDebugRender(*GCurrWorldView, *GDebugState, *GDebugRenderer);
         }
     }
 
@@ -439,7 +439,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     const Vec2 queryPos = mouseWorldPos;
     // const Vec2 queryPos = Vec2(0, 0);
     
-    if (GCurrWorld)
+    if (GCurrWorldView)
     {
         TMortonCodeRangeArray ranges;
         MortonCodeAABB aabb = ToMortonCodeAABB(queryPos, radius);
@@ -512,7 +512,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         RenderDebugText("Num Contacts: %llu", GPhysicsScratchBlock->Contacts.Num())
     }
     
-    if (GCurrWorld)
+    if (GCurrWorldView)
     {
         TMortonCodeRangeArray ranges;
         MortonCodeAABB aabb = ToMortonCodeAABB(queryPos, radius);
@@ -531,7 +531,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    FeatureTraceScratchBlock& traceBlock = GCurrWorld->GetBlockRef<FeatureTraceScratchBlock>();
+    FeatureTraceScratchBlock& traceBlock = GCurrWorldView->GetBlockRef<FeatureTraceScratchBlock>();
 
     struct AggTraceEvent
     {

@@ -53,6 +53,34 @@ namespace Phoenix
         return d;
     }
 
+    template <class T>
+    constexpr T Floor(const T& v)
+    {
+        return TFixedQ_T<typename T::ValueT>((T::ValueT)(v.Value / T::D) * T::D);
+    }
+
+    template <class T>
+    constexpr T Ceil(const T& v)
+    {
+        typename T::ValueT remainder = v.Value % T::D;
+        if (remainder == 0)
+        {
+            return TFixedQ_T<typename T::ValueT>(v.Value + T::D);
+        }
+        return TFixedQ_T<typename T::ValueT>(v.Value - remainder + T::D);
+    }
+
+    template <class T>
+    constexpr auto Round(const T& v)
+    {
+        return T(TFixedQ_T<typename T::ValueT>((T::ValueT)((v.Value + (T::D >> 1)) / T::D) * T::D));
+    }
+
+    static_assert(Floor(Distance(1.23)) == Distance(1));
+    static_assert(Ceil(Distance(1.23)) == Distance(2));
+    static_assert(Round(Distance(1.23)) == Distance(1));
+    static_assert(Round(Distance(1.56)) == Distance(2));
+
     template <class A, class B>
     constexpr auto Min(const A& a, const B& b)
     {

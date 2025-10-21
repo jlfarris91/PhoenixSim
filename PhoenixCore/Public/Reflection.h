@@ -408,9 +408,24 @@ namespace Phoenix
         return EPropertyValueType::Unknown;
     }
 
+    struct PHOENIXCORE_API BaseDescriptor
+    {
+        PHXString Name;
+        struct StructDescriptor* Descriptor; 
+    };
+
     struct PHOENIXCORE_API StructDescriptor
     {
         virtual ~StructDescriptor();
+
+        template <class T>
+        void RegisterInterface()
+        {
+            const auto& baseDescriptor = T::GetStaticTypeDescriptor();
+            BaseDescriptor& descriptor = Bases[baseDescriptor.GetName()];
+            descriptor.Name = baseDescriptor.GetName();
+            descriptor.Descriptor = &baseDescriptor;
+        }
 
         template <class T, class TValue>
         const PropertyDescriptor& RegisterProperty(
@@ -499,11 +514,12 @@ namespace Phoenix
 
         TMap<PHXString, PropertyDescriptor> Properties;
         TMap<PHXString, MethodDescriptor> Methods;
+        TMap<PHXString, BaseDescriptor> Bases;
         FName Name;
         const char* DisplayName;
     };
 
-#define DECLARE_TYPE_BEGIN(type) \
+#define PHX_DECLARE_TYPE_BEGIN(type) \
     public: \
         using ThisType = type; \
     private: \
@@ -516,7 +532,7 @@ namespace Phoenix
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
 
-#define DECLARE_TYPE_END() \
+#define PHX_DECLARE_TYPE_END() \
                 return definition; \
             } \
         }; \
@@ -524,15 +540,41 @@ namespace Phoenix
         static const StructDescriptor& GetStaticTypeDescriptor() { static StructDescriptor sd = SStructDescriptor::Construct(); return sd; } \
         const StructDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
 
-#define DECLARE_TYPE(type) \
-    DECLARE_TYPE_BEGIN(type) \
-    DECLARE_TYPE_END()
+#define PHX_DECLARE_TYPE(type) \
+    PHX_DECLARE_TYPE_BEGIN(type) \
+    PHX_DECLARE_TYPE_END()
 
-#define REGISTER_FIELD(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::name);
-#define REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
-#define REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
-#define REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);
-#define REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::##name);
-#define REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::##name);
-#define REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::##name);
+#define PHX_DECLARE_INTERFACE_BEGIN(type) \
+    public: \
+        using ThisType = type; \
+    private: \
+        struct SStructDescriptor { \
+            static constexpr FName StaticName = #type##_n; \
+            static constexpr const char* StaticDisplayName = #type; \
+            static StructDescriptor Construct() \
+            { \
+                StructDescriptor definition; \
+                definition.Name = StaticName; \
+                definition.DisplayName = StaticDisplayName; \
+
+#define PHX_DECLARE_INTERFACE_END() \
+                return definition; \
+            } \
+        }; \
+    public: \
+        static const StructDescriptor& GetStaticTypeDescriptor() { static StructDescriptor sd = SStructDescriptor::Construct(); return sd; } \
+        const StructDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
+
+#define PHX_DECLARE_INTERFACE(type) \
+    PHX_DECLARE_INTERFACE_BEGIN(type) \
+    PHX_DECLARE_INTERFACE_END()
+
+#define PHX_REGISTER_FIELD(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::name);
+#define PHX_REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
+#define PHX_REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
+#define PHX_REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);
+#define PHX_REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::##name);
+#define PHX_REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::##name);
+#define PHX_REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::##name);
+#define PHX_REGISTER_INTERFACE(name) definition.RegisterInterface<name>();
 }

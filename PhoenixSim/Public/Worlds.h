@@ -230,6 +230,8 @@ namespace Phoenix
         WorldSharedPtr NewWorld(const FName& name);
         WorldSharedPtr GetWorld(const FName& name) const;
 
+        WorldSharedPtr GetPrimaryWorld() const;
+
         void Step(const WorldStepArgs& args);
 
         void SendAction(const WorldSendActionArgs& args);

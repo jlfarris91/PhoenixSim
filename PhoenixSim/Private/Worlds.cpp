@@ -235,6 +235,11 @@ WorldSharedPtr WorldManager::GetWorld(const FName& name) const
     return nullptr;
 }
 
+WorldSharedPtr WorldManager::GetPrimaryWorld() const
+{
+    return Worlds[0];
+}
+
 void WorldManager::Step(const WorldStepArgs& args)
 {
     TArray<WorldSharedPtr> worlds;

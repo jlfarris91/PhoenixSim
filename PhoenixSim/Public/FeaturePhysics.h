@@ -5,6 +5,7 @@
 #include "Containers/FixedSet.h"
 #include "FixedPoint/FixedPoint.h"
 #include "FixedPoint/FixedVector.h"
+#include "FixedPoint/FixedLine.h"
 
 namespace Phoenix
 {
@@ -93,7 +94,7 @@ namespace Phoenix
         {
             DECLARE_WORLD_BLOCK_SCRATCH(FeaturePhysicsDynamicBlock)
 
-            bool bAllowSleep = false;
+            bool bAllowSleep = true;
         };
 
         struct PHOENIXSIM_API FeaturePhysicsScratchBlock
@@ -109,10 +110,6 @@ namespace Phoenix
             TFixedArray<Contact, ECS_MAX_ENTITIES> Contacts;
             TFixedSet<uint64, ECS_MAX_ENTITIES> ContactSet;
             TFixedArray<CollisionLine, 1000> CollisionLines;
-
-            ECS::EntityComponentsContainer<ECS::TransformComponent, BodyComponent, ECS::MovementComponent> MoveBodies;
-            Vec2 MapCenter = Vec2::Zero;
-            Angle Rotation = 0;
         };
 
         class PHOENIXSIM_API FeaturePhysics : public IFeature
@@ -121,7 +118,8 @@ namespace Phoenix
                 FEATURE_BLOCK(FeaturePhysicsDynamicBlock)
                 FEATURE_BLOCK(FeaturePhysicsScratchBlock)
                 FEATURE_CHANNEL(WorldChannels::HandleAction)
-                REGISTER_PROPERTY(bool, DebugDrawContacts)
+                PHX_REGISTER_PROPERTY(bool, DebugDrawContacts)
+                PHX_REGISTER_PROPERTY(bool, AllowSleep)
             FEATURE_END()
 
         public:
@@ -142,6 +140,9 @@ namespace Phoenix
 
             bool GetDebugDrawContacts() const;
             void SetDebugDrawContacts(const bool& value);
+
+            bool GetAllowSleep() const;
+            void SetAllowSleep(const bool& value);
 
             TSharedPtr<PhysicsSystem> PhysicsSystem;
         };

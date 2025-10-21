@@ -1,11 +1,13 @@
 
 #pragma once
 
+#include "FixedBVH.h"
 #include "Optional.h"
 #include "PlatformTypes.h"
 #include "Containers/FixedArray.h"
 #include "FixedPoint/FixedMath.h"
 #include "FixedPoint/FixedVector.h"
+#include "FixedPoint/FixedLine.h"
 
 namespace Phoenix
 {
@@ -52,15 +54,15 @@ namespace Phoenix
         Both = Incoming | Outgoing
     };
 
-    template <size_t NFaces, class TFaceData, class TVecComp = Distance, class TIdx = uint16>
+    template <size_t NFaces, class TFaceData, class TVecComp_ = Distance, class TIdx = uint16>
     struct TFixedCDTMesh2
     {
         using TIndex = TIdx;
         using THalfEdge = TMeshHalfEdge<TIdx>;
         using TFace = TMeshFace<TFaceData, TIdx>;
-        using TVert = TVec2<TVecComp>;
-        using TVertComp = TVecComp;
-        static constexpr TVertComp DefaultThreshold = 1E-3;
+        using TVec = TVec2<TVecComp_>;
+        using TVecComp = TVecComp_;
+        static constexpr TVecComp DefaultThreshold = 1E-3;
         static constexpr size_t Capacity = NFaces;
 
         // Resets the mesh clearing all vertices, edges and faces.
@@ -77,36 +79,36 @@ namespace Phoenix
 
         // Inserts an index into the mesh and returns the new index.
         // If there is already a vert in the mesh within the given threshold distance, that vertex's index is returned instead.
-        TIdx InsertVertex(const TVert& pt, const TVertComp& threshold = DefaultThreshold);
+        TIdx InsertVertex(const TVec& pt, const TVecComp& threshold = DefaultThreshold);
 
         // Sets the position of a vertex.
         // Returns true if the index represents a valid vertex and the position is changed.
-        bool SetVertex(TIdx vertIndex, const TVert& pt);
+        bool SetVertex(TIdx vertIndex, const TVec& pt);
 
         // Returns a pointer to the vertex at the given index or nullptr if it doesn't exist.
-        const TVert* GetVertexPtr(TIdx vertIndex) const;
+        const TVec* GetVertexPtr(TIdx vertIndex) const;
 
         // Returns a reference to the vertex at the given index.
         // Use IsValidVert first to ensure that a valid vert exists.
-        const TVert& GetVertex(TIdx vertIndex) const;
+        const TVec& GetVertex(TIdx vertIndex) const;
 
         // Returns the index of the closest vertex in the mesh to the given point and radius.
-        TIdx FindClosestVertex(const TVert& pt, const TOptional<TVertComp>& radius) const;
+        TIdx FindClosestVertex(const TVec& pt, const TOptional<TVecComp>& radius) const;
 
         // Finds the indices for the two vertices that are closest to the given points.
         bool FindClosestVertices(
-            const TVert& v0,
-            const TVert& v1,
+            const TVec& v0,
+            const TVec& v1,
             TIdx& outV0,
             TIdx& outV1,
-            const TVertComp& threshold = DefaultThreshold) const;
+            const TVecComp& threshold = DefaultThreshold) const;
 
         // Returns true if any connected half-edges are locked.
         bool IsVertLocked(TIdx vertIndex) const;
 
         // Executes a callback for each vertex in range of a position.
         template <class T>
-        void ForEachVertInRange(const TVert& pos, TVertComp radius, T& callback) const;
+        void ForEachVertInRange(const TVec& pos, TVecComp radius, T& callback) const;
 
         // Executes a callback for each half-edge connected to a given vert.
         template <class T>
@@ -134,23 +136,23 @@ namespace Phoenix
 
         // Returns the index of a half-edge that exists in the mesh with the given vertex positions.
         TIdx FindHalfEdge(
-            const TVert& v0,
-            const TVert& v1,
+            const TVec& v0,
+            const TVec& v1,
             TIdx& outV0,
             TIdx& outV1,
-            const TVertComp& threshold = DefaultThreshold) const;
+            const TVecComp& threshold = DefaultThreshold) const;
 
         // Returns the index of a half-edge that exists in the mesh with the given vertex indices.
         TIdx FindHalfEdge(TIdx v0, TIdx v1) const;
 
         // Gets the vertex positions of a given edge given the index of one of the half-edges.
-        bool GetEdgeVerts(TIdx halfEdgeIndex, TVert& outVertA, TVert& outVertB) const;
+        bool GetEdgeVerts(TIdx halfEdgeIndex, TVec& outVertA, TVec& outVertB) const;
 
         // Gets the center of an edge given the index of one of the half-edges.
-        bool GetEdgeCenter(TIdx halfEdgeIndex, TVert& outCenter) const;
+        bool GetEdgeCenter(TIdx halfEdgeIndex, TVec& outCenter) const;
 
         // Gets the center and inner-normal of an edge given the index of one of the half-edges.
-        bool GetEdgeCenterAndNormal(TIdx halfEdgeIndex, TVert& outCenter, TVert& outNormal) const;
+        bool GetEdgeCenterAndNormal(TIdx halfEdgeIndex, TVec& outCenter, TVec& outNormal) const;
 
         // Gets the magnitude of an edge given the index of one of the half-edges.
         auto GetEdgeLength(TIdx halfEdgeIndex) const;
@@ -167,11 +169,11 @@ namespace Phoenix
 
         // Returns the edge (half-edge pair) that exits in the mesh with the given vertex positions.
         TMeshEdge<TIdx> FindEdge(
-            const TVert& v0,
-            const TVert& v1,
+            const TVec& v0,
+            const TVec& v1,
             TIdx& outV0,
             TIdx& outV1,
-            const TVertComp& threshold = DefaultThreshold) const;
+            const TVecComp& threshold = DefaultThreshold) const;
 
         // Returns the edge (half-edge pair) that exits in the mesh with the given vertex indices.
         TMeshEdge<TIdx> FindEdge(TIdx v0, TIdx v1) const;
@@ -197,26 +199,32 @@ namespace Phoenix
 
         // Inserts a new face into the mesh with the given vertex positions.
         // Assumes that (a,b,c) is CCW
-        TIdx InsertFace(const TVert& a, const TVert& b, const TVert& c, const TFaceData& data);
+        TIdx InsertFace(const TVec& a, const TVec& b, const TVec& c, const TFaceData& data);
 
         // Removes a face from the mesh.
         // Does not re-triangulate neighboring faces.
         bool RemoveFace(TIdx faceIndex);
 
         // Gets the vertex positions of the given face.
-        bool GetFaceVerts(TIdx faceIndex, TVert& outA, TVert& outB, TVert& outC) const;
+        bool GetFaceVerts(TIdx faceIndex, TVec& outA, TVec& outB, TVec& outC) const;
+
+        // Gets the vertex positions of the given face.
+        bool GetFaceVertPtrs(TIdx faceIndex, const TVec*& outA, const TVec*& outB, const TVec*& outC) const;
 
         // Returns the center of a face.
-        bool GetFaceCenter(TIdx faceIndex, TVert& outCenter) const;
+        bool GetFaceCenter(TIdx faceIndex, TVec& outCenter) const;
 
         // Returns the area of a face.
-        bool GetFaceArea(TIdx faceIndex, TVertComp& outArea) const;
+        bool GetFaceArea(TIdx faceIndex, TVecComp& outArea) const;
+
+        // Returns the bounding box of a face.
+        bool GetFaceBounds(TIdx faceIndex, TFixedBox<TVec>& outBounds) const;
 
         // Gets the index of the face containing the point or Index<TIdx>::None.
-        TIdx FindFaceContainingPoint(const TVert& pos) const;
+        TIdx FindFaceContainingPoint(const TVec& pos) const;
 
         // Returns whether a point is inside, outside or on the edge of a given face.
-        PointInFaceResult<TIdx> IsPointInFace(TIdx f, const TVert& p) const;
+        PointInFaceResult<TIdx> IsPointInFace(TIdx f, const TVec& p) const;
 
         void SplitFace(TIdx faceIndex, TIdx vertIndex, TIdx& outFace0, TIdx& outFace1, TIdx& outFace2);
 
@@ -252,11 +260,11 @@ namespace Phoenix
 
         void TriangulatePolygon(auto& chain, const TFaceData& faceData);
 
-        TIdx CDT_InsertPoint(const TVert& v, bool fixDelaunayConditions = true);
+        TIdx CDT_InsertPoint(const TVec& v, bool fixDelaunayConditions = true);
 
-        bool CDT_InsertEdge(const TLine<TVert>& line, bool fixDelaunayConditions = true);
+        bool CDT_InsertEdge(const TLine<TVec>& line, bool fixDelaunayConditions = true);
 
-        TFixedArray<TVert, NFaces*3> Vertices;
+        TFixedArray<TVec, NFaces*3> Vertices;
         TFixedArray<THalfEdge, NFaces*3> HalfEdges;
         TFixedArray<TFace, NFaces> Faces;
     };

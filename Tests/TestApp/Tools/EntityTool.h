@@ -10,11 +10,12 @@ namespace Phoenix
 
     struct EntityTool : ISDLTool
     {
-        DECLARE_TYPE_BEGIN(EntityTool)
-            REGISTER_FIELD(float, BrushSize)
-            REGISTER_FIELD(uint32, SpawnCount)
-            REGISTER_FIELD(float, MoveSpeed)
-        DECLARE_TYPE_END()
+        PHX_DECLARE_TYPE_BEGIN(EntityTool)
+            PHX_REGISTER_FIELD(float, BrushSize)
+            PHX_REGISTER_FIELD(uint32, SpawnCount)
+            PHX_REGISTER_FIELD(float, MoveSpeed)
+            PHX_REGISTER_FIELD(float, PushForce)
+        PHX_DECLARE_TYPE_END()
 
         EntityTool(Session* session);
 
@@ -26,6 +27,7 @@ namespace Phoenix
         float BrushSize = 10.0f;
         uint32 SpawnCount = 1;
         float MoveSpeed = 10.0f;
+        float PushForce = 100.0f;
     };
     
 }

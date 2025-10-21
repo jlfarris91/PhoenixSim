@@ -13,12 +13,8 @@ FeatureNavMesh::FeatureNavMesh()
 {
 }
 
-void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureNavMesh::RebuildNavMesh(WorldRef world)
 {
-    PHX_PROFILE_ZONE_SCOPED;
-
-    IFeature::OnPreUpdate(world, args);
-
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
     auto bl = Vec2(0, 0);
@@ -39,6 +35,23 @@ void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
     {
         block.DynamicNavMesh.CDT_InsertEdge(edge);
     }
+
+    // block.DynamicNavMesh.RecalculateBVH();
+}
+
+void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
+{
+    PHX_PROFILE_ZONE_SCOPED;
+
+    IFeature::OnPreUpdate(world, args);
+
+    FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
+
+    if (dynamicBlock.bDirty)
+    {
+        RebuildNavMesh(world);
+        dynamicBlock.bDirty = false;
+    }
 }
 
 void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
@@ -53,6 +66,7 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         auto ptx = action.Action.Data[0].Distance;
         auto pty = action.Action.Data[1].Distance;
         dynamicBlock.DynamicPoints.EmplaceBack(ptx, pty);
+        dynamicBlock.bDirty = true;
     }
 
     if (action.Action.Verb == "insert_edge"_n)
@@ -62,6 +76,7 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         auto pt1x = action.Action.Data[2].Distance;
         auto pt1y = action.Action.Data[3].Distance;
         dynamicBlock.DynamicEdges.EmplaceBack(Vec2{ pt0x, pt0y }, Vec2{ pt1x, pt1y });
+        dynamicBlock.bDirty = true;
     }
 
     if (action.Action.Verb == "find_path"_n)
@@ -83,11 +98,14 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         Vec2 pos = {action.Action.Data[0].Distance, action.Action.Data[1].Distance};
         Distance radius = action.Action.Data[2].Distance;
 
+        bool removedAny = false;
+
         for (size_t i = 0; i < dynamicBlock.DynamicPoints.Num();)
         {
             if (Vec2::Distance(dynamicBlock.DynamicPoints[i], pos) < radius)
             {
                 dynamicBlock.DynamicPoints.RemoveAt(i);
+                removedAny = true;
             }
             else
             {
@@ -100,12 +118,15 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
             if (Line2::DistanceToLine(dynamicBlock.DynamicEdges[i], pos) < radius)
             {
                 dynamicBlock.DynamicEdges.RemoveAt(i);
+                removedAny = true;
             }
             else
             {
                 ++i;
             }
         }
+
+        dynamicBlock.bDirty |= removedAny;
     }
 }
 
@@ -226,13 +247,13 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
     }
 }
 
-NavMesh::TIndex FeatureNavMesh::InsertPoint(WorldRef world, const NavMesh::TVert& pt)
+NavMesh::TIndex FeatureNavMesh::InsertPoint(WorldRef world, const NavMesh::TVec& pt)
 {
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     return block.DynamicNavMesh.CDT_InsertPoint(pt);
 }
 
-bool FeatureNavMesh::InsertEdge(WorldRef world, const NavMesh::TVert& start, const NavMesh::TVert& end)
+bool FeatureNavMesh::InsertEdge(WorldRef world, const NavMesh::TVec& start, const NavMesh::TVec& end)
 {
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     return block.DynamicNavMesh.CDT_InsertEdge({ start, end });
@@ -240,9 +261,9 @@ bool FeatureNavMesh::InsertEdge(WorldRef world, const NavMesh::TVert& start, con
 
 PathResult FeatureNavMesh::PathTo(
     WorldConstRef world,
-    const NavMesh::TVert& start,
-    const NavMesh::TVert& goal,
-    NavMesh::TVertComp radius)
+    const NavMesh::TVec& start,
+    const NavMesh::TVec& goal,
+    NavMesh::TVecComp radius)
 {
     const FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     const FeatureNavMeshScratchBlock& scratchBlock = world.GetBlockRef<FeatureNavMeshScratchBlock>();
@@ -254,9 +275,9 @@ PathResult FeatureNavMesh::PathTo(
 
 PathResult FeatureNavMesh::CanPathTo(
     WorldConstRef world,
-    const NavMesh::TVert& start,
-    const NavMesh::TVert& goal,
-    NavMesh::TVertComp radius)
+    const NavMesh::TVec& start,
+    const NavMesh::TVec& goal,
+    NavMesh::TVecComp radius)
 {
     const FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     const FeatureNavMeshScratchBlock& scratchBlock = world.GetBlockRef<FeatureNavMeshScratchBlock>();

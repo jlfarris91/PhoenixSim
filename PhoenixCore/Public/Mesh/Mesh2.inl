@@ -4,6 +4,7 @@
 #include "Mesh2.h"
 #include "FixedQueue.h"
 #include "Flags.h"
+#include "Profiling.h"
 
 #define MESH_TEMPLATE template <size_t NFaces, class TFaceData, class TVecComp, class TIdx>
 #define MESH_CLASS TFixedCDTMesh2<NFaces, TFaceData, TVecComp, TIdx>
@@ -25,11 +26,13 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    TIdx MESH_CLASS::InsertVertex(const TVert& pt, const TVertComp& threshold)
+    TIdx MESH_CLASS::InsertVertex(const TVec& pt, const TVecComp& threshold)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         for (size_t i = 0; i < Vertices.Num(); ++i)
         {
-            if (TVert::Equals(pt, Vertices[i], threshold))
+            if (TVec::Equals(pt, Vertices[i], threshold))
                 return TIdx(i);
         }
 
@@ -43,7 +46,7 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::SetVertex(TIdx vertIndex, const TVert& pt)
+    bool MESH_CLASS::SetVertex(TIdx vertIndex, const TVec& pt)
     {
         if (!IsValidVert(vertIndex))
             return false;
@@ -52,25 +55,25 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    const typename MESH_CLASS::TVert* MESH_CLASS::GetVertexPtr(TIdx vertIndex) const
+    const typename MESH_CLASS::TVec* MESH_CLASS::GetVertexPtr(TIdx vertIndex) const
     {
         return IsValidVert(vertIndex) ? &Vertices[vertIndex] : nullptr;
     }
 
     MESH_TEMPLATE
-    const typename MESH_CLASS::TVert& MESH_CLASS::GetVertex(TIdx vertIndex) const
+    const typename MESH_CLASS::TVec& MESH_CLASS::GetVertex(TIdx vertIndex) const
     {
         return *GetVertexPtr(vertIndex);
     }
 
     MESH_TEMPLATE
-    TIdx MESH_CLASS::FindClosestVertex(const TVert& pt, const TOptional<TVertComp>& radius) const
+    TIdx MESH_CLASS::FindClosestVertex(const TVec& pt, const TOptional<TVecComp>& radius) const
     {
         TIdx idx = Index<TIdx>::None;
-        TVertComp minDist = TVertComp::Max;
+        TVecComp minDist = TVecComp::Max;
         for (size_t i = 0; i < Vertices.Num(); ++i)
         {
-            auto dist = TVert::Distance(Vertices[i], pt);
+            auto dist = TVec::Distance(Vertices[i], pt);
             if ((!radius.IsSet() || dist < *radius) && dist < minDist)
             {
                 minDist = dist;
@@ -82,19 +85,19 @@ namespace Phoenix
 
     MESH_TEMPLATE
     bool MESH_CLASS::FindClosestVertices(
-        const TVert& v0,
-        const TVert& v1,
+        const TVec& v0,
+        const TVec& v1,
         TIdx& outV0,
         TIdx& outV1,
-        const TVertComp& threshold) const
+        const TVecComp& threshold) const
     {
         outV0 = Index<TIdx>::None;
         outV1 = Index<TIdx>::None;
         for (size_t i = 0; i < Vertices.Num(); ++i)
         {
-            if (TVert::Equals(v0, Vertices[i], threshold))
+            if (TVec::Equals(v0, Vertices[i], threshold))
                 outV0 = TIdx(i);
-            if (TVert::Equals(v1, Vertices[i], threshold))
+            if (TVec::Equals(v1, Vertices[i], threshold))
                 outV1 = TIdx(i);
             if (outV0 != Index<TIdx>::None && outV1 != Index<TIdx>::None)
                 return true;
@@ -124,11 +127,11 @@ namespace Phoenix
 
     MESH_TEMPLATE
     template <class T>
-    void MESH_CLASS::ForEachVertInRange(const TVert& pos, TVertComp radius, T& callback) const
+    void MESH_CLASS::ForEachVertInRange(const TVec& pos, TVecComp radius, T& callback) const
     {
         for (size_t i = 0; i < Vertices.Num(); ++i)
         {
-            if (TVert::Distance(Vertices[i], pos) < radius)
+            if (TVec::Distance(Vertices[i], pos) < radius)
             {
                 if (!callback(Vertices[i], i))
                     return;
@@ -182,6 +185,8 @@ namespace Phoenix
     MESH_TEMPLATE
     TIdx MESH_CLASS::InsertHalfEdge(TIdx vA, TIdx vB, TIdx f)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TIdx e = Index<TIdx>::None;
         for (size_t i = 0; i < HalfEdges.Num(); ++i)
         {
@@ -215,11 +220,11 @@ namespace Phoenix
 
     MESH_TEMPLATE
     TIdx MESH_CLASS::FindHalfEdge(
-        const TVert& v0,
-        const TVert& v1,
+        const TVec& v0,
+        const TVec& v1,
         TIdx& outV0,
         TIdx& outV1,
-        const TVertComp& threshold) const
+        const TVecComp& threshold) const
     {
         outV0 = Index<TIdx>::None;
         outV1 = Index<TIdx>::None;
@@ -267,7 +272,7 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetEdgeVerts(TIdx halfEdgeIndex, TVert& outVertA, TVert& outVertB) const
+    bool MESH_CLASS::GetEdgeVerts(TIdx halfEdgeIndex, TVec& outVertA, TVec& outVertB) const
     {
         if (!IsValidHalfEdge(halfEdgeIndex))
             return false;
@@ -279,36 +284,36 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetEdgeCenter(TIdx halfEdgeIndex, TVert& outCenter) const
+    bool MESH_CLASS::GetEdgeCenter(TIdx halfEdgeIndex, TVec& outCenter) const
     {
-        TVert vertA, vertB;
+        TVec vertA, vertB;
         if (!GetEdgeVerts(halfEdgeIndex, vertA, vertB))
             return false;
-        outCenter = TVert::Midpoint(vertA, vertB);
+        outCenter = TVec::Midpoint(vertA, vertB);
         return true;
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetEdgeCenterAndNormal(TIdx halfEdgeIndex, TVert& outCenter, TVert& outNormal) const
+    bool MESH_CLASS::GetEdgeCenterAndNormal(TIdx halfEdgeIndex, TVec& outCenter, TVec& outNormal) const
     {
-        TVert vertA, vertB;
+        TVec vertA, vertB;
         if (!GetEdgeVerts(halfEdgeIndex, vertA, vertB))
             return false;
-        outCenter = TVert::Midpoint(vertA, vertB);
-        TVert n = (vertB - vertA).Normalized();
-        outNormal = TVert(-n.Y, n.X);
+        outCenter = TVec::Midpoint(vertA, vertB);
+        TVec n = (vertB - vertA).Normalized();
+        outNormal = TVec(-n.Y, n.X);
         return true;
     }
 
     MESH_TEMPLATE
     auto MESH_CLASS::GetEdgeLength(TIdx halfEdgeIndex) const
     {
-        TVert vertA, vertB;
+        TVec vertA, vertB;
         if (GetEdgeVerts(halfEdgeIndex, vertA, vertB))
         {
-            return TVert::Distance(vertA, vertB);
+            return TVec::Distance(vertA, vertB);
         }
-        return decltype(TVert::Distance(vertA, vertB)){};
+        return decltype(TVec::Distance(vertA, vertB)){};
     }
 
     MESH_TEMPLATE
@@ -329,11 +334,11 @@ namespace Phoenix
 
     MESH_TEMPLATE
     TMeshEdge<TIdx> MESH_CLASS::FindEdge(
-        const TVert& v0,
-        const TVert& v1,
+        const TVec& v0,
+        const TVec& v1,
         TIdx& outV0,
         TIdx& outV1,
-        const TVertComp& threshold) const
+        const TVecComp& threshold) const
     {
         outV0 = Index<TIdx>::None;
         outV1 = Index<TIdx>::None;
@@ -373,6 +378,8 @@ namespace Phoenix
     MESH_TEMPLATE
     TIdx MESH_CLASS::InsertFace(TIdx v0, TIdx v1, TIdx v2, const TFaceData& data)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TIdx f = Index<TIdx>::None;
 
         for (size_t i = 0; i < Faces.Num(); ++i)
@@ -437,8 +444,10 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    TIdx MESH_CLASS::InsertFace(const TVert& a, const TVert& b, const TVert& c, const TFaceData& data)
+    TIdx MESH_CLASS::InsertFace(const TVec& a, const TVec& b, const TVec& c, const TFaceData& data)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TIdx v0 = InsertVertex(a);
         TIdx v1 = InsertVertex(b);
         TIdx v2 = InsertVertex(c);
@@ -472,7 +481,21 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetFaceVerts(TIdx faceIndex, TVert& outA, TVert& outB, TVert& outC) const
+    bool MESH_CLASS::GetFaceVerts(TIdx faceIndex, TVec& outA, TVec& outB, TVec& outC) const
+    {
+        const TVec* ptrA, *ptrB, *ptrC;
+        if (GetFaceVertPtrs(faceIndex, ptrA, ptrB, ptrC))
+        {
+            outA = *ptrA;
+            outB = *ptrB;
+            outC = *ptrC;
+            return true;
+        }
+        return false;
+    }
+
+    MESH_TEMPLATE
+    bool MESH_CLASS::GetFaceVertPtrs(TIdx faceIndex, const TVec*& outA, const TVec*& outB, const TVec*& outC) const
     {
         if (!IsValidFace(faceIndex))
         {
@@ -488,29 +511,29 @@ namespace Phoenix
         PHX_ASSERT(IsValidHalfEdge(edgeIndex));
         edge = &HalfEdges[edgeIndex];
         PHX_ASSERT(IsValidVert(edge->VertA));
-        outA = Vertices[edge->VertA];
+        outA = &Vertices[edge->VertA];
 
         // Vert B
         edgeIndex = edge->Next;
         PHX_ASSERT(IsValidHalfEdge(edgeIndex));
         edge = &HalfEdges[edgeIndex];
         PHX_ASSERT(IsValidVert(edge->VertA));
-        outB = Vertices[edge->VertA];
+        outB = &Vertices[edge->VertA];
 
         // Vert C
         edgeIndex = edge->Next;
         PHX_ASSERT(IsValidHalfEdge(edgeIndex));
         edge = &HalfEdges[edgeIndex];
         PHX_ASSERT(IsValidVert(edge->VertA));
-        outC = Vertices[edge->VertA];
+        outC = &Vertices[edge->VertA];
 
         return true;
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetFaceCenter(TIdx faceIndex, TVert& outCenter) const
+    bool MESH_CLASS::GetFaceCenter(TIdx faceIndex, TVec& outCenter) const
     {
-        TVert a, b, c;
+        TVec a, b, c;
         if (!GetFaceVerts(faceIndex, a, b, c))
         {
             return false;
@@ -521,9 +544,9 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::GetFaceArea(TIdx faceIndex, TVertComp& outArea) const
+    bool MESH_CLASS::GetFaceArea(TIdx faceIndex, TVecComp& outArea) const
     {
-        TVert a, b, c;
+        TVec a, b, c;
         if (!GetFaceVerts(faceIndex, a, b, c))
         {
             return false;
@@ -534,8 +557,22 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    TIdx MESH_CLASS::FindFaceContainingPoint(const TVert& pos) const
+    bool MESH_CLASS::GetFaceBounds(TIdx faceIndex, TFixedBox<TVec>& outBounds) const
     {
+        TVec* ptrA, ptrB, ptrC;
+        if (GetFaceVertPtrs(faceIndex, ptrA, ptrB, ptrC))
+        {
+            outBounds = TFixedBox<TVec>::FromPoints(*ptrA, *ptrB, *ptrC);
+            return true;
+        }
+        return false;
+    }
+
+    MESH_TEMPLATE
+    TIdx MESH_CLASS::FindFaceContainingPoint(const TVec& pos) const
+    {
+        PHX_PROFILE_ZONE_SCOPED;
+
         for (size_t i = 0; i < Faces.Num(); ++i)
         {
             if (IsPointInFace(i, pos).Result == EPointInFaceResult::Inside)
@@ -547,8 +584,10 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    PointInFaceResult<TIdx> MESH_CLASS::IsPointInFace(TIdx f, const TVert& p) const
+    PointInFaceResult<TIdx> MESH_CLASS::IsPointInFace(TIdx f, const TVec& p) const
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         if (!IsValidFace(f))
         {
             return { EPointInFaceResult::Outside };
@@ -560,11 +599,11 @@ namespace Phoenix
         const THalfEdge& edge1 = HalfEdges[edge0.Next];
         const THalfEdge& edge2 = HalfEdges[edge1.Next];
 
-        const TVert& a = Vertices[edge0.VertA];
-        const TVert& b = Vertices[edge1.VertA];
-        const TVert& c = Vertices[edge2.VertA];
+        const TVec& a = Vertices[edge0.VertA];
+        const TVec& b = Vertices[edge1.VertA];
+        const TVec& c = Vertices[edge2.VertA];
 
-        auto result = PointInTriangle<TVertComp, TIdx>(a, b, c, p);
+        auto result = PointInTriangle<TVecComp, TIdx>(a, b, c, p);
 
         if (result.Result == EPointInFaceResult::OnEdge)
         {
@@ -588,6 +627,8 @@ namespace Phoenix
         TIdx& outFace1,
         TIdx& outFace2)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         // Split by inserting new faces and removing the old one
         {
             const TFace& face = Faces[faceIndex];
@@ -605,6 +646,8 @@ namespace Phoenix
     MESH_TEMPLATE
     void MESH_CLASS::SplitEdge(TIdx edgeIndex, TIdx vertIndex)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         PHX_ASSERT(IsValidHalfEdge(edgeIndex));
         const THalfEdge& edge = HalfEdges[edgeIndex];
 
@@ -762,6 +805,8 @@ namespace Phoenix
     MESH_TEMPLATE
     void MESH_CLASS::FixDelaunayConditions(TIdx vi)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TFixedQueue<int16, 128> stack;
 
         for (size_t i = 0; i < HalfEdges.Num(); ++i)
@@ -825,10 +870,10 @@ namespace Phoenix
             TIdx indexB = edge1.VertB;
             TIdx indexQ = twinEdge1.VertB;
 
-            const TVert& p = Vertices[indexP];
-            const TVert& a = Vertices[indexA];
-            const TVert& b = Vertices[indexB];
-            const TVert& q = Vertices[indexQ];
+            const TVec& p = Vertices[indexP];
+            const TVec& a = Vertices[indexA];
+            const TVec& b = Vertices[indexB];
+            const TVec& q = Vertices[indexQ];
 
             if (PointInCircle(p, a, b, q) > 0)
             {
@@ -894,8 +939,8 @@ namespace Phoenix
             PHX_ASSERT(IsValidHalfEdge(edgeIndex));
             const THalfEdge& halfEdge = HalfEdges[edgeIndex];
 
-            const TVert& vertA = Vertices[halfEdge.VertA];
-            const TVert& vertB = Vertices[halfEdge.VertB];
+            const TVec& vertA = Vertices[halfEdge.VertA];
+            const TVec& vertB = Vertices[halfEdge.VertB];
 
             outChainLhs.PushBack(vertA);
             outChainRhs.PushBack(vertB);
@@ -905,6 +950,8 @@ namespace Phoenix
     MESH_TEMPLATE
     void MESH_CLASS::TriangulatePolygon(auto& chain, const TFaceData& faceData)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         while (chain.Num() > 2)
         {
             int32 n = (int32)chain.Num();
@@ -918,13 +965,13 @@ namespace Phoenix
                 TIdx ptIdx1 = chain[i1];
                 TIdx ptIdx2 = chain[i2];
 
-                const TVert& pt0 = Vertices[ptIdx0];
-                const TVert& pt1 = Vertices[ptIdx1];
-                const TVert& pt2 = Vertices[ptIdx2];
-                const TVert vpt10 = pt1 - pt0;
-                const TVert vpt21 = pt2 - pt1;
+                const TVec& pt0 = Vertices[ptIdx0];
+                const TVec& pt1 = Vertices[ptIdx1];
+                const TVec& pt2 = Vertices[ptIdx2];
+                const TVec vpt10 = pt1 - pt0;
+                const TVec vpt21 = pt2 - pt1;
 
-                auto c = TVert::Cross(vpt10, vpt21);
+                auto c = TVec::Cross(vpt10, vpt21);
                 if (c <= 0)
                 {
                     continue;
@@ -934,7 +981,7 @@ namespace Phoenix
                 for (int32 j = Wrap(i2 + 1, 0, n); j != i0; j = Wrap(j + 1, 0, n))
                 {
                     TIdx ptIdxJ = chain[j];
-                    const TVert& ptJ = Vertices[ptIdxJ];
+                    const TVec& ptJ = Vertices[ptIdxJ];
                     PointInFaceResult<> result = PointInTriangle(pt0, pt1, pt2, ptJ);
                     if (result.Result == EPointInFaceResult::Inside)
                     {
@@ -964,8 +1011,10 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    TIdx MESH_CLASS::CDT_InsertPoint(const TVert& v, bool fixDelaunayConditions)
+    TIdx MESH_CLASS::CDT_InsertPoint(const TVec& v, bool fixDelaunayConditions)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TIdx containingFace = Index<TIdx>::None;
         TIdx containingEdge = Index<TIdx>::None;
         for (size_t i = 0; i < Faces.Num(); ++i)
@@ -1026,8 +1075,10 @@ namespace Phoenix
     }
 
     MESH_TEMPLATE
-    bool MESH_CLASS::CDT_InsertEdge(const TLine<TVert>& line, bool fixDelaunayConditions)
+    bool MESH_CLASS::CDT_InsertEdge(const TLine<TVec>& line, bool fixDelaunayConditions)
     {
+        PHX_PROFILE_ZONE_SCOPED;
+
         TIdx v0, v1;
         TMeshEdge<TIdx> edge = FindEdge(line.Start, line.End, v0, v1);
 
@@ -1062,8 +1113,8 @@ namespace Phoenix
         }
 
         // Get the verts again since they may have been snapped to another existing vert
-        const TVert& vert0 = Vertices[v0];
-        const TVert& vert1 = Vertices[v1];
+        const TVec& vert0 = Vertices[v0];
+        const TVec& vert1 = Vertices[v1];
 
         // TODO: how do we intelligently determine the sizes of these containers? 
         TFixedQueue<TIdx, 128> edgeQueue;
@@ -1116,11 +1167,11 @@ namespace Phoenix
                     break;
                 }
 
-                const TVert& a = Vertices[halfEdgeN.VertA];
-                const TVert& b = Vertices[halfEdgeN.VertB];
+                const TVec& a = Vertices[halfEdgeN.VertA];
+                const TVec& b = Vertices[halfEdgeN.VertB];
 
-                TVert pt;
-                if (TVert::Intersects(vert0, vert1, a, b, pt))
+                TVec pt;
+                if (TVec::Intersects(vert0, vert1, a, b, pt))
                 {
                     edgeQueue.Enqueue(halfEdgeN.Twin);
                     corridor.PushBack(edgeIndex);

@@ -162,12 +162,6 @@ namespace Phoenix
             uint64 ZCode = 0;
         };
 
-        struct PHOENIXSIM_API MovementComponent
-        {
-            DECLARE_ECS_COMPONENT(MovementComponent)
-            Speed Speed = 0;
-        };
-
         struct PHOENIXSIM_API FeatureECSScratchBlock
         {
             DECLARE_WORLD_BLOCK_SCRATCH(FeatureECSScratchBlock)
@@ -193,8 +187,8 @@ namespace Phoenix
                 FEATURE_CHANNEL(WorldChannels::HandleAction)
                 FEATURE_CHANNEL(WorldChannels::PostHandleAction)
                 FEATURE_CHANNEL(WorldChannels::DebugRender)
-                REGISTER_FIELD(bool, bDebugDrawMortonCodeBoundaries)
-                REGISTER_FIELD(bool, bDebugDrawEntityZCodes)
+                PHX_REGISTER_FIELD(bool, bDebugDrawMortonCodeBoundaries)
+                PHX_REGISTER_FIELD(bool, bDebugDrawEntityZCodes)
             FEATURE_END()
 
         public:

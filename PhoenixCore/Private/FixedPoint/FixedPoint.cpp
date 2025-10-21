@@ -28,15 +28,6 @@ static_assert(ChkAdd_<int32>(0, INT_MIN).Value == INT_MIN);
 static_assert(ChkAdd_<int32>(INT_MIN, -1).bOverflowed);
 
 //
-// OneDivBy
-//
-
-constexpr auto a = OneDivBy(Value(10.0f));
-constexpr auto b = OneDivBy(a);
-constexpr Value c = (Value)a;
-constexpr Value d = 1 / 10.0f;
-
-//
 // Addition
 //
 

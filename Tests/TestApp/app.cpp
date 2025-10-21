@@ -55,8 +55,8 @@ Profiling::TracyProfiler GTracyProfiler;
 Session* GSession;
 bool GSessionThreadWantsExit = false;
 std::thread* GSessionThread = nullptr;
-std::vector<World> GWorldUpdateQueue;
-std::mutex GWorldUpdateQueueMutex;
+World* GLatestWorldView = nullptr;
+std::mutex GWorldViewUpdateMutex;
 float GSessionFPS = 0;
 
 SDLDebugState* GDebugState;
@@ -68,7 +68,7 @@ SDLViewport* GViewport;
 TArray<TSharedPtr<ISDLTool>> Tools;
 TArray<TSharedPtr<ISDLTool>> ActiveTools;
 
-World* GCurrWorld = nullptr;
+World* GCurrWorldView = nullptr;
 
 struct EntityBodyShape
 {
@@ -80,26 +80,6 @@ struct EntityBodyShape
 };
 
 std::vector<EntityBodyShape> GEntityBodies;
-
-struct TraceEntry
-{
-    FName Name;
-    FName Id;
-    PHXString DisplayName;
-    clock_t StartTime;
-    clock_t Duration;
-    uint32 NumChildren = 0;
-};
-
-struct TraceFrame
-{
-    uint32 Frame = 0;
-    clock_t TimeStamp = 0;
-    clock_t Duration = 0;
-    TArray<TraceEntry> Entries;
-};
-
-TFixedQueue<TraceFrame, 60> GTraceFrames;
 
 void UpdateSessionWorker();
 void OnPostWorldUpdate(WorldConstRef world);
@@ -158,8 +138,16 @@ void UpdateSessionWorker()
 
 void OnPostWorldUpdate(WorldConstRef world)
 {
-    std::lock_guard lock(GWorldUpdateQueueMutex);
-    GWorldUpdateQueue.push_back(world);
+    std::lock_guard lock(GWorldViewUpdateMutex);
+
+    if (!GLatestWorldView)
+    {
+        GLatestWorldView = new World(world);
+    }
+    else
+    {
+        *GLatestWorldView = world;
+    }
 }
 
 void DrawGrid();
@@ -213,45 +201,41 @@ void OnAppRenderWorld()
     GDebugRenderer->Reset();
 
     {
-        std::lock_guard lock(GWorldUpdateQueueMutex);
+        std::lock_guard lock(GWorldViewUpdateMutex);
 
-        if (!GWorldUpdateQueue.empty())
+        if (GLatestWorldView)
         {
-            World& world = GWorldUpdateQueue[GWorldUpdateQueue.size() - 1];
-
-            if (!GCurrWorld)
+            if (!GCurrWorldView)
             {
-                GCurrWorld = new World(world);
+                GCurrWorldView = new World(*GLatestWorldView);
             }
             else
             {
-                *GCurrWorld = world;
+                *GCurrWorldView = *GLatestWorldView;
             }
-
-            GWorldUpdateQueue.clear();
 
             GEntityBodies.clear();
 
-            EntityComponentsContainer<TransformComponent, BodyComponent> bodyComponents(*GCurrWorld);
+            EntityComponentsContainer<TransformComponent, BodyComponent> bodyComponents(*GCurrWorldView);
 
             for (auto && [entity, transformComp, bodyComp] : bodyComponents)
             {
                 EntityBodyShape entityBodyShape;
                 entityBodyShape.Transform = transformComp->Transform;
                 entityBodyShape.Radius = bodyComp->Radius;
-                entityBodyShape.Color = SDL_Color(255, 0, 0);
+                entityBodyShape.Color = SDL_Color(0, 255, 0);
                 entityBodyShape.ZCode = transformComp->ZCode;
                 entityBodyShape.VelLen = bodyComp->LinearVelocity.Length();
 
                 if (!HasAnyFlags(bodyComp->Flags, EBodyFlags::Awake))
                 {
-                    entityBodyShape.Color = SDL_Color(128, 0, 0);
+                    entityBodyShape.Color = SDL_Color(0, 128, 0);
                 }
 
                 if (bodyComp->Movement == EBodyMovement::Attached &&
                     transformComp->AttachParent != EntityId::Invalid)
                 {
-                    if (TransformComponent* parentTransformComp = FeatureECS::GetComponentDataPtr<TransformComponent>(world, transformComp->AttachParent))
+                    if (TransformComponent* parentTransformComp = FeatureECS::GetComponentDataPtr<TransformComponent>(*GCurrWorldView, transformComp->AttachParent))
                     {
                         entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
                         entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
@@ -263,7 +247,7 @@ void OnAppRenderWorld()
         }
     }
 
-    if (!GCurrWorld)
+    if (!GCurrWorldView)
         return;
 
     DrawGrid();
@@ -301,12 +285,12 @@ void OnAppRenderWorld()
     TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
     for (const auto& feature : channelFeatures)
     {
-        feature->OnDebugRender(*GCurrWorld, *GDebugState, *GDebugRenderer);
+        feature->OnDebugRender(*GCurrWorldView, *GDebugState, *GDebugRenderer);
     }
 
     for (const TSharedPtr<ISDLTool>& tool : ActiveTools)
     {
-        tool->OnAppRenderWorld(*GCurrWorld, *GDebugState, *GDebugRenderer);
+        tool->OnAppRenderWorld(*GCurrWorldView, *GDebugState, *GDebugRenderer);
     }
 }
 
@@ -320,9 +304,9 @@ void OnAppRenderUI()
         ImGui::Text("SDL FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
         ImGui::Text("ImGui FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
-        if (GCurrWorld)
+        if (GCurrWorldView)
         {
-            const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorld->GetBlockRef<FeatureECSDynamicBlock>();
+            const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
 
             ImGui::Text("ECS: E:%zu C:%zu T:%zu G:%zu",
                 ecsDynamicBlock.Entities.Num(),

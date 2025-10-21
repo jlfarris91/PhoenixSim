@@ -6,6 +6,7 @@
 #include "Mesh2.h"
 #include "Containers/FixedQueue.h"
 #include "Containers/FixedMap.h"
+#include "Profiling.h"
 
 namespace Phoenix
 {
@@ -15,8 +16,8 @@ namespace Phoenix
     template <class TMesh = DefaultFixedCDTMesh2>
     struct TMeshPath
     {
-        using TVert = typename TMesh::TVert;
-        using TVertComp = typename TMesh::TVertComp;
+        using TVec = typename TMesh::TVec;
+        using TVecComp = typename TMesh::TVecComp;
         using TIdx = typename TMesh::TIndex;
         using THalfEdge = typename TMesh::THalfEdge;
         using TFace = typename TMesh::TFace;
@@ -26,7 +27,7 @@ namespace Phoenix
             Value G;
             Value H;
             TIdx FromEdge = Index<TIdx>::None;
-            TVert Center;
+            TVec Center;
             bool Discarded = false;
             uint8 Visited = 0;
             Value GetF() const { return G + H; }
@@ -39,9 +40,9 @@ namespace Phoenix
             Failed
         };
 
-        TVert StartPos;
-        TVert GoalPos;
-        TVertComp Radius;
+        TVec StartPos;
+        TVec GoalPos;
+        TVecComp Radius;
         TIdx StartFaceIndex = Index<TIdx>::None;
         TIdx GoalFaceIndex = Index<TIdx>::None;
         TIdx CurrEdgeIndex = Index<TIdx>::None;
@@ -50,18 +51,20 @@ namespace Phoenix
         TFixedMap<TIdx, Node, 4098> Nodes;
         EStepResult LastStepResult = EStepResult::Continue;
 
-        TFixedArray<TVert, 4098> Path;
+        TFixedArray<TVec, 4098> Path;
         TFixedArray<TIdx, 4098> PathEdges;
 
         TMeshFunnel<TMesh> Funnel;
 
         bool FindPath(
             const TMesh& mesh,
-            const TVert& startPos,
-            const TVert& goalPos,
-            TVertComp radius,
+            const TVec& startPos,
+            const TVec& goalPos,
+            TVecComp radius,
             bool stepping)
         {
+            PHX_PROFILE_ZONE_SCOPED;
+
             StartPos = startPos;
             GoalPos = goalPos;
             Radius = radius;
@@ -111,6 +114,8 @@ namespace Phoenix
 
         EStepResult Step(const TMesh& mesh)
         {
+            PHX_PROFILE_ZONE_SCOPED;
+
             if (OpenSet.IsEmpty())
             {
                 LastStepResult = EStepResult::Failed;
@@ -245,12 +250,12 @@ namespace Phoenix
 
         Value CalculateHeuristicToGoal(TIdx edgeIndex) const
         {
-            return TVert::Distance(GoalPos, Nodes[edgeIndex].Center);
+            return TVec::Distance(GoalPos, Nodes[edgeIndex].Center);
         }
 
         Value CalculateHeuristicToStart(TIdx halfEdgeIndex) const
         {
-            return TVert::Distance(StartPos, Nodes[halfEdgeIndex].Center);
+            return TVec::Distance(StartPos, Nodes[halfEdgeIndex].Center);
         }
 
         Value CalculateHeuristic(TIdx currEdgeIndex, TIdx neighborEdgeIndex) const
@@ -260,6 +265,8 @@ namespace Phoenix
 
         void ResolvePath(const TMesh& mesh, bool stepping = false)
         {
+            PHX_PROFILE_ZONE_SCOPED;
+
             Path.Reset();
             Path.PushBack(GoalPos);
 
@@ -287,26 +294,26 @@ namespace Phoenix
     template <class TMesh>
     struct TMeshFunnel
     {
-        using TVert = typename TMesh::TVert;
-        using TVertComp = typename TMesh::TVertComp;
+        using TVec = typename TMesh::TVec;
+        using TVecComp = typename TMesh::TVecComp;
         using TIdx = typename TMesh::TIndex;
         using THalfEdge = typename TMesh::THalfEdge;
         using TFace = typename TMesh::TFace;
 
-        TVert StartPos;
-        TVert GoalPos;
-        TVert PortalApex;
-        TVert PortalLeft;
-        TVert PortalRight;
+        TVec StartPos;
+        TVec GoalPos;
+        TVec PortalApex;
+        TVec PortalLeft;
+        TVec PortalRight;
         int32 ChainIndex = 0;
         int32 ApexIndex = 0;
         int32 LeftIndex = 0;
         int32 RightIndex = 0;
         int32 PortalSide = 0;
         Distance Radius;
-        TFixedArray<TVert, 128> PathChainRhs;
-        TFixedArray<TVert, 128> PathChainLhs;
-        TFixedArray<TLine<TVert>, 128> PathDebugLines;
+        TFixedArray<TVec, 128> PathChainRhs;
+        TFixedArray<TVec, 128> PathChainLhs;
+        TFixedArray<TLine<TVec>, 128> PathDebugLines;
 
         void Initialize(const TMesh& mesh, const TMeshPath<TMesh>& path, Distance radius)
         {
@@ -341,6 +348,8 @@ namespace Phoenix
 
         bool Step(const TMesh& mesh, TMeshPath<TMesh>& path)
         {
+            PHX_PROFILE_ZONE_SCOPED;
+
             ++ChainIndex;
 
             if (!PathChainLhs.IsValidIndex(ChainIndex) || !PathChainRhs.IsValidIndex(ChainIndex))
@@ -348,12 +357,12 @@ namespace Phoenix
                 return true;
             }
 
-            const TVert& right = PathChainRhs[ChainIndex];
-            const TVert& left = PathChainLhs[ChainIndex];
+            const TVec& right = PathChainRhs[ChainIndex];
+            const TVec& left = PathChainLhs[ChainIndex];
 
             if (TriangleArea(PortalApex, PortalRight, right) <= 0.0)
             {
-                if (TVert::Equals(PortalApex, PortalRight) || TriangleArea(PortalApex, PortalLeft, right) > 0)
+                if (TVec::Equals(PortalApex, PortalRight) || TriangleArea(PortalApex, PortalLeft, right) > 0)
                 {
                     // Tighten the funnel
                     PortalRight = right;
@@ -361,15 +370,15 @@ namespace Phoenix
                 }
                 else
                 {
-                    TVert v = PortalApex - PortalLeft;
-                    TVert n = TVert(-v.Y, v.X).Normalized();
+                    TVec v = PortalApex - PortalLeft;
+                    TVec n = TVec(-v.Y, v.X).Normalized();
 
                     auto sign = PortalSide == 1 ? 1 : -1;
-                    TVert a = PortalApex + n * Radius * sign;
+                    TVec a = PortalApex + n * Radius * sign;
                     path.Path.PushBack(a);
                     PathDebugLines.EmplaceBack(PortalApex, PortalApex + n * Radius * sign * 2);
 
-                    TVert b = PortalLeft + n * Radius;
+                    TVec b = PortalLeft + n * Radius;
                     path.Path.PushBack(b);
                     PathDebugLines.EmplaceBack(PortalLeft, PortalLeft + n * Radius * 2);
 
@@ -388,7 +397,7 @@ namespace Phoenix
 
             if (TriangleArea(PortalApex, PortalLeft, left) >= 0.0)
             {
-                if (TVert::Equals(PortalApex, PortalLeft) || TriangleArea(PortalApex, PortalRight, left) < 0)
+                if (TVec::Equals(PortalApex, PortalLeft) || TriangleArea(PortalApex, PortalRight, left) < 0)
                 {
                     // Tighten the funnel
                     PortalLeft = left;
@@ -396,15 +405,15 @@ namespace Phoenix
                 }
                 else
                 {
-                    TVert v = PortalApex - PortalRight;
-                    TVert n = TVert(v.Y, -v.X).Normalized();
+                    TVec v = PortalApex - PortalRight;
+                    TVec n = TVec(v.Y, -v.X).Normalized();
 
                     auto sign = PortalSide == 2 ? 1 : -1;
-                    TVert a = PortalApex + n * Radius * sign;
+                    TVec a = PortalApex + n * Radius * sign;
                     path.Path.PushBack(a);
                     PathDebugLines.EmplaceBack(PortalApex, PortalApex + n * Radius * sign * 2);
 
-                    TVert b = PortalRight + n * Radius;
+                    TVec b = PortalRight + n * Radius;
                     path.Path.PushBack(b);
                     PathDebugLines.EmplaceBack(PortalRight, PortalRight + n * Radius * 2);
 

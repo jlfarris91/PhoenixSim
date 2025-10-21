@@ -28,6 +28,7 @@ namespace Phoenix
             NavMesh DynamicNavMesh;
             TFixedArray<Line2, NavMesh::Capacity> DynamicEdges;
             TFixedArray<Vec2, NavMesh::Capacity> DynamicPoints;
+            bool bDirty = true;
         };
 
         struct PHOENIXSIM_API FeatureNavMeshScratchBlock
@@ -40,7 +41,7 @@ namespace Phoenix
         struct PHOENIXSIM_API PathResult
         {
             bool PathFound = false;
-            NavMesh::TVert NextPoint;
+            NavMesh::TVec NextPoint;
         };
 
         class PHOENIXSIM_API FeatureNavMesh : public IFeature
@@ -58,6 +59,8 @@ namespace Phoenix
 
             FeatureNavMesh();
 
+            void RebuildNavMesh(WorldRef world);
+            
             void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
             void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
@@ -65,24 +68,24 @@ namespace Phoenix
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
 
             // Inserts a new point into the dynamic nav mesh.
-            static NavMesh::TIndex InsertPoint(WorldRef world, const NavMesh::TVert& pt);
+            static NavMesh::TIndex InsertPoint(WorldRef world, const NavMesh::TVec& pt);
 
             // Inserts a new edge into the dynamic nav mesh.
-            static bool InsertEdge(WorldRef world, const NavMesh::TVert& start, const NavMesh::TVert& end);
+            static bool InsertEdge(WorldRef world, const NavMesh::TVec& start, const NavMesh::TVec& end);
 
             // Returns whether an agent with a given radius can path from start to end.
             static PathResult PathTo(
                 WorldConstRef world,
-                const NavMesh::TVert& start,
-                const NavMesh::TVert& goal,
-                NavMesh::TVertComp radius);
+                const NavMesh::TVec& start,
+                const NavMesh::TVec& goal,
+                NavMesh::TVecComp radius);
 
             // Returns whether an agent with a given radius can path from start to end.
             static PathResult CanPathTo(
                 WorldConstRef world,
-                const NavMesh::TVert& start,
-                const NavMesh::TVert& goal,
-                NavMesh::TVertComp radius);
+                const NavMesh::TVec& start,
+                const NavMesh::TVec& goal,
+                NavMesh::TVecComp radius);
 
         private:
 

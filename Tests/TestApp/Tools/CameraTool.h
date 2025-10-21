@@ -16,7 +16,7 @@ namespace Phoenix
 
     struct CameraTool : ISDLTool
     {
-        DECLARE_TYPE(CameraTool)
+        PHX_DECLARE_TYPE(CameraTool)
 
         CameraTool(Session* session, SDLCamera* camera, SDLViewport* viewport);
 

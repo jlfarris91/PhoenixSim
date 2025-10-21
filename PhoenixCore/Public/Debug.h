@@ -3,6 +3,7 @@
 
 #include "DLLExport.h"
 #include "FixedPoint/FixedVector.h"
+#include "FixedPoint/FixedLine.h"
 
 namespace Phoenix
 {

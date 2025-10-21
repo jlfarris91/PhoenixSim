@@ -95,6 +95,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Public\Containers\FixedArena.h" />
+    <ClInclude Include="Public\Containers\FixedBVH.h" />
     <ClInclude Include="Public\CTZ.h" />
     <ClInclude Include="Public\Color.h" />
     <ClInclude Include="Public\Containers\FixedArray.h" />
@@ -104,7 +106,9 @@
     <ClInclude Include="Public\Containers\MPMCQueue.h" />
     <ClInclude Include="Public\DLLExport.h" />
     <ClInclude Include="Public\Debug.h" />
+    <ClInclude Include="Public\FixedPoint\FixedBox.h" />
     <ClInclude Include="Public\FixedPoint\FixedCordic.h" />
+    <ClInclude Include="Public\FixedPoint\FixedLine.h" />
     <ClInclude Include="Public\FixedPoint\FixedMath.h" />
     <ClInclude Include="Public\FixedPoint\FixedPoint.h" />
     <ClInclude Include="Public\FixedPoint\FixedPoint.inl" />

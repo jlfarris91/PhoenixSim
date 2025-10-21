@@ -13,6 +13,7 @@ namespace Phoenix
         Distance Distance;
         Angle Degrees;
         Speed Speed;
+        bool Bool;
     };
     
     struct PHOENIXSIM_API  Action

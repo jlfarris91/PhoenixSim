@@ -21,8 +21,6 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
-    DeltaTime dt = args.DeltaTime;
-
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
     scratchBlock.NumIterations = 0;
@@ -55,29 +53,6 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
                 return a.ZCode < b.ZCode;
             });
     }
-
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("MoveBodies");
-
-        scratchBlock.MoveBodies.Refresh(world);
-
-        for (auto && [entity, transComp, bodyComp, moveComp] : scratchBlock.MoveBodies)
-        {
-            Vec2 dir = scratchBlock.MapCenter - transComp->Transform.Position;
-            if (dir.Length() < 0.1f)
-            {
-                continue;
-            }
-
-            dir = dir.Normalized();
-            bodyComp->LinearVelocity += dir * moveComp->Speed * bodyComp->InvMass;
-
-            Angle targetRot = dir.AsRadians();
-            Angle deltaRot = AngleBetween(transComp->Transform.Rotation, targetRot);
-            deltaRot = deltaRot * dt;
-            transComp->Transform.Rotation += deltaRot;
-        }
-    }
 }
 
 void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
@@ -90,29 +65,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
     TMortonCodeRangeArray ranges;
-
-    size_t maxProbeLen = 0;
-
-    Value margin = 0.5f;
-    Distance mapMinDim = Min(scratchBlock.MapCenter.X, scratchBlock.MapCenter.Y);
-    Vec2 offset = Vec2(mapMinDim, mapMinDim) * margin;
-    
-    Vec2 bl = Vec2(-offset.X, -offset.Y);
-    Vec2 br = Vec2(offset.X, -offset.Y);
-    Vec2 tl = Vec2(-offset.X, offset.Y);
-    Vec2 tr = Vec2(offset.X, offset.Y);
-
-    scratchBlock.Rotation += Deg2Rad(0.1f);
-
-    Vec2 bl1 = bl.Rotate(scratchBlock.Rotation);
-    Vec2 br1 = br.Rotate(scratchBlock.Rotation);
-    Vec2 tl1 = tl.Rotate(scratchBlock.Rotation);
-    Vec2 tr1 = tr.Rotate(scratchBlock.Rotation);
-
-    bl = scratchBlock.MapCenter + bl1;
-    br = scratchBlock.MapCenter + br1;
-    tl = scratchBlock.MapCenter + tl1;
-    tr = scratchBlock.MapCenter + tr1;
     
     // Determine contacts
     {
@@ -467,6 +419,12 @@ void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& act
         Value force = action.Action.Data[3].Distance;
         AddExplosionForceToEntitiesInRange(world, pos, range, force);
     }
+
+    if (action.Action.Verb == "set_allow_sleep"_n)
+    {
+        bool allowSleep = action.Action.Data[0].Bool;
+        world.GetBlockRef<FeaturePhysicsDynamicBlock>().bAllowSleep = allowSleep;
+    }
 }
 
 void FeaturePhysics::QueryEntitiesInRange(
@@ -529,4 +487,21 @@ void FeaturePhysics::SetDebugDrawContacts(const bool& value)
     {
         PhysicsSystem->bDebugDrawContacts = value;
     }
+}
+
+bool FeaturePhysics::GetAllowSleep() const
+{
+    WorldSharedPtr worldPtr = Session->GetWorldManager()->GetPrimaryWorld();
+    if (!worldPtr) return false;
+    auto blockPtr = worldPtr->GetBlock<FeaturePhysicsDynamicBlock>();
+    if (!blockPtr) return false;
+    return blockPtr->bAllowSleep;
+}
+
+void FeaturePhysics::SetAllowSleep(const bool& value)
+{
+    Action action;
+    action.Verb = "set_allow_sleep"_n;
+    action.Data[0].Bool = value;
+    Session->QueueAction(action);
 }

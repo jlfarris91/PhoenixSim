@@ -113,12 +113,6 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
             bodyComp->InvMass = OneDivBy<Value>(1.0f);
             bodyComp->LinearDamping = 5.f;
             SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
-
-            if (action.Action.Data[5].Speed > 0)
-            {
-                MovementComponent* moveComp = AddComponent<MovementComponent>(world, entityId);
-                moveComp->Speed = action.Action.Data[5].Speed;
-            }
         }
     }
 
