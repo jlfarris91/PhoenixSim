@@ -155,6 +155,20 @@ namespace Phoenix
         virtual void Get(const void* obj, void* value, size_t len) const = 0;
         virtual void Set(void* obj, const void* value, size_t len) const = 0;
         virtual void Initialize(void* memory) const = 0;
+
+        template <class T>
+        T Get(const void* obj) const
+        {
+            T value;
+            Get(obj, &value, sizeof(T));
+            return value;
+        }
+
+        template <class T>
+        void Set(void* obj, const T& value) const
+        {
+            Set(obj, &value, sizeof(T));
+        }
     };
 
     struct PHOENIXCORE_API PropertyDescriptor

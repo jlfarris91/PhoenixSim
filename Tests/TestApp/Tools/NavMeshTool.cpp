@@ -383,19 +383,40 @@ void NavMeshTool::RenderPath(
 
 void NavMeshTool::LoadMeshFromFile()
 {
-    std::ifstream file("J:\\Pegasus\\jfarris_pegasus_main_1\\PegasusGame\\Pegasus\\Content\\data\\maps\\TitansCausewayV2\\pathing_mesh.json");
+    PHXString mapFilePath = MapDir + "\\map.json";
+    PHXString pathingMeshFilePath = MapDir + "\\pathing_mesh.json";
 
-    auto json = nlohmann::json::parse(file);
+    std::ifstream mapFile(mapFilePath);
+    std::ifstream pathingMeshFile(pathingMeshFilePath);
+    if (!mapFile.is_open() || !pathingMeshFile.is_open())
+    {
+        return;
+    }
 
-    SGVec2 mapSize(192, 192);
+    auto mapJson = nlohmann::json::parse(mapFile);
+
+    SGVec2 mapSize;
+    mapSize.X = mapJson.at("/dimensions/0"_json_pointer).get<int32>();
+    mapSize.Y = mapJson.at("/dimensions/1"_json_pointer).get<int32>();
+    
+    auto pathingMeshJson = nlohmann::json::parse(pathingMeshFile);
+
     LoadedVerts.clear();
     LoadedVertIndex = 0;
 
-    for (auto & vert : json["verts"])
+    for (auto & vert : pathingMeshJson["verts"])
     {
         SGDistance x = mapSize.X / 2 + SGDistance(Q32(vert[0].get<int32>()));
         SGDistance y = mapSize.Y / 2 + SGDistance(Q32(vert[1].get<int32>()));
         LoadedVerts.emplace_back(x, y);
+    }
+
+    {
+        Action action;
+        action.Verb = "set_nav_mesh_size"_n;
+        action.Data[0].Distance = mapSize.X;
+        action.Data[1].Distance = mapSize.Y;
+        Session->QueueAction(action);
     }
 
     for (const SGVec2& vert : LoadedVerts)
@@ -407,7 +428,7 @@ void NavMeshTool::LoadMeshFromFile()
         Session->QueueAction(action);
     }
 
-    for (auto & vert : json["edges"])
+    for (auto & vert : pathingMeshJson["edges"])
     {
         uint32 vertAIdx = vert[0].get<uint32>();
         uint32 vertBIdx = vert[1].get<uint32>();

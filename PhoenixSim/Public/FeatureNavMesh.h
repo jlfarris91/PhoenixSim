@@ -25,6 +25,7 @@ namespace Phoenix
         {
             DECLARE_WORLD_BLOCK_DYNAMIC(FeatureNavMeshDynamicBlock)
 
+            Vec2 MapSize;
             NavMesh DynamicNavMesh;
             TFixedArray<Line2, NavMesh::Capacity> DynamicEdges;
             TFixedArray<Vec2, NavMesh::Capacity> DynamicPoints;

@@ -23,6 +23,7 @@ namespace Phoenix
             PHX_REGISTER_FIELD(bool, bDrawFaceCircumcircles)
             PHX_REGISTER_FIELD(bool, bDrawPathPortals)
             PHX_REGISTER_FIELD(float, AgentRadius)
+            PHX_REGISTER_FIELD(PHXString, MapDir)
             PHX_REGISTER_METHOD(LoadMeshFromFile)
         PHX_DECLARE_TYPE_END()
 
@@ -60,6 +61,8 @@ namespace Phoenix
 
         using SGDistance = TFixed<14>;
         using SGVec2 = TVec2<SGDistance>;
+
+        PHXString MapDir = "C:\\Pegasus\\pegasus-main-1\\PegasusGame\\Pegasus\\Content\\data\\maps\\TitansCausewayV2";
         std::vector<SGVec2> LoadedVerts;
         uint32 LoadedVertIndex = 0;
     };

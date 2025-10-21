@@ -18,9 +18,9 @@ void FeatureNavMesh::RebuildNavMesh(WorldRef world)
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
     auto bl = Vec2(0, 0);
-    auto br = Vec2(192, 0);
-    auto tl = Vec2(0, 192);
-    auto tr = Vec2(192, 192);
+    auto br = Vec2(block.MapSize.X, 0);
+    auto tl = Vec2(0, block.MapSize.Y);
+    auto tr = Vec2(block.MapSize.X, block.MapSize.Y);
 
     block.DynamicNavMesh.Reset();
     block.DynamicNavMesh.InsertFace(bl, tr, tl, 1);
@@ -60,6 +60,16 @@ void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& act
 
     FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     FeatureNavMeshScratchBlock& scratchBlock = world.GetBlockRef<FeatureNavMeshScratchBlock>();
+
+    if (action.Action.Verb == "set_nav_mesh_size"_n)
+    {
+        auto mapWidth = action.Action.Data[0].Distance;
+        auto mapHeight = action.Action.Data[1].Distance;
+        dynamicBlock.MapSize = { mapWidth, mapHeight };
+        dynamicBlock.DynamicPoints.Reset();
+        dynamicBlock.DynamicEdges.Reset();
+        dynamicBlock.bDirty = true;
+    }
 
     if (action.Action.Verb == "insert_point"_n)
     {

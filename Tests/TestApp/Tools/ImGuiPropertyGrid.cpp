@@ -12,11 +12,10 @@ void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDe
     { \
         type v_min = std::numeric_limits<type>::min(), v_max = std::numeric_limits<type>::max(); \
         ImGui::SetNextItemWidth(-FLT_MIN); \
-        type v; \
-        propertyDesc.PropertyAccessor->Get(obj, &v, sizeof(type)); \
+        type v = propertyDesc.PropertyAccessor->Get<type>(obj); \
         if (ImGui::DragScalar("##Editor", imgui_type, &v, 1.0f, &v_min, &v_max)) \
         { \
-            propertyDesc.PropertyAccessor->Set(obj, &v, sizeof(type)); \
+            propertyDesc.PropertyAccessor->Set(obj, v); \
         } \
     }
 
@@ -34,15 +33,27 @@ void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDe
         case EPropertyValueType::Double:    NUMERIC_EDITOR(double, ImGuiDataType_Double) break;
         case EPropertyValueType::Bool:
             {
-                bool v;
-                propertyDesc.PropertyAccessor->Get(obj, &v, sizeof(bool));
+                bool v = propertyDesc.PropertyAccessor->Get<bool>(obj);
                 if (ImGui::Checkbox("##Editor", &v))
                 {
-                    propertyDesc.PropertyAccessor->Set(obj, &v, sizeof(bool));
+                    propertyDesc.PropertyAccessor->Set(obj, v);
                 }
                 break;
             }
-        case EPropertyValueType::String:        break;
+        case EPropertyValueType::String:
+            {
+                PHXString v = propertyDesc.PropertyAccessor->Get<PHXString>(obj);
+                
+                char buff[MAX_PATH];
+                strcpy_s(buff, MAX_PATH, v.data());
+
+                if (ImGui::InputText("##Editor", buff, MAX_PATH))
+                {
+                    v = buff;
+                    propertyDesc.PropertyAccessor->Set(obj, v);
+                }
+                break;
+            }
         case EPropertyValueType::Name:          break;
         case EPropertyValueType::FixedPoint:    break;
         default: break;
