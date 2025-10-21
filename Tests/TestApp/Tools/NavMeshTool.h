@@ -13,18 +13,18 @@ namespace Phoenix
 
     struct NavMeshTool : ISDLTool
     {
-        DECLARE_TYPE_BEGIN(NavMeshTool)
-            REGISTER_FIELD(float, BrushSize)
-            REGISTER_FIELD(bool, bDrawVertCircles)
-            REGISTER_FIELD(bool, bDrawOpenSet)
-            REGISTER_FIELD(bool, bDrawVertIds)
-            REGISTER_FIELD(bool, bDrawHalfEdgeIds)
-            REGISTER_FIELD(bool, bDrawFaceIds)
-            REGISTER_FIELD(bool, bDrawFaceCircumcircles)
-            REGISTER_FIELD(bool, bDrawPathPortals)
-            REGISTER_FIELD(float, AgentRadius)
-            REGISTER_METHOD(LoadMeshFromFile)
-        DECLARE_TYPE_END()
+        PHX_DECLARE_TYPE_BEGIN(NavMeshTool)
+            PHX_REGISTER_FIELD(float, BrushSize)
+            PHX_REGISTER_FIELD(bool, bDrawVertCircles)
+            PHX_REGISTER_FIELD(bool, bDrawOpenSet)
+            PHX_REGISTER_FIELD(bool, bDrawVertIds)
+            PHX_REGISTER_FIELD(bool, bDrawHalfEdgeIds)
+            PHX_REGISTER_FIELD(bool, bDrawFaceIds)
+            PHX_REGISTER_FIELD(bool, bDrawFaceCircumcircles)
+            PHX_REGISTER_FIELD(bool, bDrawPathPortals)
+            PHX_REGISTER_FIELD(float, AgentRadius)
+            PHX_REGISTER_METHOD(LoadMeshFromFile)
+        PHX_DECLARE_TYPE_END()
 
         NavMeshTool(Session* session);
 
