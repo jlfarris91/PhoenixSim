@@ -16,7 +16,10 @@ namespace Phoenix
 
     struct CameraTool : ISDLTool
     {
-        PHX_DECLARE_TYPE(CameraTool)
+        PHX_DECLARE_TYPE_BEGIN(CameraTool)
+            PHX_REGISTER_FIELD(float, PanSpeed)
+            PHX_REGISTER_FIELD(float, ZoomSpeed)
+        PHX_DECLARE_TYPE_END()
 
         CameraTool(Session* session, SDLCamera* camera, SDLViewport* viewport);
 
@@ -28,5 +31,7 @@ namespace Phoenix
         SDLCamera* Camera;
         SDLViewport* Viewport;
         TOptional<SDL_FPoint> CameraDragPos;
+        float PanSpeed = 100.0f;
+        float ZoomSpeed = 0.1f;
     };
 }

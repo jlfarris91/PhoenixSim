@@ -62,26 +62,24 @@ void CameraTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
 
     if (event->type == SDL_EVENT_KEY_DOWN)
     {
-        const float CameraSpeed = 100.0f;
-
         if (event->key.key == SDLK_LEFT)
         {
-            Camera->Position.X -= CameraSpeed;
+            Camera->Position.X -= PanSpeed;
         }
 
         if (event->key.key == SDLK_RIGHT)
         {
-            Camera->Position.X += CameraSpeed;
+            Camera->Position.X += PanSpeed;
         }
 
         if (event->key.key == SDLK_UP)
         {
-            Camera->Position.Y += CameraSpeed;
+            Camera->Position.Y += PanSpeed;
         }
 
         if (event->key.key == SDLK_DOWN)
         {
-            Camera->Position.Y -= CameraSpeed;
+            Camera->Position.Y -= PanSpeed;
         }
     }
 
@@ -91,7 +89,7 @@ void CameraTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
 
     if (event->type == SDL_EVENT_MOUSE_WHEEL)
     {
-        float zoomScale = 1.0f + (float)event->wheel.integer_y * 0.1f;
+        float zoomScale = 1.0f + (float)event->wheel.integer_y * ZoomSpeed;
         Camera->Zoom = Max(Camera->Zoom * zoomScale, 0.001f);
     }
 }
