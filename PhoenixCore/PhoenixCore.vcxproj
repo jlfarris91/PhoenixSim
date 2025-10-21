@@ -95,11 +95,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Public\Containers\FixedArena.h" />
-    <ClInclude Include="Public\Containers\FixedBVH.h" />
     <ClInclude Include="Public\CTZ.h" />
     <ClInclude Include="Public\Color.h" />
+    <ClInclude Include="Public\Containers\FixedArena.h" />
     <ClInclude Include="Public\Containers\FixedArray.h" />
+    <ClInclude Include="Public\Containers\FixedBVH.h" />
     <ClInclude Include="Public\Containers\FixedMap.h" />
     <ClInclude Include="Public\Containers\FixedQueue.h" />
     <ClInclude Include="Public\Containers\FixedSet.h" />

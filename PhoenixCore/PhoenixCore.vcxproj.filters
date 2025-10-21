@@ -27,7 +27,13 @@
     <ClInclude Include="Public\Color.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\Containers\FixedArena.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
     <ClInclude Include="Public\Containers\FixedArray.h">
+      <Filter>Public\Containers</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Containers\FixedBVH.h">
       <Filter>Public\Containers</Filter>
     </ClInclude>
     <ClInclude Include="Public\Containers\FixedMap.h">
@@ -48,7 +54,13 @@
     <ClInclude Include="Public\Debug.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedBox.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
     <ClInclude Include="Public\FixedPoint\FixedCordic.h">
+      <Filter>Public\FixedPoint</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\FixedPoint\FixedLine.h">
       <Filter>Public\FixedPoint</Filter>
     </ClInclude>
     <ClInclude Include="Public\FixedPoint\FixedMath.h">
