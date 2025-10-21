@@ -9,6 +9,7 @@ namespace Phoenix
     class TFixedArray
     {
     public:
+        using ItemT = T;
         static constexpr size_t Capacity = N;
 
         T& operator[](size_t index)
@@ -24,6 +25,11 @@ namespace Phoenix
         size_t Num() const
         {
             return Size;
+        }
+
+        size_t GetTotalSize() const
+        {
+            return Size * sizeof(T);
         }
 
         bool IsValidIndex(size_t index) const
@@ -226,7 +232,7 @@ namespace Phoenix
 
             friend auto operator<=>(Iter, Iter) = default;
 
-            friend long operator-(const Iter& a, const Iter& b)
+            friend auto operator-(const Iter& a, const Iter& b)
             {
                 return a.DataPtr - b.DataPtr;
             }
