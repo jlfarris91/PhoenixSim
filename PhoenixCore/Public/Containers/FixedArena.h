@@ -64,7 +64,7 @@ namespace Phoenix
 
             void* data = GetArenaData(arena);
             T* typedData = static_cast<T*>(data);
-            *typedData = T(args...);
+            new (typedData) T(args...);
 
             return arena->Id;
         }

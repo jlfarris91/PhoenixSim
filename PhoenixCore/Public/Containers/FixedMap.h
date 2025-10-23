@@ -7,7 +7,7 @@
 
 namespace Phoenix
 {
-    template <class TKey, class TValue, size_t N, class THash = std::hash<TKey>>
+    template <class TKey, class TValue, size_t N, class THasher = std::hash<TKey>>
     class TFixedMap
     {
     public:
@@ -37,126 +37,87 @@ namespace Phoenix
         void Reset()
         {
             Size = 0;
-            memset(&Table[0], 0, sizeof(Element) * N);
+            memset(&Items[0], 0, sizeof(Element) * N);
         }
 
         bool Insert(const TKey& key, const TValue& value = {})
         {
-            if (IsFull())
+            size_t slot = FindSlot(key);
+
+            if (Items[slot].Key != 0 && Items[slot].Key != key)
             {
+                // Map is full
                 return false;
             }
 
-#if DEBUG
-            ProbeLen = 0;
-#endif
+            Items[slot].Key = key;
+            Items[slot].Value = value;
+            return true;
+        }
 
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
+        template <class ...TArgs>
+        bool Emplace(const TKey& key, const TArgs&... args)
+        {
+            size_t slot = FindSlot(key);
+
+            if (Items[slot].Key != 0 && Items[slot].Key != key)
             {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key)
-                {
-                    Table[probe].Occupied += 1;
-                    return true;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    Table[probe].Occupied += 1;
-                    Table[probe].Key = key;
-                    Table[probe].Value = value;
-                    ++Size;
-                    return true;
-                }
-#if DEBUG
-                ++ProbeLen;
-#endif
+                // Map is full
+                return false;
             }
 
-            return false;
+            Items[slot].Key = key;
+            new (&Items[slot].Value) TValue(args...);
+
+            return true;
         }
 
         TValue& InsertDefaulted_GetRef(const TKey& key)
         {
-            Insert(key, {});
-            return Get(key);
+            size_t slot = FindSlot(key);
+
+            if (Items[slot].Key != 0)
+            {
+                // KVP already exists
+                if (Items[slot].Key == key)
+                {
+                    Items[slot] = TValue();
+                    return &Items[slot].Value;
+                }
+
+                // Map is full
+                PHX_ASSERT(false);
+            }
+
+            Items[slot].Key = key;
+            Items[slot].Value = TValue();
+
+            return Items[slot].Value;
         }
 
         bool Contains(const TKey& key) const
         {
-#if DEBUG
-            ProbeLen = 0;
-#endif
-
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
-            {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key && Table[probe].Occupied)
-                {
-                    return true;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    return false;
-                }
-#if DEBUG
-                ++ProbeLen;
-#endif
-            }
-
-            return false;
+            size_t slot = FindSlot(key);
+            return Items[slot].Key == key;
         }
 
         TValue* GetPtr(const TKey& key)
         {
-#if DEBUG
-            ProbeLen = 0;
-#endif
-
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
+            size_t slot = FindSlot(key);
+            if (Items[slot].Key == key)
             {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key && Table[probe].Occupied)
-                {
-                    return &Table[probe].Value;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    break;
-                }
-#if DEBUG
-                ++ProbeLen;
-#endif
+                return &Items[slot].Value;
             }
-
             return nullptr;
         }
 
         const TValue* GetPtr(const TKey& key) const
         {
-#if DEBUG
-            ProbeLen = 0;
-#endif
-
-            size_t idx = Hash(key);
-            for (size_t i = 0; i < N; ++i)
+            size_t slot = FindSlot(key);
+            if (Items[slot].Key == key)
             {
-                size_t probe = (idx + i) % N;
-                if (Table[probe].Key == key && Table[probe].Occupied)
-                {
-                    return &Table[probe].Value;
-                }
-                if (!Table[probe].Occupied)
-                {
-                    break;
-                }
-#if DEBUG
-                ++ProbeLen;
-#endif
+                return &Items[slot].Value;
             }
-
             return nullptr;
         }
 
@@ -180,33 +141,139 @@ namespace Phoenix
             return Get(key);
         }
 
-#if DEBUG
-        // Returns the probe length of the last operation.
-        uint32 GetProbeLen() const
+        TValue* FindOrAdd(const TKey& key, const TValue& value)
         {
-            return ProbeLen;
+            size_t slot = FindSlot(key);
+
+            if (Items[slot].Key != 0)
+            {
+                // KVP already exists
+                if (Items[slot].Key == key)
+                {
+                    Items[slot].Value = value;
+                    return &Items[slot].Value;
+                }
+
+                // Map is full
+                return nullptr;
+            }
+
+            Items[slot] = key;
+            Items[slot] = value;
+            ++Size;
+
+            return &Items[slot].Value;
         }
-#endif
+
+        TValue* FindOrAddDefaulted(const TKey& key)
+        {
+            size_t slot = FindSlot(key);
+
+            if (Items[slot].Key != 0)
+            {
+                // KVP already exists
+                if (Items[slot].Key == key)
+                {
+                    Items[slot].Value = TValue();
+                    return &Items[slot].Value;
+                }
+
+                // Map is full
+                return nullptr;
+            }
+
+            Items[slot] = key;
+            Items[slot] = TValue();
+            ++Size;
+
+            return &Items[slot].Value;
+        }
+
+        // See https://en.wikipedia.org/wiki/Open_addressing
+        bool Remove(const TKey& key)
+        {
+            size_t i = FindSlot(key);
+
+            // Slot is not occupied
+            if (Items[i].Key == 0)
+            {
+                return false;
+            }
+
+            // Mark slot as unoccupied
+            Items[i].Key = 0;
+
+            PHX_ASSERT(Size > 0);
+            --Size;
+
+            // Attempt to fill item
+            size_t j = i;
+            for (;;)
+            {
+                j = (j + 1) % Capacity;
+                if (Items[j].Key == 0)
+                {
+                    break;
+                }
+
+                size_t k = Hash(Items[k].Key);
+
+                // determine if k lies cyclically in (i,j]
+                // i ≤ j: |    i..k..j    |
+                // i > j: |.k..j     i....| or |....j     i..k.|
+                if (i <= j)
+                {
+                    if (i < k && k <= j)
+                    {
+                        continue;
+                    }
+                }
+                else if (k <= j || i < k)
+                {
+                    continue;
+                }
+
+                // Move slot[j] into slot[i]
+                Items[i] = Items[j];
+
+                // Mark slot[j] as unoccupied
+                Items[j].Key = 0;
+
+                i = j;
+            }
+
+            return true;
+        }
 
     private:
 
         static size_t Hash(const TKey& key)
         {
-            return THash{}(key) % N;
+            static THasher hasher;
+            return hasher(key) % N;
+        }
+
+        size_t FindSlot(const TKey& key)
+        {
+            size_t hash = Hash(key);
+            size_t index = hash & (Capacity - 1);
+            size_t startIndex = index;
+            while (Items[index].Key != 0 && Items[index] != key)
+            {
+                index = (index + 1) & (Capacity - 1);
+                if (index == startIndex)
+                    break;
+            }
+            return index;
         }
 
         struct Element
         {
-            uint8 Occupied = 0;
             TKey Key = {};
             TValue Value = {};
         };
 
-        Element Table[N];
+        Element Items[N];
         size_t Size = 0;
-
-#if DEBUG
-        mutable uint32 ProbeLen = 0;
-#endif
     };
 }

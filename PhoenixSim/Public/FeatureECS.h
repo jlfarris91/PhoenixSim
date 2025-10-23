@@ -276,8 +276,20 @@ namespace Phoenix
                 static_assert(sizeof(T) < ECS_MAX_COMPONENT_SIZE);
                 EntityComponent* comp = AddComponent(world, entityId, T::StaticName);
                 if (!comp) return nullptr;
-                *reinterpret_cast<T*>(&comp->Data[0]) = defaultValue;
-                return reinterpret_cast<T*>(&comp->Data[0]);
+                T* typedData = reinterpret_cast<T*>(&comp->Data[0]);
+                *typedData = defaultValue;
+                return typedData;
+            }
+
+            template <class T, class ...TArgs>
+            static T* EmplaceComponent(WorldRef world, EntityId entityId, const TArgs&...args)
+            {
+                static_assert(sizeof(T) < ECS_MAX_COMPONENT_SIZE);
+                EntityComponent* comp = AddComponent(world, entityId, T::StaticName);
+                if (!comp) return nullptr;
+                T* typedData = reinterpret_cast<T*>(&comp->Data[0]);
+                new (typedData) T(args...);
+                return typedData;
             }
 
             static bool RemoveComponent(WorldRef world, EntityId entityId, FName componentType);
