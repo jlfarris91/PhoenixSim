@@ -7,6 +7,11 @@ FName IFeature::GetName() const
     return FName::None;
 }
 
+Session* IFeature::GetSession() const
+{
+    return Session;
+}
+
 void IFeature::Initialize()
 {
 }
@@ -23,27 +28,51 @@ void IFeature::OnWorldShutdown(WorldRef world)
 {
 }
 
-void IFeature::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void IFeature::OnPreUpdate(const FeatureUpdateArgs& args)
 {
 }
 
-void IFeature::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void IFeature::OnUpdate(const FeatureUpdateArgs& args)
 {
 }
 
-void IFeature::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void IFeature::OnPostUpdate(const FeatureUpdateArgs& args)
 {
 }
 
-void IFeature::OnPreHandleAction(WorldRef world, const FeatureActionArgs& args)
+void IFeature::OnPreHandleAction(const FeatureActionArgs& action)
 {
 }
 
-void IFeature::OnHandleAction(WorldRef world, const FeatureActionArgs& args)
+void IFeature::OnHandleAction(const FeatureActionArgs& action)
 {
 }
 
-void IFeature::OnPostHandleAction(WorldRef world, const FeatureActionArgs& args)
+void IFeature::OnPostHandleAction(const FeatureActionArgs& action)
+{
+}
+
+void IFeature::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+{
+}
+
+void IFeature::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+{
+}
+
+void IFeature::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+{
+}
+
+void IFeature::OnPreHandleWorldAction(WorldRef world, const FeatureActionArgs& args)
+{
+}
+
+void IFeature::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& args)
+{
+}
+
+void IFeature::OnPostHandleWorldAction(WorldRef world, const FeatureActionArgs& args)
 {
 }
 

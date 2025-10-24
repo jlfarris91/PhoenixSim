@@ -5,7 +5,6 @@
 
 #include "Color.h"
 #include "Debug.h"
-#include "FeatureTrace.h"
 #include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
@@ -155,7 +154,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 uint64 key = hiId; key = key << 32 | loId;
 
                 {
-                    // ScopedTrace trace2(world, "ContactSetQuery"_n);
                     bool containsKey = scratchBlock.ContactSet.Contains(key);
                     if (containsKey)
                     {
@@ -204,7 +202,6 @@ void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
                 ++scratchBlock.NumCollisions;
 
                 {
-                    // ScopedTrace trace2(world, "ContactSetQuery"_n);
                     scratchBlock.ContactSet.Insert(key);
                 }
             }
@@ -390,9 +387,9 @@ void FeaturePhysics::Initialize()
     featureECS->RegisterSystem(PhysicsSystem);
 }
 
-void FeaturePhysics::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
+void FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
-    IFeature::OnHandleAction(world, action);
+    IFeature::OnHandleWorldAction(world, action);
 
     if (action.Action.Verb == "release_entities_in_range"_n)
     {

@@ -48,7 +48,7 @@ namespace Phoenix
             Value LinearDamping = 0;
 
             // The mass of the body. Used when resolving body separation.
-            TInvFixed2<Value> InvMass;
+            InvValue InvMass;
 
             uint8 SleepTimer = 0;
         };
@@ -90,16 +90,16 @@ namespace Phoenix
             Value Impulse;
         };
 
-        struct PHOENIXSIM_API FeaturePhysicsDynamicBlock
+        struct PHOENIXSIM_API FeaturePhysicsDynamicBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_SCRATCH(FeaturePhysicsDynamicBlock)
+            PHX_DECLARE_BLOCK_SCRATCH(FeaturePhysicsDynamicBlock)
 
             bool bAllowSleep = true;
         };
 
-        struct PHOENIXSIM_API FeaturePhysicsScratchBlock
+        struct PHOENIXSIM_API FeaturePhysicsScratchBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_SCRATCH(FeaturePhysicsScratchBlock)
+            PHX_DECLARE_BLOCK_SCRATCH(FeaturePhysicsScratchBlock)
 
             uint64 NumIterations = 0;
             uint64 NumCollisions = 0;
@@ -115,9 +115,9 @@ namespace Phoenix
         class PHOENIXSIM_API FeaturePhysics : public IFeature
         {
             FEATURE_BEGIN(FeaturePhysics)
-                FEATURE_BLOCK(FeaturePhysicsDynamicBlock)
-                FEATURE_BLOCK(FeaturePhysicsScratchBlock)
-                FEATURE_CHANNEL(WorldChannels::HandleAction)
+                FEATURE_WORLD_BLOCK(FeaturePhysicsDynamicBlock)
+                FEATURE_WORLD_BLOCK(FeaturePhysicsScratchBlock)
+                FEATURE_CHANNEL(FeatureChannels::HandleWorldAction)
                 PHX_REGISTER_PROPERTY(bool, DebugDrawContacts)
                 PHX_REGISTER_PROPERTY(bool, AllowSleep)
             FEATURE_END()
@@ -128,7 +128,7 @@ namespace Phoenix
 
             void Initialize() override;
 
-            void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
+            void OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action) override;
 
             static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityBody>& outEntities);
 

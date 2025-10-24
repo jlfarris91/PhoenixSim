@@ -81,8 +81,8 @@ namespace Phoenix
                 // KVP already exists
                 if (Items[slot].Key == key)
                 {
-                    Items[slot] = TValue();
-                    return &Items[slot].Value;
+                    Items[slot].Value = TValue();
+                    return Items[slot].Value;
                 }
 
                 // Map is full
@@ -253,12 +253,12 @@ namespace Phoenix
             return hasher(key) % N;
         }
 
-        size_t FindSlot(const TKey& key)
+        size_t FindSlot(const TKey& key) const
         {
             size_t hash = Hash(key);
             size_t index = hash & (Capacity - 1);
             size_t startIndex = index;
-            while (Items[index].Key != 0 && Items[index] != key)
+            while (Items[index].Key != 0 && Items[index].Key != key)
             {
                 index = (index + 1) & (Capacity - 1);
                 if (index == startIndex)

@@ -3,7 +3,6 @@
 #include <shared_mutex>
 
 #include "Features.h"
-#include "PhoenixSim.h"
 
 namespace Phoenix
 {
@@ -26,7 +25,7 @@ namespace Phoenix
         // Optionally only step this world.
         FName WorldName = FName::None;
     };
-    
+
     class PHOENIXSIM_API Session
     {
     public:
@@ -42,6 +41,9 @@ namespace Phoenix
         void Tick(const SessionStepArgs& args);
         void Step(const SessionStepArgs& args);
 
+        BlockBuffer* GetBuffer();
+        const BlockBuffer* GetBuffer() const;
+
         clock_t GetCurrTime() const;
         clock_t GetStartTime() const;
         clock_t GetLastStepTime() const;
@@ -54,6 +56,8 @@ namespace Phoenix
     private:
 
         void ProcessActions(simtime_t time);
+
+        void UpdateSession(simtime_t time, clock_t stepHz) const;
 
         TSharedPtr<FeatureSet> FeatureSet;
         TSharedPtr<WorldManager> WorldManager;
@@ -71,6 +75,8 @@ namespace Phoenix
         uint64 SPS = 0;
         uint64 SPSLastSimTime = 0;
         clock_t SPSTimer = 0;
+
+        TUniquePtr<BlockBuffer> SessionBuffer;
     };
 }
 

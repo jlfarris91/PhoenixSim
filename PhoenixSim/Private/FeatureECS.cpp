@@ -7,7 +7,6 @@
 #include "Color.h"
 #include "Debug.h"
 #include "FeaturePhysics.h"
-#include "FeatureTrace.h"
 #include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
@@ -41,7 +40,7 @@ FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
     }
 }
 
-void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -53,12 +52,11 @@ void FeatureECS::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        ScopedTrace trace(world, "SysPreUpdate"_n, system->GetName());
         system->OnPreUpdate(world, systemUpdateArgs);
     }
 }
 
-void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -68,12 +66,11 @@ void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
     
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        ScopedTrace trace(world, "SysUpdate"_n, system->GetName());
         system->OnUpdate(world, systemUpdateArgs);
     }
 }
 
-void FeatureECS::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -83,16 +80,15 @@ void FeatureECS::OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args)
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        ScopedTrace trace(world, "SysPostUpdate"_n, system->GetName());
         system->OnPostUpdate(world, systemUpdateArgs);
     }
 
     CompactWorldBuffer(world);
 }
 
-void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
+void FeatureECS::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
-    IFeature::OnHandleAction(world, action);
+    IFeature::OnHandleWorldAction(world, action);
 
     if (action.Action.Verb == "spawn_entity"_n)
     {   
@@ -122,7 +118,6 @@ void FeatureECS::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
-        ScopedTrace trace(world, "SysHandleAction"_n, system->GetName());
         system->OnHandleAction(world, systemActionArgs);
     }
 }
@@ -638,13 +633,10 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
-    ScopedTrace trace(world, "SortEntitiesByZCode"_n);
-    
     FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
     
     // Gather all entities with transform components
     {
-        ScopedTrace trace2(world, "GatherEntityTransformComps"_n);
         scratchBlock.EntityTransforms.Refresh(world);
     }
 

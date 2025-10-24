@@ -39,11 +39,11 @@ void FeatureNavMesh::RebuildNavMesh(WorldRef world)
     // block.DynamicNavMesh.RecalculateBVH();
 }
 
-void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureNavMesh::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
-    IFeature::OnPreUpdate(world, args);
+    IFeature::OnPreWorldUpdate(world, args);
 
     FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
@@ -54,9 +54,9 @@ void FeatureNavMesh::OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args)
     }
 }
 
-void FeatureNavMesh::OnHandleAction(WorldRef world, const FeatureActionArgs& action)
+void FeatureNavMesh::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
-    IFeature::OnHandleAction(world, action);
+    IFeature::OnHandleWorldAction(world, action);
 
     FeatureNavMeshDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     FeatureNavMeshScratchBlock& scratchBlock = world.GetBlockRef<FeatureNavMeshScratchBlock>();

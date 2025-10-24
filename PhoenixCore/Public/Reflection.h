@@ -29,7 +29,7 @@ namespace Phoenix
 
     struct PHOENIXCORE_API IMethodPointer
     {
-        virtual ~IMethodPointer() = default;
+        virtual ~IMethodPointer() {}
         virtual bool IsStatic() const = 0;
         virtual void Execute(void* obj) const = 0;
         virtual bool CanExecute(void* obj) const = 0;
@@ -149,7 +149,7 @@ namespace Phoenix
 
     struct PHOENIXCORE_API IPropertyAccessor
     {
-        virtual ~IPropertyAccessor() = default;
+        virtual ~IPropertyAccessor() {}
         virtual bool IsReadOnly() const = 0;
         virtual bool IsStatic() const = 0;
         virtual void Get(const void* obj, void* value, size_t len) const = 0;
@@ -425,12 +425,15 @@ namespace Phoenix
     struct PHOENIXCORE_API BaseDescriptor
     {
         PHXString Name;
-        struct StructDescriptor* Descriptor; 
+        struct TypeDescriptor* Descriptor; 
     };
 
-    struct PHOENIXCORE_API StructDescriptor
+    struct PHOENIXCORE_API TypeDescriptor
     {
-        virtual ~StructDescriptor();
+        virtual ~TypeDescriptor() {}
+
+        FName GetName() const { return Name; }
+        PHXString GetDisplayName() const { return DisplayName; }
 
         template <class T>
         void RegisterInterface()
@@ -526,6 +529,10 @@ namespace Phoenix
             return descriptor;
         }
 
+        void PlacementNew(uint8* data) const
+        {
+        }
+
         TMap<PHXString, PropertyDescriptor> Properties;
         TMap<PHXString, MethodDescriptor> Methods;
         TMap<PHXString, BaseDescriptor> Bases;
@@ -536,13 +543,14 @@ namespace Phoenix
 #define PHX_DECLARE_TYPE_BEGIN(type) \
     public: \
         using ThisType = type; \
+        static constexpr FName StaticTypeName = #type##_n; \
     private: \
-        struct SStructDescriptor { \
+        struct STypeDescriptor { \
             static constexpr FName StaticName = #type##_n; \
             static constexpr const char* StaticDisplayName = #type; \
-            static StructDescriptor Construct() \
+            static TypeDescriptor Construct() \
             { \
-                StructDescriptor definition; \
+                TypeDescriptor definition; \
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
 
@@ -551,8 +559,8 @@ namespace Phoenix
             } \
         }; \
     public: \
-        static const StructDescriptor& GetStaticTypeDescriptor() { static StructDescriptor sd = SStructDescriptor::Construct(); return sd; } \
-        const StructDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
+        static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
+        const TypeDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
 
 #define PHX_DECLARE_TYPE(type) \
     PHX_DECLARE_TYPE_BEGIN(type) \
@@ -562,12 +570,12 @@ namespace Phoenix
     public: \
         using ThisType = type; \
     private: \
-        struct SStructDescriptor { \
+        struct STypeDescriptor { \
             static constexpr FName StaticName = #type##_n; \
             static constexpr const char* StaticDisplayName = #type; \
-            static StructDescriptor Construct() \
+            static TypeDescriptor Construct() \
             { \
-                StructDescriptor definition; \
+                TypeDescriptor definition; \
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
 
@@ -576,8 +584,8 @@ namespace Phoenix
             } \
         }; \
     public: \
-        static const StructDescriptor& GetStaticTypeDescriptor() { static StructDescriptor sd = SStructDescriptor::Construct(); return sd; } \
-        const StructDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
+        static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
+        const TypeDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
 
 #define PHX_DECLARE_INTERFACE(type) \
     PHX_DECLARE_INTERFACE_BEGIN(type) \

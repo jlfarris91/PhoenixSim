@@ -14,16 +14,16 @@ namespace Phoenix
         using NavMesh = TFixedCDTMesh2<8192, uint32, Distance, uint16>;
 #endif
 
-        struct PHOENIXSIM_API FeatureNavMeshStaticBlock
+        struct PHOENIXSIM_API FeatureNavMeshStaticBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_DYNAMIC(FeatureNavMeshStaticBlock)
+            PHX_DECLARE_BLOCK_DYNAMIC(FeatureNavMeshStaticBlock)
 
             NavMesh StaticNavMesh;
         };
 
-        struct PHOENIXSIM_API FeatureNavMeshDynamicBlock
+        struct PHOENIXSIM_API FeatureNavMeshDynamicBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_DYNAMIC(FeatureNavMeshDynamicBlock)
+            PHX_DECLARE_BLOCK_DYNAMIC(FeatureNavMeshDynamicBlock)
 
             Vec2 MapSize;
             NavMesh DynamicNavMesh;
@@ -32,9 +32,9 @@ namespace Phoenix
             bool bDirty = true;
         };
 
-        struct PHOENIXSIM_API FeatureNavMeshScratchBlock
+        struct PHOENIXSIM_API FeatureNavMeshScratchBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_DYNAMIC(FeatureNavMeshScratchBlock)
+            PHX_DECLARE_BLOCK_DYNAMIC(FeatureNavMeshScratchBlock)
 
             mutable TMeshPath<NavMesh> MeshPath;
         };
@@ -48,12 +48,12 @@ namespace Phoenix
         class PHOENIXSIM_API FeatureNavMesh : public IFeature
         {
             FEATURE_BEGIN(FeatureNavMesh)
-                FEATURE_BLOCK(FeatureNavMeshStaticBlock)
-                FEATURE_BLOCK(FeatureNavMeshDynamicBlock)
-                FEATURE_BLOCK(FeatureNavMeshScratchBlock)
-                FEATURE_CHANNEL(WorldChannels::PreUpdate)
-                FEATURE_CHANNEL(WorldChannels::HandleAction)
-                FEATURE_CHANNEL(WorldChannels::DebugRender)
+                FEATURE_WORLD_BLOCK(FeatureNavMeshStaticBlock)
+                FEATURE_WORLD_BLOCK(FeatureNavMeshDynamicBlock)
+                FEATURE_WORLD_BLOCK(FeatureNavMeshScratchBlock)
+                FEATURE_CHANNEL(FeatureChannels::PreWorldUpdate)
+                FEATURE_CHANNEL(FeatureChannels::HandleWorldAction)
+                FEATURE_CHANNEL(FeatureChannels::DebugRender)
             FEATURE_END()
 
         public:
@@ -62,9 +62,9 @@ namespace Phoenix
 
             void RebuildNavMesh(WorldRef world);
             
-            void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
-            void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
+            void OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action) override;
 
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
 

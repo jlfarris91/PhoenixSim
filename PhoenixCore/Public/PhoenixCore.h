@@ -31,13 +31,53 @@ namespace Phoenix
     template <class T> using TSharedPtr = std::shared_ptr<T>;
     template <class T> using TSharedAsThis = std::enable_shared_from_this<T>;
     template <class T> using TWeakPtr = std::weak_ptr<T>;
+    template <class T> using TUniquePtr = std::unique_ptr<T>;
+
+    template <class T>
+    using TFunction = std::function<T>;
 
     template <class T> using TAtomic = std::atomic<T>;
 
-    template <class T, class ...TArgs>
+    template <class T, class ...TArgs, std::enable_if_t<!std::is_array_v<T>, int> = 0>
     TSharedPtr<T> MakeShared(TArgs&&... args)
     {
         return std::make_shared<T>(std::forward<TArgs>(args)...);
+    }
+
+    template <class T, std::enable_if_t<std::is_array_v<T> && std::extent_v<T> == 0, int> = 0>
+    TSharedPtr<T> MakeShared(const size_t size)
+    {
+        return std::make_shared<T>(size);
+    }
+
+    template <class T, class ...TArgs, std::enable_if_t<!std::is_array_v<T>, int> = 0>
+    TUniquePtr<T> MakeUnique(TArgs&&... args)
+    {
+        return std::make_unique<T>(std::forward<TArgs>(args)...);
+    }
+
+    template <class T, std::enable_if_t<std::is_array_v<T> && std::extent_v<T> == 0, int> = 0>
+    TUniquePtr<T> MakeUnique(const size_t size)
+    {
+        return std::make_unique<T>(size);
+    }
+
+    template <class T>
+    FORCEINLINE T&& Forward(std::remove_reference_t<T>& obj)
+    {
+        return (T&&)obj;
+    }
+
+    template <class T>
+    FORCEINLINE T&& Forward(std::remove_reference_t<T>&& obj)
+    {
+        return (T&&)obj;
+    }
+
+    template <class T>
+    constexpr std::remove_reference_t<T>&& MoveTemp(T&& arg)
+    {
+        return std::move<T>(arg);
     }
 
     typedef int64 dt_t;

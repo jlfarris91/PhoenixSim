@@ -19,7 +19,6 @@
 
 // Phoenix features
 #include "Color.h"
-#include "FeatureTrace.h"
 #include "FeatureECS.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
@@ -86,13 +85,11 @@ void OnPostWorldUpdate(WorldConstRef world);
 
 void InitSession()
 {
-    TSharedPtr<FeatureTrace> traceFeature = std::make_shared<FeatureTrace>();
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     
     SessionCtorArgs sessionArgs;
-    sessionArgs.FeatureSetArgs.Features.push_back(traceFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
@@ -138,6 +135,8 @@ void UpdateSessionWorker()
 
 void OnPostWorldUpdate(WorldConstRef world)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     std::lock_guard lock(GWorldViewUpdateMutex);
 
     if (!GLatestWorldView)
@@ -282,7 +281,7 @@ void OnAppRenderWorld()
     }
 
     // Let features draw to the renderer
-    TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(WorldChannels::DebugRender);
+    TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(FeatureChannels::DebugRender);
     for (const auto& feature : channelFeatures)
     {
         feature->OnDebugRender(*GCurrWorldView, *GDebugState, *GDebugRenderer);
@@ -320,10 +319,7 @@ void OnAppRenderUI()
             for (const auto& feature : GSession->GetFeatureSet()->GetFeatures())
             {
                 const auto& featureDefinition = feature->GetFeatureDefinition();
-                if (featureDefinition.DisplayName.empty())
-                    continue;
-
-                if (ImGui::CollapsingHeader(featureDefinition.DisplayName.c_str()))
+                if (ImGui::CollapsingHeader(featureDefinition.DisplayName))
                 {
                     DrawPropertyGrid(feature.get(), featureDefinition);
                 }

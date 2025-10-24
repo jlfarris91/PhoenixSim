@@ -6,4 +6,4 @@
 
 void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDesc);
 
-void DrawPropertyGrid(void* obj, const Phoenix::StructDescriptor& descriptor);
+void DrawPropertyGrid(void* obj, const Phoenix::TypeDescriptor& descriptor);

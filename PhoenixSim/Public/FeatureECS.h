@@ -145,9 +145,9 @@ namespace Phoenix
             virtual void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) {}
         };
 
-        struct PHOENIXSIM_API FeatureECSDynamicBlock
+        struct PHOENIXSIM_API FeatureECSDynamicBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_DYNAMIC(FeatureECSDynamicBlock)
+            PHX_DECLARE_BLOCK_DYNAMIC(FeatureECSDynamicBlock)
 
             TFixedArray<Entity, ECS_MAX_ENTITIES> Entities;
             TFixedArray<EntityTag, ECS_MAX_TAGS> Tags;
@@ -162,9 +162,9 @@ namespace Phoenix
             uint64 ZCode = 0;
         };
 
-        struct PHOENIXSIM_API FeatureECSScratchBlock
+        struct PHOENIXSIM_API FeatureECSScratchBlock : BufferBlockBase
         {
-            DECLARE_WORLD_BLOCK_SCRATCH(FeatureECSScratchBlock)
+            PHX_DECLARE_BLOCK_SCRATCH(FeatureECSScratchBlock)
 
             EntityComponentsContainer<TransformComponent> EntityTransforms;
             TFixedArray<EntityTransform, ECS_MAX_ENTITIES> SortedEntities;
@@ -178,15 +178,15 @@ namespace Phoenix
         class PHOENIXSIM_API FeatureECS : public IFeature
         {
             FEATURE_BEGIN(FeatureECS)
-                FEATURE_BLOCK(FeatureECSDynamicBlock)
-                FEATURE_BLOCK(FeatureECSScratchBlock)
-                FEATURE_CHANNEL(WorldChannels::PreUpdate)
-                FEATURE_CHANNEL(WorldChannels::Update)
-                FEATURE_CHANNEL(WorldChannels::PostUpdate)
-                FEATURE_CHANNEL(WorldChannels::PreHandleAction)
-                FEATURE_CHANNEL(WorldChannels::HandleAction)
-                FEATURE_CHANNEL(WorldChannels::PostHandleAction)
-                FEATURE_CHANNEL(WorldChannels::DebugRender)
+                FEATURE_WORLD_BLOCK(FeatureECSDynamicBlock)
+                FEATURE_WORLD_BLOCK(FeatureECSScratchBlock)
+                FEATURE_CHANNEL(FeatureChannels::PreWorldUpdate)
+                FEATURE_CHANNEL(FeatureChannels::WorldUpdate)
+                FEATURE_CHANNEL(FeatureChannels::PostWorldUpdate)
+                FEATURE_CHANNEL(FeatureChannels::PreHandleWorldAction)
+                FEATURE_CHANNEL(FeatureChannels::HandleWorldAction)
+                FEATURE_CHANNEL(FeatureChannels::PostHandleWorldAction)
+                FEATURE_CHANNEL(FeatureChannels::DebugRender)
                 PHX_REGISTER_FIELD(bool, bDebugDrawMortonCodeBoundaries)
                 PHX_REGISTER_FIELD(bool, bDebugDrawEntityZCodes)
             FEATURE_END()
@@ -196,11 +196,11 @@ namespace Phoenix
             FeatureECS();
             FeatureECS(const FeatureECSCtorArgs& args);
             
-            void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
-            void OnUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
-            void OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
-            void OnHandleAction(WorldRef world, const FeatureActionArgs& action) override;
+            void OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action) override;
 
             void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer) override;
 

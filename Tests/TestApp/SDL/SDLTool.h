@@ -14,7 +14,7 @@ namespace Phoenix
     {
         virtual ~ISDLTool() = default;
 
-        virtual const StructDescriptor& GetTypeDescriptor() const = 0;
+        virtual const TypeDescriptor& GetTypeDescriptor() const = 0;
 
         virtual void OnActivated() {}
         virtual void OnDeactivated() {}

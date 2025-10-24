@@ -17,10 +17,23 @@ Session::Session(const SessionCtorArgs& args)
     worldManagerArgs.FeatureSet = FeatureSet;
     worldManagerArgs.OnPostWorldUpdate = args.OnPostWorldUpdate;
     WorldManager = std::make_shared<Phoenix::WorldManager>(worldManagerArgs);
+
+    BlockBuffer::CtorArgs sessionBlockArgs;
+    for (const FeatureSharedPtr& feature : FeatureSet->GetFeatures())
+    {
+        const FeatureDefinition& featureDefinition = feature->GetFeatureDefinition();
+        for (const BlockBuffer::BlockDefinition& sessionBlock : featureDefinition.SessionBlocks.Definitions)
+        {
+            sessionBlockArgs.Definitions.push_back(sessionBlock);
+        }
+    }
+
+    SessionBuffer = MakeUnique<BlockBuffer>(sessionBlockArgs);
 }
 
 Session::~Session()
 {
+    SessionBuffer.release();
     FeatureSet.reset();
     WorldManager.reset();
 }
@@ -111,11 +124,24 @@ void Session::Step(const SessionStepArgs& args)
     // Process actions
     ProcessActions(SimTime);
 
+    // Step features at the session level
+    UpdateSession(SimTime, args.StepHz);
+
     // Step active worlds
     WorldStepArgs worldStepArgs;
     worldStepArgs.SimTime = SimTime;
     worldStepArgs.StepHz = args.StepHz;
     WorldManager->Step(worldStepArgs);
+}
+
+BlockBuffer* Session::GetBuffer()
+{
+    return SessionBuffer.get();
+}
+
+const BlockBuffer* Session::GetBuffer() const
+{
+    return SessionBuffer.get();
 }
 
 clock_t Session::GetCurrTime() const
@@ -195,6 +221,43 @@ void Session::ProcessActions(simtime_t time)
         if (iter != ActionQueue.begin())
         {
             ActionQueue.erase(ActionQueue.begin(), iter);
+        }
+    }
+}
+
+void Session::UpdateSession(simtime_t time, clock_t stepHz) const
+{
+    FeatureUpdateArgs updateArgs;
+    updateArgs.SimTime = time;
+    updateArgs.StepHz = stepHz;
+
+    // Pre-update
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("PreUpdate");
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(FeatureChannels::PreUpdate);
+        for (const FeatureSharedPtr& feature : channelFeatures)
+        {
+            feature->OnPreUpdate(updateArgs);
+        }
+    }
+
+    // Update
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("Update");
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(FeatureChannels::Update);
+        for (const FeatureSharedPtr& feature : channelFeatures)
+        {
+            feature->OnUpdate(updateArgs);
+        }
+    }
+
+    // Post-update
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("PostUpdate");
+        const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(FeatureChannels::PostUpdate);
+        for (const FeatureSharedPtr& feature : channelFeatures)
+        {
+            feature->OnPostUpdate(updateArgs);
         }
     }
 }

@@ -62,7 +62,7 @@ void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDe
 #undef NUMERIC_EDITOR
 }
 
-void DrawPropertyGrid(void* obj, const StructDescriptor& descriptor)
+void DrawPropertyGrid(void* obj, const TypeDescriptor& descriptor)
 {
     if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
     {

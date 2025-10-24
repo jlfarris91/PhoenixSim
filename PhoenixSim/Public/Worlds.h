@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "Actions.h"
-#include "PhoenixSim.h"
+#include "BlockBuffer.h"
 
 namespace Phoenix
 {
@@ -19,110 +19,12 @@ namespace Phoenix
     class FeatureSet;
 }
 
-#define DECLARE_WORLD_BLOCK(block, type) \
-    static constexpr FName StaticName = #block##_n; \
-    static constexpr EWorldBufferBlockType StaticType = type;
-
-#define DECLARE_WORLD_BLOCK_STATIC(block) \
-    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Static)
-
-#define DECLARE_WORLD_BLOCK_DYNAMIC(block) \
-    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Dynamic)
-
-#define DECLARE_WORLD_BLOCK_SCRATCH(block) \
-    DECLARE_WORLD_BLOCK(block, EWorldBufferBlockType::Scratch)
-
 namespace Phoenix
 {
-    enum class PHOENIXSIM_API EWorldBufferBlockType : uint8
-    {
-        Static,
-        Dynamic,
-        Scratch
-    };
-
-    struct WorldChannels
-    {
-        static constexpr FName WorldInitialize = "WorldInitialize"_n;
-        static constexpr FName WorldShutdown = "WorldShutdown"_n;
-
-        static constexpr FName PreUpdate = "PreUpdate"_n;
-        static constexpr FName Update = "Update"_n;
-        static constexpr FName PostUpdate = "PostUpdate"_n;
-
-        static constexpr FName PreHandleAction = "PreHandleAction"_n;
-        static constexpr FName HandleAction = "HandleAction"_n;
-        static constexpr FName PostHandleAction = "PostHandleAction"_n;
-
-        static constexpr FName DebugRender = "DebugRender"_n;
-    };
-
-    struct PHOENIXSIM_API WorldBufferBlockArgs
-    {
-        FName Name;
-        EWorldBufferBlockType BlockType = EWorldBufferBlockType::Static;
-        uint32 Size = 0;
-    };
-
-    struct PHOENIXSIM_API WorldBufferBlock
-    {
-        WorldBufferBlock() = default;
-        WorldBufferBlock(const WorldBufferBlockArgs& args);
-
-        FName Name;
-        EWorldBufferBlockType BlockType = EWorldBufferBlockType::Static;
-        uint32 Size = 0;
-        uint32 Offset = 0;
-    };
-
-    struct PHOENIXSIM_API WorldBufferCtorArgs
-    {
-        TArray<WorldBufferBlockArgs> Blocks;
-    };
-
-    class PHOENIXSIM_API WorldBuffer
-    {
-    public:
-        WorldBuffer(const WorldBufferCtorArgs& args);
-        WorldBuffer(const WorldBuffer& other);
-        WorldBuffer(WorldBuffer&& other) noexcept;
-        ~WorldBuffer();
-
-        WorldBuffer& operator=(const WorldBuffer& other);
-        WorldBuffer& operator=(WorldBuffer&& other) noexcept;
-
-        uint8* GetData();
-        const uint8* GetData() const;
-
-        uint32 GetSize() const;
-
-        const TArray<WorldBufferBlock>& GetBlocks() const;
-        
-        uint8* GetBlock(const FName& name);
-        const uint8* GetBlock(const FName& name) const;
-
-        template <class TBlock>
-        TBlock* GetBlock(const FName& name)
-        {
-            return static_cast<TBlock>(GetBlock<TBlock>(name));
-        }
-
-        template <class TBlock>
-        const TBlock* GetBlock(const FName& name) const
-        {
-            return static_cast<TBlock>(GetBlock<TBlock>(name));
-        }
-
-    private:
-        uint8* Data = nullptr;
-        uint32 Size = 0;
-        TArray<WorldBufferBlock> Blocks;
-    };
-
     struct PHOENIXSIM_API WorldCtorArgs
     {
         FName Name;
-        WorldBufferCtorArgs BufferArgs;
+        BlockBuffer::CtorArgs Blocks;
     };
 
     class PHOENIXSIM_API World
@@ -139,8 +41,8 @@ namespace Phoenix
         World& operator=(const World& other);
         World& operator=(World&& other) noexcept;
 
-        WorldBuffer& GetBuffer();
-        const WorldBuffer& GetBuffer() const;
+        BlockBuffer& GetBuffer();
+        const BlockBuffer& GetBuffer() const;
 
         uint8* GetBlock(const FName& name);
         const uint8* GetBlock(const FName& name) const;
@@ -160,13 +62,13 @@ namespace Phoenix
         template <class TBlock>
         TBlock* GetBlock()
         {
-            return reinterpret_cast<TBlock*>(GetBlock(TBlock::StaticName));
+            return reinterpret_cast<TBlock*>(GetBlock(TBlock::StaticTypeName));
         }
 
         template <class TBlock>
         const TBlock* GetBlock() const
         {
-            return reinterpret_cast<const TBlock*>(GetBlock(TBlock::StaticName));
+            return reinterpret_cast<const TBlock*>(GetBlock(TBlock::StaticTypeName));
         }
 
         template <class TBlock>
@@ -183,7 +85,7 @@ namespace Phoenix
 
     private:
         FName Name;
-        WorldBuffer Buffer;
+        BlockBuffer Buffer;
     };
 
     typedef World* WorldPtr;
@@ -215,12 +117,12 @@ namespace Phoenix
         FName WorldName = FName::None;
     };
 
-    struct PHOENIXSIM_API WorldDynamicBlock
+    struct PHOENIXSIM_API WorldDynamicBlock : BufferBlockBase
     {
-        DECLARE_WORLD_BLOCK_DYNAMIC(WorldDynamicBlock)
+        PHX_DECLARE_BLOCK_DYNAMIC(WorldDynamicBlock)
         dt_t SimTime = 0;
     };
-    
+
     class PHOENIXSIM_API WorldManager
     {
     public:
@@ -245,7 +147,7 @@ namespace Phoenix
 
         TSharedPtr<FeatureSet> FeatureSet;
         TArray<WorldSharedPtr> Worlds;
-        WorldBufferCtorArgs WorldBufferCtorArgs;
+        BlockBuffer::CtorArgs WorldBufferBlockArgs;
 
         PostWorldUpdateDelegate OnPostWorldUpdate;
     };

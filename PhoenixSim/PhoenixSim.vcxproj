@@ -100,7 +100,6 @@
     <ClInclude Include="Public\FeatureECS.h" />
     <ClInclude Include="Public\FeatureNavMesh.h" />
     <ClInclude Include="Public\FeaturePhysics.h" />
-    <ClInclude Include="Public\FeatureTrace.h" />
     <ClInclude Include="Public\Features.h" />
     <ClInclude Include="Public\PhoenixSim.h" />
     <ClInclude Include="Public\Session.h" />
@@ -112,7 +111,6 @@
     <ClCompile Include="Private\FeatureECS.cpp" />
     <ClCompile Include="Private\FeatureNavMesh.cpp" />
     <ClCompile Include="Private\FeaturePhysics.cpp" />
-    <ClCompile Include="Private\FeatureTrace.cpp" />
     <ClCompile Include="Private\Features.cpp" />
     <ClCompile Include="Private\Session.cpp" />
     <ClCompile Include="Private\Worlds.cpp" />

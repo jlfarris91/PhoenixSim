@@ -34,13 +34,40 @@ namespace Phoenix
         }; \
         const FeatureDefinition& GetFeatureDefinition() override { static FeatureDefinition fd = SFeatureDefinition::Construct(); return fd; }
 
-#define FEATURE_BLOCK(block) definition.RegisterBlock<block>();
+#define FEATURE_SESSION_BLOCK(block) definition.RegisterSessionBlock<block>();
+#define FEATURE_WORLD_BLOCK(block) definition.RegisterWorldBlock<block>();
 #define FEATURE_CHANNEL(...) definition.RegisterChannel(__VA_ARGS__);
 
 namespace Phoenix
 {
     struct Action;
-    struct WorldBufferBlockArgs;
+
+    struct FeatureChannels
+    {
+#define PHX_DECLARE_CHANNEL(name) static constexpr FName name = #name##_n
+
+        // Session
+        PHX_DECLARE_CHANNEL(PreUpdate);
+        PHX_DECLARE_CHANNEL(Update);
+        PHX_DECLARE_CHANNEL(PostUpdate);
+        PHX_DECLARE_CHANNEL(PreHandleAction);
+        PHX_DECLARE_CHANNEL(HandleAction);
+        PHX_DECLARE_CHANNEL(PostHandleAction);
+
+        // World
+        PHX_DECLARE_CHANNEL(WorldInitialize);
+        PHX_DECLARE_CHANNEL(WorldShutdown);
+        PHX_DECLARE_CHANNEL(PreWorldUpdate);
+        PHX_DECLARE_CHANNEL(WorldUpdate);
+        PHX_DECLARE_CHANNEL(PostWorldUpdate);
+        PHX_DECLARE_CHANNEL(PreHandleWorldAction);
+        PHX_DECLARE_CHANNEL(HandleWorldAction);
+        PHX_DECLARE_CHANNEL(PostHandleWorldAction);
+
+        PHX_DECLARE_CHANNEL(DebugRender);
+
+#undef PHX_DECLARE_CHANNEL
+    };
 
     struct PHOENIXSIM_API FeatureUpdateArgs
     {
@@ -60,24 +87,63 @@ namespace Phoenix
 
         virtual ~IFeature() = default;
 
+        // Gets the name of the feature.
         virtual FName GetName() const;
 
         virtual const struct FeatureDefinition& GetFeatureDefinition() = 0;
 
+        // Gets the session that this feature belongs to.
+        Session* GetSession() const;
+
+        // Called when the feature is initialized.
         virtual void Initialize();
+
+        // Called prior to the feature shutting down.
         virtual void Shutdown();
 
+        // Called when a new world is created and gives the feature a chance to initialize.
         virtual void OnWorldInitialize(WorldRef world);
+
+        // Called when a world is about to be released and gives the feature a chance to clean up.
         virtual void OnWorldShutdown(WorldRef world);
 
-        virtual void OnPreUpdate(WorldRef world, const FeatureUpdateArgs& args);
-        virtual void OnUpdate(WorldRef world, const FeatureUpdateArgs& args);
-        virtual void OnPostUpdate(WorldRef world, const FeatureUpdateArgs& args);
+        // Called once per session step, before OnUpdate.
+        virtual void OnPreUpdate(const FeatureUpdateArgs& args);
 
-        virtual void OnPreHandleAction(WorldRef world, const FeatureActionArgs& action);
-        virtual void OnHandleAction(WorldRef world, const FeatureActionArgs& action);
-        virtual void OnPostHandleAction(WorldRef world, const FeatureActionArgs& action);
+        // Called once per session step.
+        virtual void OnUpdate(const FeatureUpdateArgs& args);
 
+        // Called once per session step, after OnUpdate.
+        virtual void OnPostUpdate(const FeatureUpdateArgs& args);
+
+        // Called once per action sent to the session, before OnHandleAction.
+        virtual void OnPreHandleAction(const FeatureActionArgs& action);
+ 
+        // Called once per action sent to the session.
+        virtual void OnHandleAction(const FeatureActionArgs& action);
+
+        // Called once per action sent to the session, after OnHandleAction.
+        virtual void OnPostHandleAction(const FeatureActionArgs& action);
+
+        // Called once per session step, per world, before OnWorldUpdate.
+        virtual void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);
+
+        // Called once per session step, per world.
+        virtual void OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);
+
+        // Called once per session step, per world, after OnWorldUpdate.
+        virtual void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);
+
+        // Called once per action sent to a specific world, before OnHandleWorldAction.
+        virtual void OnPreHandleWorldAction(WorldRef world, const FeatureActionArgs& action);
+        
+        // Called once per action sent to a specific world.
+        virtual void OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action);
+
+        // Called once per action sent to a specific world, after OnHandleWorldAction.
+        virtual void OnPostHandleWorldAction(WorldRef world, const FeatureActionArgs& action);
+
+        // Gives the feature the ability to render debug information for a given world.
         virtual void OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer);
 
     protected:
@@ -123,18 +189,23 @@ namespace Phoenix
         TArray<FeatureSharedPtr> Features;
     };
 
-    struct PHOENIXSIM_API FeatureDefinition : StructDescriptor
+    struct PHOENIXSIM_API FeatureDefinition : TypeDescriptor
     {
-        FName Name;
-        PHXString DisplayName;
-        TArray<WorldBufferBlockArgs> Blocks;
+        BlockBuffer::CtorArgs SessionBlocks;
+        BlockBuffer::CtorArgs WorldBlocks;
         TArray<FeatureChannelInsertArgs> Channels;
         TArray<FName> DependentFeatures;
 
         template <class TBlock>
-        void RegisterBlock()
+        void RegisterSessionBlock()
         {
-            Blocks.emplace_back(TBlock::StaticName, TBlock::StaticType, sizeof(TBlock));
+            SessionBlocks.RegisterBlock<TBlock>();
+        }
+
+        template <class TBlock>
+        void RegisterWorldBlock()
+        {
+            WorldBlocks.RegisterBlock<TBlock>();
         }
 
         void RegisterChannel(FName channel, const FeatureInsertPosition& insertPosition = FeatureInsertPosition::Default)
