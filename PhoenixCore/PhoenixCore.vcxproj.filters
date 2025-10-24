@@ -4,6 +4,9 @@
     <Filter Include="Private">
       <UniqueIdentifier>{001F8D23-6CFE-0BBF-7516-9795E1747220}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Private\Containers">
+      <UniqueIdentifier>{85811586-7165-D6DB-DAC5-D02EC6C8C05D}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Private\FixedPoint">
       <UniqueIdentifier>{89026F94-75E6-2FEA-DE46-2A3DCA491A6C}</UniqueIdentifier>
     </Filter>
@@ -26,6 +29,9 @@
     </ClInclude>
     <ClInclude Include="Public\Color.h">
       <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Containers\BlockBuffer.h">
+      <Filter>Public\Containers</Filter>
     </ClInclude>
     <ClInclude Include="Public\Containers\FixedArena.h">
       <Filter>Public\Containers</Filter>
@@ -52,6 +58,9 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\Debug.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Public\Delegates.h">
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="Public\FixedPoint\FixedBox.h">
@@ -131,6 +140,9 @@
     <ClCompile Include="Private\Color.cpp">
       <Filter>Private</Filter>
     </ClCompile>
+    <ClCompile Include="Private\Containers\BlockBuffer.cpp">
+      <Filter>Private\Containers</Filter>
+    </ClCompile>
     <ClCompile Include="Private\Debug.cpp">
       <Filter>Private</Filter>
     </ClCompile>
@@ -150,9 +162,6 @@
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Profiling.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Private\Reflection.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\dllmain.cpp">

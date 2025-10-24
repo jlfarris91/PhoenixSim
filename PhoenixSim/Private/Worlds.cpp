@@ -209,7 +209,7 @@ void WorldManager::UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) c
         const TArray<FeatureSharedPtr>& channelFeatures = FeatureSet->GetChannelRef(FeatureChannels::WorldUpdate);
         for (const FeatureSharedPtr& feature : channelFeatures)
         {
-            feature->OnWorldUpdate(world, updateArgs);
+            feature->OnUpdate(world, updateArgs);
         }
     }
 

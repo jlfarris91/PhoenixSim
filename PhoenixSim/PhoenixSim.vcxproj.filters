@@ -24,9 +24,6 @@
     <ClInclude Include="Public\FeaturePhysics.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="Public\FeatureTrace.h">
-      <Filter>Public</Filter>
-    </ClInclude>
     <ClInclude Include="Public\Features.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -54,9 +51,6 @@
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\FeaturePhysics.cpp">
-      <Filter>Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Private\FeatureTrace.cpp">
       <Filter>Private</Filter>
     </ClCompile>
     <ClCompile Include="Private\Features.cpp">

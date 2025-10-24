@@ -51,6 +51,7 @@
     <ClInclude Include="..\..\External\nlohmann\json.hpp">
       <Filter>External\nlohmann</Filter>
     </ClInclude>
+    <ClInclude Include="FeatureLua.h" />
     <ClInclude Include="PhoenixTracyImpl.h" />
     <ClInclude Include="SDL\SDLCamera.h">
       <Filter>SDL</Filter>
@@ -105,6 +106,7 @@
     <ClCompile Include="..\..\External\tracy\TracyClient.cpp">
       <Filter>External\tracy</Filter>
     </ClCompile>
+    <ClCompile Include="FeatureLua.cpp" />
     <ClCompile Include="PhoenixTracyImpl.cpp" />
     <ClCompile Include="SDL\SDLCamera.cpp">
       <Filter>SDL</Filter>

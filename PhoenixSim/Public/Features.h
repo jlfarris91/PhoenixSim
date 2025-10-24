@@ -13,7 +13,7 @@ namespace Phoenix
     class Session;
 }
 
-#define FEATURE_BEGIN(feature) \
+#define PHX_FEATURE_BEGIN(feature) \
     public: \
         using ThisType = feature; \
         static constexpr FName StaticName = #feature##_n; \
@@ -28,7 +28,7 @@ namespace Phoenix
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
 
-#define FEATURE_END() \
+#define PHX_FEATURE_END() \
                 return definition; \
             } \
         }; \
@@ -85,7 +85,7 @@ namespace Phoenix
     {
     public:
 
-        virtual ~IFeature() = default;
+        virtual ~IFeature() {};
 
         // Gets the name of the feature.
         virtual FName GetName() const;
@@ -129,7 +129,7 @@ namespace Phoenix
         virtual void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);
 
         // Called once per session step, per world.
-        virtual void OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);
+        virtual void OnUpdate(WorldRef world, const FeatureUpdateArgs& args);
 
         // Called once per session step, per world, after OnWorldUpdate.
         virtual void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args);

@@ -177,7 +177,7 @@ namespace Phoenix
 
         class PHOENIXSIM_API FeatureECS : public IFeature
         {
-            FEATURE_BEGIN(FeatureECS)
+            PHX_FEATURE_BEGIN(FeatureECS)
                 FEATURE_WORLD_BLOCK(FeatureECSDynamicBlock)
                 FEATURE_WORLD_BLOCK(FeatureECSScratchBlock)
                 FEATURE_CHANNEL(FeatureChannels::PreWorldUpdate)
@@ -189,7 +189,7 @@ namespace Phoenix
                 FEATURE_CHANNEL(FeatureChannels::DebugRender)
                 PHX_REGISTER_FIELD(bool, bDebugDrawMortonCodeBoundaries)
                 PHX_REGISTER_FIELD(bool, bDebugDrawEntityZCodes)
-            FEATURE_END()
+            PHX_FEATURE_END()
 
         public:
 
@@ -197,7 +197,7 @@ namespace Phoenix
             FeatureECS(const FeatureECSCtorArgs& args);
             
             void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
-            void OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
+            void OnUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
             void OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action) override;

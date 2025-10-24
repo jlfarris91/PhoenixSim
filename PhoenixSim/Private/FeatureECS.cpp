@@ -56,7 +56,7 @@ void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
     }
 }
 
-void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 

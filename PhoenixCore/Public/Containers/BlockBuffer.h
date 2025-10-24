@@ -77,6 +77,30 @@ namespace Phoenix
             return static_cast<TBlock>(GetBlock<TBlock>(name));
         }
 
+        template <class TBlock>
+        TBlock* GetBlock()
+        {
+            return reinterpret_cast<TBlock*>(GetBlock(TBlock::StaticTypeName));
+        }
+
+        template <class TBlock>
+        const TBlock* GetBlock() const
+        {
+            return reinterpret_cast<const TBlock*>(GetBlock(TBlock::StaticTypeName));
+        }
+
+        template <class TBlock>
+        TBlock& GetBlockRef()
+        {
+            return *GetBlock<TBlock>();
+        }
+
+        template <class TBlock>
+        const TBlock& GetBlockRef() const
+        {
+            return *GetBlock<TBlock>();
+        }
+
     private:
 
         TArray<Block> Blocks;

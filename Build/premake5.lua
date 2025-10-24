@@ -119,7 +119,7 @@ project "TestApp"
       "../External/imgui/backends/imgui_impl_sdlrenderer3.h",
       "../External/imgui/backends/imgui_impl_sdlrenderer3.cpp",
       
-      "../External/tracy/TracyClient.cpp"
+      "../External/tracy/TracyClient.cpp",
    }
 
    includedirs {
@@ -134,7 +134,8 @@ project "TestApp"
    externalincludedirs {
       "../External/",
       "../External/imgui/",
-      "../External/imgui/**"
+      "../External/imgui/**",
+      "../External/lua/lua-5.4.8/src/"
    }
 
    libdirs {
@@ -150,20 +151,17 @@ project "TestApp"
    filter "system:windows"
       systemversion "latest"
 
+   postbuildcommands {
+      "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\%{cfg.buildcfg}\\*.*\" \"$(TargetDir)\"",
+      "xcopy /s /y \"$(SolutionDir)\\External\\sol\\lib\\x64\\%{cfg.buildcfg}\\*.*\" \"$(TargetDir)\""
+   }
+
    filter "configurations:Debug"
       defines { "DEBUG" }
       runtime "Debug"
       symbols "On"
 
-      postbuildcommands {
-        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Debug\\*.*\" \"$(TargetDir)\""
-      }
-
    filter "configurations:Release"
       defines { "NDEBUG" }
       runtime "Release"
       optimize "On"
-      
-      postbuildcommands {
-        "xcopy /s /y \"$(SolutionDir)\\External\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
-      }

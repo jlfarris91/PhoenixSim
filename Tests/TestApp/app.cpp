@@ -3,6 +3,7 @@
 
 // Tracy
 #include "PhoenixTracyImpl.h"
+#include <Tracy.hpp>
 
 // ImGui
 #include "imgui.h"
@@ -16,22 +17,23 @@
 // Phoenix
 #include "Session.h"
 #include "Worlds.h"
+#include "Color.h"
+#include "MortonCode.h"
 
 // Phoenix features
-#include "Color.h"
 #include "FeatureECS.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
-#include "MortonCode.h"
+#include "FeatureLua.h"
 
 // SDL impl
-#include <Tracy.hpp>
-
 #include "SDL/SDLCamera.h"
 #include "SDL/SDLDebugRenderer.h"
 #include "SDL/SDLDebugState.h"
 #include "SDL/SDLTool.h"
 #include "SDL/SDLViewport.h"
+
+// Test App Tools
 #include "Tools/CameraTool.h"
 #include "Tools/EntityTool.h"
 #include "Tools/ImGuiPropertyGrid.h"
@@ -88,11 +90,13 @@ void InitSession()
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
+    TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
     
     SessionCtorArgs sessionArgs;
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
+    sessionArgs.FeatureSetArgs.Features.push_back(luaFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 
     GSession = new Session(sessionArgs);

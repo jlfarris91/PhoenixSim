@@ -47,14 +47,14 @@ namespace Phoenix
 
         class PHOENIXSIM_API FeatureNavMesh : public IFeature
         {
-            FEATURE_BEGIN(FeatureNavMesh)
+            PHX_FEATURE_BEGIN(FeatureNavMesh)
                 FEATURE_WORLD_BLOCK(FeatureNavMeshStaticBlock)
                 FEATURE_WORLD_BLOCK(FeatureNavMeshDynamicBlock)
                 FEATURE_WORLD_BLOCK(FeatureNavMeshScratchBlock)
                 FEATURE_CHANNEL(FeatureChannels::PreWorldUpdate)
                 FEATURE_CHANNEL(FeatureChannels::HandleWorldAction)
                 FEATURE_CHANNEL(FeatureChannels::DebugRender)
-            FEATURE_END()
+            PHX_FEATURE_END()
 
         public:
 

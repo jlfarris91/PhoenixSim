@@ -56,7 +56,7 @@ void IFeature::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
 }
 
-void IFeature::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void IFeature::OnUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
 }
 
