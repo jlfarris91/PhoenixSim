@@ -3,7 +3,7 @@
 
 #include "Color.h"
 #include "Debug.h"
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 #include "Profiling.h"
 
 using namespace Phoenix;

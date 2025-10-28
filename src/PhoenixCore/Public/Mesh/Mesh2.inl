@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Mesh2.h"
-#include "FixedQueue.h"
+#include "Containers/FixedQueue.h"
 #include "Flags.h"
 #include "Profiling.h"
 

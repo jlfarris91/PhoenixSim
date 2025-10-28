@@ -6,7 +6,7 @@
 
 #include "DLLExport.h"
 #include "FeatureECS.h"
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 #include "PlatformTypes.h"
 #include "FixedPoint/FixedPoint.h"
 

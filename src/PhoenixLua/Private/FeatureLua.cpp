@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-#include <lua.hpp>
+#include <lua.h>
 
 #include "FeatureECS.h"
 #include "FeaturePhysics.h"

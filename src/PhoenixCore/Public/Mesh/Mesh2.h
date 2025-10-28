@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "FixedBVH.h"
+#include "Containers/FixedBVH.h"
 #include "Optional.h"
 #include "PlatformTypes.h"
 #include "Containers/FixedArray.h"

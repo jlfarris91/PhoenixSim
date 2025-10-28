@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "Features.h"
-#include "Mesh2.h"
-#include "MeshPath.h"
+#include "Mesh/Mesh2.h"
+#include "Mesh/MeshPath.h"
 
 
 namespace Phoenix
