@@ -2,7 +2,7 @@
 #pragma once
 
 #include "FeatureNavMesh.h"
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 #include "Optional.h"
 #include "Reflection.h"
 #include "../SDL/SDLTool.h"

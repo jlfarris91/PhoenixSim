@@ -118,7 +118,7 @@ void FeatureLua::Initialize()
         return 1;
     };
 
-    std::string fileName = R"(C:\Users\jlfar\OneDrive\Documents\Unreal Projects\PhoenixSim\tests\TestApp\Maps\TestMap\test_script.lua)";
+    std::string fileName = R"(.\Tests\TestApp\Maps\TestMap\test_script.lua)";
     auto script = state.load_file(fileName);
 
     if (!script.valid())

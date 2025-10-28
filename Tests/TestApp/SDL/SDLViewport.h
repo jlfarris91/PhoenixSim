@@ -3,7 +3,7 @@
 
 #include <SDL3/SDL_video.h>
 
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 
 namespace Phoenix
 {

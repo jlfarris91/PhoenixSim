@@ -4,7 +4,7 @@
 #include <SDL3/SDL_events.h>
 
 #include "Actions.h"
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 #include "Session.h"
 #include "../SDL/SDLDebugState.h"
 #include "../SDL/SDLDebugRenderer.h"

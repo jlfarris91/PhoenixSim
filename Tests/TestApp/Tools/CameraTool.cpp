@@ -3,7 +3,7 @@
 
 #include <SDL3/SDL_events.h>
 
-#include "FixedVector.h"
+#include "FixedPoint/FixedVector.h"
 #include "Session.h"
 #include "../SDL/SDLCamera.h"
 #include "../SDL/SDLDebugState.h"

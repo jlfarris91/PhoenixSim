@@ -82,10 +82,8 @@ project "PhoenixSim"
     }
 
     includedirs {
-        "src/PhoenixCore/Public/",
-        "src/PhoenixCore/Public/**",
-        "src/PhoenixSim/Public/",
-        "src/PhoenixSim/Public/**"
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
     }
 
     links {
@@ -121,14 +119,10 @@ project "PhoenixLua"
     }
 
     includedirs {
-        "src/PhoenixLua/Public/",
-        "src/PhoenixLua/Public/**",
-        "src/PhoenixLua/Private/",
-        "src/PhoenixLua/Private/**",
-        "src/PhoenixCore/Public/",
-        "src/PhoenixCore/Public/**",
-        "src/PhoenixSim/Public/",
-        "src/PhoenixSim/Public/**"
+        "src/PhoenixLua/Public",
+        "src/PhoenixLua/Private",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
     }
 
     externalincludedirs {
@@ -182,12 +176,9 @@ project "TestApp"
     }
 
     includedirs {
-        "src/PhoenixCore/Public/",
-        "src/PhoenixCore/Public/**",
-        "src/PhoenixSim/Public/",
-        "src/PhoenixSim/Public/**",
-        "src/PhoenixLua/Public/",
-        "src/PhoenixLua/Public/**",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+        "src/PhoenixLua/Public",
         ext .. "/imgui/**",
         ext .. "/tracy/**"
     }
