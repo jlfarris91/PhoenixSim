@@ -53,6 +53,8 @@ project "PhoenixCore"
     files { "src/PhoenixCore/**", }
     includedirs { "src/PhoenixCore/Public/" }
 
+    defines { "PHOENIXCORE_DLL" }
+
     filter "system:windows"
         defines { "PHOENIXCORE_DLL_EXPORTS" }
 
@@ -75,7 +77,7 @@ project "PhoenixSim"
 
     dependson { "PhoenixCore" }
 
-    defines { "PHX_PROFILE_ENABLE" }
+    defines { "PHOENIXSIM_DLL", "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixSim/**"
@@ -112,7 +114,7 @@ project "PhoenixLua"
 
     dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim" }
 
-    defines { "PHX_PROFILE_ENABLE" }
+    defines { "PHOENIXLUA_DLL", "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixLua/**"
