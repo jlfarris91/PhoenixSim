@@ -3,7 +3,9 @@
 
 #define NOMINMAX
 
+#ifdef _WIN32
 #include <windows.h>
+#endif
 #include <string>
 #include <map>
 #include <memory>

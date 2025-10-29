@@ -31,10 +31,10 @@ namespace Phoenix
 
         Color& operator*=(Value v)
         {
-            R = (uint8)(R * v);
-            G = (uint8)(G * v);
-            B = (uint8)(B * v);
-            A = (uint8)(A * v);
+            R = (uint8)(Value(R) * v);
+            G = (uint8)(Value(G) * v);
+            B = (uint8)(Value(B) * v);
+            A = (uint8)(Value(A) * v);
             return *this;
         }
 
@@ -45,10 +45,10 @@ namespace Phoenix
 
         Color& operator/=(Value v)
         {
-            R = uint8(R / v); 
-            G = uint8(G / v); 
-            B = uint8(B / v);
-            A = uint8(A / v);
+            R = uint8(Value(R) / v); 
+            G = uint8(Value(G) / v); 
+            B = uint8(Value(B) / v);
+            A = uint8(Value(A) / v);
             return *this;
         }
     };

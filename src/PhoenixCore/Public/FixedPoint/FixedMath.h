@@ -56,7 +56,7 @@ namespace Phoenix
     template <class T>
     constexpr T Floor(const T& v)
     {
-        return TFixedQ_T<typename T::ValueT>((T::ValueT)(v.Value / T::D) * T::D);
+        return TFixedQ_T<typename T::ValueT>((typename T::ValueT)(v.Value / T::D) * T::D);
     }
 
     template <class T>
@@ -73,7 +73,7 @@ namespace Phoenix
     template <class T>
     constexpr auto Round(const T& v)
     {
-        return T(TFixedQ_T<typename T::ValueT>((T::ValueT)((v.Value + (T::D >> 1)) / T::D) * T::D));
+        return T(TFixedQ_T<typename T::ValueT>((typename T::ValueT)((v.Value + (T::D >> 1)) / T::D) * T::D));
     }
 
     static_assert(Floor(Distance(1.23)) == Distance(1));
@@ -143,6 +143,8 @@ namespace Phoenix
     template <class T = Distance>
     auto PointInCircle(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& c, const TVec2<T>& p)
     {
+        using ResultType = typename T::ValueT;  // Use same backing type as T
+        
         auto a2 = a.X*a.X + a.Y*a.Y;
         auto b2 = b.X*b.X + b.Y*b.Y;
         auto c2 = c.X*c.X + c.Y*c.Y;
@@ -150,7 +152,7 @@ namespace Phoenix
         auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
         if (d == 0)
         {
-            return TFixed<T::B, int64>(0);
+            return TFixed<T::B, ResultType>(0);
         }
 
         auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;

@@ -2,6 +2,7 @@
 #include "Containers/BlockBuffer.h"
 
 #include <algorithm>
+#include <cstring>
 
 using namespace Phoenix;
 
