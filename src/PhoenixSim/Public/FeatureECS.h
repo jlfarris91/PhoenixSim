@@ -7,16 +7,18 @@
 #include "FixedPoint/FixedTransform.h"
 #include "Utils.h"
 
+#include <cstdint>  // For INT16_MAX
+
 #ifndef ECS_MAX_ENTITIES
-#define ECS_MAX_ENTITIES MAXINT16
+#define ECS_MAX_ENTITIES INT16_MAX
 #endif
 
 #ifndef ECS_MAX_TAGS
-#define ECS_MAX_TAGS MAXINT16 << 1
+#define ECS_MAX_TAGS (INT16_MAX << 1)
 #endif
 
 #ifndef ECS_MAX_COMPONENTS
-#define ECS_MAX_COMPONENTS MAXINT16 << 1
+#define ECS_MAX_COMPONENTS (INT16_MAX << 1)
 #endif
 
 #ifndef ECS_MAX_COMPONENT_SIZE

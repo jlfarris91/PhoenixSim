@@ -4,6 +4,11 @@
 #include "Worlds.h"
 
 #include <algorithm>
+#ifdef _WIN32
+#include <windows.h>  // For Sleep
+#else
+#include <unistd.h>   // For usleep
+#endif
 
 #include "Profiling.h"
 
@@ -103,7 +108,12 @@ void Session::Tick(const SessionStepArgs& args)
 
     if (AccTickTime > 0)
     {
+#ifdef _WIN32
         Sleep(static_cast<clock_t>(AccTickTime));
+#else
+        // usleep takes microseconds; CLOCKS_PER_SEC is typically 1000000 on Linux
+        usleep(static_cast<unsigned int>((AccTickTime * 1000000) / CLOCKS_PER_SEC));
+#endif
     }
 
     if (clock() - SPSTimer > CLOCKS_PER_SEC)

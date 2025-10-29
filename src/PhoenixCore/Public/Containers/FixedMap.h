@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <cstring>      // For memset
 #include <functional>
 
 #include "PlatformTypes.h"

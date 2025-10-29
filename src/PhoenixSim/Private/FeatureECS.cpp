@@ -1,6 +1,9 @@
 ﻿
 #include "FeatureECS.h"
 
+#include <cstring>  // For memset
+#include <cstdio>   // For snprintf
+
 #include "Worlds.h"
 
 // REMOVE ME!
@@ -143,9 +146,9 @@ void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, ID
 
         for (uint32 i = 0; i < steps; ++i)
         {
-            Distance x = i * step;
+            Distance x = (int)i * step;
             renderer.DrawLine(Vec2(x, 0), Vec2(x, viewportSize.Y), Color(30, 30, 30));
-            Distance y = i * step;
+            Distance y = (int)i * step;
             renderer.DrawLine(Vec2(0, y), Vec2(viewportSize.X, y), Color(30, 30, 30));
         }
     }
@@ -161,7 +164,11 @@ void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, ID
             uint64 zcode = GetMortonCodeValue(entityTransform.ZCode);
 
             char zcodeStr[256] = { '\0' };
+#ifdef _WIN32
             sprintf_s(zcodeStr, _countof(zcodeStr), "%u:%llu", quad, zcode);
+#else
+            snprintf(zcodeStr, sizeof(zcodeStr), "%u:%llu", quad, zcode);
+#endif
             renderer.DrawDebugText(pt, zcodeStr, _countof(zcodeStr), Color::White);
         }
     }

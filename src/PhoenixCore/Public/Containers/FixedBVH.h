@@ -37,8 +37,8 @@ namespace Phoenix
 
             union
             {
-                Leaf Leaf;
-                Parent Parent;
+                Leaf LeafData;      // Renamed to avoid conflict with struct name
+                Parent ParentData;  // Renamed to avoid conflict with struct name
             };
 
             TBox Bounds;
@@ -104,7 +104,7 @@ namespace Phoenix
             Node& node = Nodes.AddDefaulted_GetRef();
             node.Type = ENodeType::Leaf;
             node.Bounds = bounds;
-            node.Leaf.Value = value;
+            node.LeafData.Value = value;
             return Nodes.Num() - 1;
         }
 
@@ -118,8 +118,8 @@ namespace Phoenix
             Node& node = Nodes.AddDefaulted_GetRef();
             node.Type = ENodeType::Parent;
             node.Bounds = bounds;
-            node.Parent.Left = left;
-            node.Parent.Right = right;
+            node.ParentData.Left = left;
+            node.ParentData.Right = right;
             return Nodes.Num() - 1;
         }
 

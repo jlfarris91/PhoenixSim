@@ -73,12 +73,12 @@ void FeatureLua::Initialize()
 
     auto unit = phoenix["Unit"].get_or_create<sol::table>();
 
-    unit["SpawnUnit"] = [this](const FName& worldName, size_t count, const FName& kind, Distance x, Distance y, Angle facing)
+    unit["SpawnUnit"] = [this](const FName& worldName, size_t count, const FName& kind, Distance x, Distance y, Angle facing) -> size_t
     {
         auto world = Session->GetWorldManager()->GetWorld(worldName);
         if (!world)
         {
-            return 0ull;
+            return 0;
         }
 
         size_t i = 0;
@@ -134,7 +134,11 @@ void FeatureLua::Initialize()
     {
         sol::error err = script;
         std::cerr << "Error loading script: " << err.what() << std::endl;
+#ifdef _WIN32
         __debugbreak();
+#else
+        __builtin_trap();  // GCC/Clang equivalent
+#endif
     }
 }
 

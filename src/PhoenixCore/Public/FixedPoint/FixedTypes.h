@@ -15,10 +15,10 @@ namespace Phoenix
 
     static constexpr double _pi_d = 3.1415926535897932384626433832795f;
     static constexpr Angle PI = _pi_d;
-    static constexpr Angle TWO_PI = 2 * PI;
-    static constexpr Angle FOUR_PI = 4 * PI;
-    static constexpr Angle HALF_PI = PI / 2;
-    static constexpr Angle PI_4 = PI / 4;
+    static constexpr Angle TWO_PI = 6.283185307179586476925286766559;
+    static constexpr Angle FOUR_PI = 12.566370614359172953850573533118;
+    static constexpr Angle HALF_PI = 1.5707963267948966192313216916398;
+    static constexpr Angle PI_4 = 0.78539816339744830961566084581988;
     static constexpr auto INV_PI = OneDivBy(PI);
     static constexpr auto INV_TWO_PI = OneDivBy(TWO_PI);
 

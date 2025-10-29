@@ -1,5 +1,6 @@
 ﻿
 #include "FixedPoint/FixedVector.h"
+#include <climits>  // For INT_MIN, INT_MAX
 
 using namespace Phoenix;
 

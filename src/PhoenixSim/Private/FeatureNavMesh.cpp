@@ -1,6 +1,8 @@
 ﻿
 #include "FeatureNavMesh.h"
 
+#include <cstdio>   // For snprintf
+
 #include "Color.h"
 #include "Debug.h"
 #include "FixedPoint/FixedVector.h"
@@ -224,7 +226,11 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
             const Vec2& pt = mesh.Vertices[i];
 
             char str[256] = { '\0' };
+#ifdef _WIN32
             sprintf_s(str, _countof(str), "%llu", i);
+#else
+            snprintf(str, sizeof(str), "%llu", i);
+#endif
             renderer.DrawDebugText(pt, str, _countof(str), Color::White);
         }
     }
@@ -241,7 +247,11 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
             Vec2 pt = center + normal * 10.0;
 
             char str[256] = { '\0' };
+#ifdef _WIN32
             sprintf_s(str, _countof(str), "%llu", i);
+#else
+            snprintf(str, sizeof(str), "%llu", i);
+#endif
             renderer.DrawDebugText(pt, str, _countof(str), Color::White);
         }
     }
@@ -263,7 +273,11 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
             mesh.GetFaceCenter(i, center);
 
             char str[256] = { '\0' };
+#ifdef _WIN32
             sprintf_s(str, _countof(str), "%llu", i);
+#else
+            snprintf(str, sizeof(str), "%llu", i);
+#endif
             renderer.DrawDebugText(center, str, _countof(str), color);
         }
     }

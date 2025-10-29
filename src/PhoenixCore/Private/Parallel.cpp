@@ -1,7 +1,7 @@
 
 #include "Parallel.h"
 
-#include <xatomic.h>
+// xatomic.h is Windows-specific, using standard <atomic> and <thread> from Parallel.h
 
 #include "PhoenixCore.h"
 #include "Profiling.h"
