@@ -167,7 +167,7 @@ void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, ID
 #ifdef _WIN32
             sprintf_s(zcodeStr, _countof(zcodeStr), "%u:%llu", quad, zcode);
 #else
-            snprintf(zcodeStr, sizeof(zcodeStr), "%u:%llu", quad, zcode);
+            snprintf(zcodeStr, sizeof(zcodeStr), "%u:%lu", quad, zcode);
 #endif
             renderer.DrawDebugText(pt, zcodeStr, _countof(zcodeStr), Color::White);
         }

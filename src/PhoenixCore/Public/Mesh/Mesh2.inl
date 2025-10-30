@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "Mesh2.h"
 #include "Containers/FixedQueue.h"
 #include "Flags.h"

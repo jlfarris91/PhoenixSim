@@ -221,15 +221,15 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 
     if (bDebugDrawVertexIds)
     {
-        for (size_t i = 0; i < mesh.Vertices.Num(); ++i)
+        for (uint16 i = 0; i < mesh.Vertices.Num(); ++i)
         {
             const Vec2& pt = mesh.Vertices[i];
 
             char str[256] = { '\0' };
 #ifdef _WIN32
-            sprintf_s(str, _countof(str), "%llu", i);
+            sprintf_s(str, _countof(str), "%hu", i);
 #else
-            snprintf(str, sizeof(str), "%llu", i);
+            snprintf(str, sizeof(str), "%hu", i);
 #endif
             renderer.DrawDebugText(pt, str, _countof(str), Color::White);
         }
@@ -250,7 +250,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 #ifdef _WIN32
             sprintf_s(str, _countof(str), "%hu", i);
 #else
-            snprintf(str, sizeof(str), "%llu", i);
+            snprintf(str, sizeof(str), "%hu", i);
 #endif
             renderer.DrawDebugText(pt, str, _countof(str), Color::White);
         }
@@ -276,7 +276,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 #ifdef _WIN32
             sprintf_s(str, _countof(str), "%hu", i);
 #else
-            snprintf(str, sizeof(str), "%llu", i);
+            snprintf(str, sizeof(str), "%hu", i);
 #endif
             renderer.DrawDebugText(center, str, _countof(str), color);
         }
