@@ -616,8 +616,8 @@ namespace Phoenix
 #define PHX_REGISTER_STATIC_FIELD(type, name) definition.RegisterProperty<type>(#name, &ThisType::name);
 #define PHX_REGISTER_PROPERTY(type, name) definition.RegisterProperty<ThisType, type>(#name, &ThisType::Get##name, &ThisType::Set##name);
 #define PHX_REGISTER_STATIC_PROPERTY(type, name) definition.RegisterProperty<type>(#name, &ThisType::Get##name, &ThisType::Set##name);
-#define PHX_REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::##name);
-#define PHX_REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::##name);
-#define PHX_REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::##name);
+#define PHX_REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::name);
+#define PHX_REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::name);
+#define PHX_REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::name);
 #define PHX_REGISTER_INTERFACE(name) definition.RegisterInterface<name>();
 }
