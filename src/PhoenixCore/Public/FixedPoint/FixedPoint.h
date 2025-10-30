@@ -155,7 +155,7 @@ namespace Phoenix
         }
 
         // Convert from TFixed<Ub, U> to TFixed<Tb, T>::TValue
-        template <int32 Ub, class U>
+        template <uint8 Ub, class U>
         static constexpr T ConvertTo(const TFixed<Ub, U>& other)
         {
             return T(Phoenix::ConvertTo<U, T>(other.Value, Ub, Tb));
@@ -171,7 +171,7 @@ namespace Phoenix
         constexpr TFixed(float v) : Value(ConvertToQ(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
         constexpr TFixed(double v) : Value(ConvertToQ(v)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
 
-        template <int32 Ub, class U>
+        template <uint8 Ub, class U>
         constexpr TFixed(const TFixed<Ub, U>& other) : Value(ConvertTo(other)) TFIXED_DEBUG_FIELD(static_cast<double>(Value) / D) {}
 
         constexpr explicit operator Q32() const { return (Q32)ConvertFromQ<double>(Value); }
