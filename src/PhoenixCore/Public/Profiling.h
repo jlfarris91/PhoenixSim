@@ -2,7 +2,7 @@
 #pragma once
 
 #include "PhoenixCore.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 
 namespace Phoenix
 {

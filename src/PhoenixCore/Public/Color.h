@@ -1,8 +1,7 @@
 
 #pragma once
 
-#include "DLLExport.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include "FixedPoint/FixedTypes.h"
 
 namespace Phoenix

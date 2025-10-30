@@ -573,7 +573,7 @@ namespace Phoenix
     {
         PHX_PROFILE_ZONE_SCOPED;
 
-        for (size_t i = 0; i < Faces.Num(); ++i)
+        for (TIdx i = 0; i < Faces.Num(); ++i)
         {
             if (IsPointInFace(i, pos).Result == EPointInFaceResult::Inside)
             {

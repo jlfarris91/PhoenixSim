@@ -204,12 +204,12 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
         // Redraw the edges of the face the mouse is within so that they draw on top
         for (size_t i = 0; i < mesh.Faces.Num(); ++i)
         {
-            auto result = mesh.IsPointInFace(i, cursorPos);
+            auto result = mesh.IsPointInFace(uint16(i), cursorPos);
             if (result.Result == EPointInFaceResult::Inside)
             {
                 Color color = renderer.GetColor(i) / 2;
 
-                mesh.ForEachHalfEdgeInFace(i, [&](const auto& halfEdge)
+                mesh.ForEachHalfEdgeInFace(uint16(i), [&](const auto& halfEdge)
                 {
                     const Vec2& vertA = mesh.Vertices[halfEdge.VertA];
                     const Vec2& vertB = mesh.Vertices[halfEdge.VertB];
@@ -237,9 +237,9 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 
     if (bDebugDrawHalfEdgeIds)
     {
-        for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
+        for (uint16 i = 0; i < mesh.HalfEdges.Num(); ++i)
         {
-            if (!mesh.IsValidHalfEdge(i))
+            if (!mesh.IsValidHalfEdge(uint16(i)))
                 continue;
 
             Vec2 center, normal;
@@ -248,7 +248,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 
             char str[256] = { '\0' };
 #ifdef _WIN32
-            sprintf_s(str, _countof(str), "%llu", i);
+            sprintf_s(str, _countof(str), "%hu", i);
 #else
             snprintf(str, sizeof(str), "%llu", i);
 #endif
@@ -258,7 +258,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 
     if (bDebugDrawFaceIds)
     {
-        for (size_t i = 0; i < mesh.Faces.Num(); ++i)
+        for (uint16 i = 0; i < uint16(mesh.Faces.Num()); ++i)
         {
             if (!mesh.Faces.IsValidIndex(i))
                 continue;
@@ -274,7 +274,7 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
 
             char str[256] = { '\0' };
 #ifdef _WIN32
-            sprintf_s(str, _countof(str), "%llu", i);
+            sprintf_s(str, _countof(str), "%hu", i);
 #else
             snprintf(str, sizeof(str), "%llu", i);
 #endif

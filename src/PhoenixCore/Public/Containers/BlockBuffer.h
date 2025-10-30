@@ -20,8 +20,8 @@ namespace Phoenix
         struct BlockDefinition
         {
             FName Name;
-            uint32 Size = 0;
-            uint32 Priority = 0;
+            size_t Size = 0;
+            uint8 Priority = 0;
             const TypeDescriptor* Type = nullptr;
         };
 
@@ -42,7 +42,7 @@ namespace Phoenix
             Block(const BlockDefinition& definition);
 
             BlockDefinition Definition;
-            uint32 Offset = 0;
+            size_t Offset = 0;
         };
 
         BlockBuffer();
@@ -56,7 +56,7 @@ namespace Phoenix
         uint8* GetData();
         const uint8* GetData() const;
 
-        uint32 GetSize() const;
+        size_t GetSize() const;
 
         const TArray<Block>& GetBlocks() const;
 
@@ -105,7 +105,7 @@ namespace Phoenix
 
         TArray<Block> Blocks;
         TUniquePtr<uint8[]> Data = nullptr;
-        uint32 Size = 0;
+        size_t Size = 0;
     };
 
     struct PHOENIXCORE_API BufferBlockBase

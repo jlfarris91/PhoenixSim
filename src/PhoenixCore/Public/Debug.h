@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "DLLExport.h"
+#include "Platform.h"
 #include "FixedPoint/FixedVector.h"
 #include "FixedPoint/FixedLine.h"
 

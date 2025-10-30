@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "PhoenixCore.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include "FixedPoint/FixedVector.h"
 
 namespace Phoenix

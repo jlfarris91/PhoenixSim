@@ -208,7 +208,7 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
 
     if (bDrawHalfEdgeIds)
     {
-        for (size_t i = 0; i < mesh.HalfEdges.Num(); ++i)
+        for (uint16 i = 0; i < mesh.HalfEdges.Num(); ++i)
         {
             if (!mesh.IsValidHalfEdge(i))
                 continue;
@@ -218,14 +218,14 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
             Vec2 pt = center + normal * 10.0;
 
             char str[256] = { '\0' };
-            size_t len = sprintf_s(str, _countof(str), "%llu", i);
+            size_t len = sprintf_s(str, _countof(str), "%hu", i);
             renderer.DrawDebugText(pt, str, len, Color::White);
         }
     }
 
     if (bDrawFaceIds)
     {
-        for (size_t i = 0; i < mesh.Faces.Num(); ++i)
+        for (uint16 i = 0; i < mesh.Faces.Num(); ++i)
         {
             if (!mesh.Faces.IsValidIndex(i))
                 continue;
@@ -240,7 +240,7 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
             mesh.GetFaceCenter(i, center);
 
             char str[256] = { '\0' };
-            size_t len = sprintf_s(str, _countof(str), "%llu", i);
+            size_t len = sprintf_s(str, _countof(str), "%hu", i);
             renderer.DrawDebugText(center, str, len, color);
         }
     }

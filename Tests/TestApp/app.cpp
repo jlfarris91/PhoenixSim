@@ -131,7 +131,7 @@ void UpdateSessionWorker()
 
         GSession->Tick(stepArgs);
 
-        GSessionFPS = GSession->GetStepsPerSecond();
+        GSessionFPS = static_cast<float>(GSession->GetStepsPerSecond());
 
         //Sleep(10);
     }

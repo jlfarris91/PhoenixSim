@@ -1,8 +1,6 @@
 
 #pragma once
 
-#include <iterator>
-
 namespace Phoenix
 {
     template <class T, size_t N>
@@ -66,11 +64,11 @@ namespace Phoenix
             End = 0;
         }
 
-        static constexpr size_t MoveIndex(int32 i, int32 n)
+        static constexpr size_t MoveIndex(const size_t i, int64 n)
         {
-            i += n;
-            if (i < 0) return N + i;
-            return i % N;
+            int64 r = static_cast<int64>(i) + n;
+            if (r < 0) return N + r;
+            return r % N;
         }
 
         T& operator[](size_t n)
@@ -101,7 +99,7 @@ namespace Phoenix
                 return *(DataPtr + Index);
             }
 
-            T& operator[](int32 n) const
+            T& operator[](int64 n) const
             {
                 return *(DataPtr + MoveIndex(Index, n));
             }
@@ -132,35 +130,35 @@ namespace Phoenix
                 return prev;
             }
 
-            Iter& operator+=(int32 n)
+            Iter& operator+=(int64 n)
             {
                 Index = MoveIndex(Index, n);
                 return *this;
             }
 
-            Iter operator+(int32 n)
+            Iter operator+(int64 n)
             {
                 auto next = *this;
                 next += n;
                 return next;
             }
 
-            Iter& operator-=(int32 n)
+            Iter& operator-=(int64 n)
             {
                 Index = MoveIndex(Index, -n);
                 return *this;
             }
 
-            Iter operator-(int32 n)
+            Iter operator-(int64 n)
             {
                 auto next = *this;
                 next -= n;
                 return next;
             }
 
-            size_t operator-(const Iter& other) const
+            int64 operator-(const Iter& other) const
             {
-                return Index - other.Index;
+                return static_cast<int64>(Index) - static_cast<int64>(other.Index);
             }
 
             bool operator==(const Iter& other) const

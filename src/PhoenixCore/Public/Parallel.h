@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "DLLExport.h"
+#include "Platform.h"
 #include "Containers/MPMCQueue.h"
 
 namespace Phoenix

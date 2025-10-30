@@ -4,7 +4,7 @@
 #include <cstring>      // For memset
 #include <functional>
 
-#include "PlatformTypes.h"
+#include "Platform.h"
 
 namespace Phoenix
 {

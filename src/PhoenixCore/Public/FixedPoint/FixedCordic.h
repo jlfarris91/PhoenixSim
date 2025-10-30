@@ -1,8 +1,6 @@
 
 #pragma once
 
-#include <complex>
-
 #include "FixedTypes.h"
 
 namespace Phoenix
@@ -123,11 +121,13 @@ namespace Phoenix
             return Q64(int64(b.Value) + (int64(a.Value) - b.Value) % TWO_PI.Value);
         }
 
+#if _WIN32
         // Note: Static assertions disabled for Linux/Clang compatibility
         // The AngleShift function works correctly at runtime but fails constexpr evaluation
-        // static_assert(AngleShift(Deg2Rad(-45)) == Deg2Rad(315));
-        // static_assert(AngleShift(Deg2Rad(45)) == Deg2Rad(45));
-        // static_assert(AngleShift(Deg2Rad(405)) == Deg2Rad(45));
+        static_assert(AngleShift(Deg2Rad(-45)) == Deg2Rad(315));
+        static_assert(AngleShift(Deg2Rad(45)) == Deg2Rad(45));
+        static_assert(AngleShift(Deg2Rad(405)) == Deg2Rad(45));
+#endif
 
         // -1 <= t <= 1, n is the number of iterations
         template <class T>
@@ -242,17 +242,14 @@ namespace Phoenix
             }
 
             auto kprod = KProd[(n < KProdLen ? n : KProdLen) - 1];
-            c = T(TFixedQ_T<typename T::ValueT>((T(Q64(c * sign)) * kprod).Value));
-            s = T(TFixedQ_T<typename T::ValueT>((T(Q64(s * sign)) * kprod).Value));
+            c = T(TFixedQ_T<ValueT>(c * sign)) * kprod;
+            s = T(TFixedQ_T<ValueT>(c * sign)) * kprod;
         }
 
         template <class T>
         constexpr T Sqrt(T x, int32 n = 32)
         {
-            if (x < 0.0)
-            {
-                return x.Value / 0;
-            }
+            PHX_ASSERT(x.Value >= 0.0);
 
             if (x.Value == 0.0)
             {
@@ -324,9 +321,8 @@ namespace Phoenix
                 yn = y2;
             }
 
-            double xf = xn * (double)KProd[(n < KProdLen ? n : KProdLen) - 1];
-            double yf = yn * (double)KProd[(n < KProdLen ? n : KProdLen) - 1];
-            return { xf, yf };
+            auto kprod = (double)KProd[(n < KProdLen ? n : KProdLen) - 1];
+            return { xn * kprod, yn * kprod };
         }
 
         template <class T>
@@ -364,8 +360,8 @@ namespace Phoenix
             }
 
             auto kprod = KProd[(n < KProdLen ? n : KProdLen) - 1];
-            T xf = T(TFixedQ_T<typename T::ValueT>((T(Q64(xn * sign)) * kprod).Value));
-            T yf = T(TFixedQ_T<typename T::ValueT>((T(Q64(yn * sign)) * kprod).Value));
+            T xf = T(TFixedQ_T<ValueT>(xn * sign)) * kprod;
+            T yf = T(TFixedQ_T<ValueT>(yn * sign)) * kprod;
 
             return { xf, yf };
         }
@@ -400,8 +396,8 @@ namespace Phoenix
             }
 
             auto kprod = KProd[(n < KProdLen ? n : KProdLen) - 1];
-            T m = T(TFixedQ_T<ValueT>((T(TFixedQ_T<ValueT>(xn)) * kprod).Value));
-            Angle a = TFixedQ_T<Angle::ValueT>(z);
+            T m = T(TFixedQ_T<ValueT>(xn)) * kprod;
+            Angle a = static_cast<TFixedQ_T<Angle::ValueT>>(z);
             return { m, a };
         }
 

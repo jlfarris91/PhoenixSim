@@ -3,7 +3,7 @@
 
 #include "Containers/FixedBVH.h"
 #include "Optional.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include "Containers/FixedArray.h"
 #include "FixedPoint/FixedMath.h"
 #include "FixedPoint/FixedVector.h"

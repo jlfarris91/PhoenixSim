@@ -1,6 +1,7 @@
 
 #pragma once
-#include "DLLExport.h"
+
+#include "Platform.h"
 
 namespace Phoenix
 {

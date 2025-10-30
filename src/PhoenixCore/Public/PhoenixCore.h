@@ -14,9 +14,8 @@
 #include <functional>
 #include <unordered_set>
 
-#include "DLLExport.h"
+#include "Platform.h"
 #include "Name.h"
-#include "FixedPoint/FixedTypes.h"
 
 #pragma warning( disable : 4251 )
 

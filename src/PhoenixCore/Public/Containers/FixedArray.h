@@ -191,7 +191,7 @@ namespace Phoenix
                 return *DataPtr;
             }
 
-            T& operator[](int n) const
+            T& operator[](int32 n) const
             {
                 return *(DataPtr + n);
             }
@@ -202,7 +202,7 @@ namespace Phoenix
                 return *this;
             }
 
-            Iter operator++(int n) const
+            Iter operator++(int32 n) const
             {
                 return { DataPtr + n };
             }
@@ -213,18 +213,18 @@ namespace Phoenix
                 return *this;
             }
 
-            Iter operator--(int n) const
+            Iter operator--(int32 n) const
             {
                 return { DataPtr - n };
             }
 
-            Iter& operator+=(int n)
+            Iter& operator+=(int64 n)
             {
                 DataPtr += n;
                 return *this;
             }
 
-            Iter& operator-=(int n)
+            Iter& operator-=(int64 n)
             {
                 DataPtr -= n;
                 return *this;
@@ -237,17 +237,17 @@ namespace Phoenix
                 return a.DataPtr - b.DataPtr;
             }
 
-            friend Iter operator+(Iter i, int n)
+            friend Iter operator+(Iter i, int64 n)
             {
                 return { i.DataPtr + n };
             }
 
-            friend Iter operator-(Iter i, int n)
+            friend Iter operator-(Iter i, int64 n)
             {
                 return { i.DataPtr - n };
             }
 
-            friend Iter operator+(int n, Iter i)
+            friend Iter operator+(int64 n, Iter i)
             {
                 return { i.DataPtr + n };
             }
@@ -289,7 +289,7 @@ namespace Phoenix
                 return *DataPtr;
             }
 
-            const T& operator[](int n) const
+            const T& operator[](int32 n) const
             {
                 return *(DataPtr + n);
             }
@@ -300,7 +300,7 @@ namespace Phoenix
                 return *this;
             }
 
-            ConstIter operator++(int n) const
+            ConstIter operator++(int32 n) const
             {
                 return { DataPtr + n };
             }
@@ -311,18 +311,18 @@ namespace Phoenix
                 return *this;
             }
 
-            ConstIter operator--(int n) const
+            ConstIter operator--(int32 n) const
             {
                 return { DataPtr - n };
             }
 
-            ConstIter& operator+=(int n)
+            ConstIter& operator+=(int64 n)
             {
                 DataPtr += n;
                 return *this;
             }
 
-            ConstIter& operator-=(int n)
+            ConstIter& operator-=(int64 n)
             {
                 DataPtr -= n;
                 return *this;
@@ -335,17 +335,17 @@ namespace Phoenix
                 return a.DataPtr - b.DataPtr;
             }
 
-            friend ConstIter operator+(ConstIter i, int n)
+            friend ConstIter operator+(ConstIter i, int64 n)
             {
                 return { i.DataPtr + n };
             }
 
-            friend ConstIter operator-(ConstIter i, int n)
+            friend ConstIter operator-(ConstIter i, int64 n)
             {
                 return { i.DataPtr - n };
             }
 
-            friend ConstIter operator+(int n, ConstIter i)
+            friend ConstIter operator+(int64 n, ConstIter i)
             {
                 return { i.DataPtr + n };
             }

@@ -143,8 +143,6 @@ namespace Phoenix
     template <class T = Distance>
     auto PointInCircle(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& c, const TVec2<T>& p)
     {
-        using ResultType = typename T::ValueT;  // Use same backing type as T
-        
         auto a2 = a.X*a.X + a.Y*a.Y;
         auto b2 = b.X*b.X + b.Y*b.Y;
         auto c2 = c.X*c.X + c.Y*c.Y;
@@ -152,7 +150,7 @@ namespace Phoenix
         auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
         if (d == 0)
         {
-            return TFixed<T::B, ResultType>(0);
+            return TFixed<T::B, int64>(0);
         }
 
         auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;

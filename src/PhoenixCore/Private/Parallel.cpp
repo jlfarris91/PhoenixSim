@@ -54,7 +54,7 @@ void ThreadPool::Submit(const TTask& task)
         ++attempts;
         if (attempts < 16)
         {
-            for (size_t i = 0; i < (1 << (attempts > 6 ? 6 : attempts)); ++i)
+            for (size_t i = 0; i < (1ULL << (attempts > 6 ? 6 : attempts)); ++i)
             {
                 _mm_pause();
             }
@@ -86,7 +86,7 @@ void ThreadPool::WaitIdle()
 
 void ThreadPool::Worker(size_t workerId)
 {
-    PHX_PROFILE_SET_THREAD_NAME(Id.c_str(), workerId);
+    PHX_PROFILE_SET_THREAD_NAME(Id.c_str(), (int32)workerId);
 
     TTask task;
 
@@ -115,7 +115,7 @@ void ThreadPool::Worker(size_t workerId)
             }
             if (spins < 8)
             {
-                for (size_t i = 0; i < (1 << spins); ++i)
+                for (size_t i = 0; i < (1ULL << spins); ++i)
                 {
                     _mm_pause();
                 }

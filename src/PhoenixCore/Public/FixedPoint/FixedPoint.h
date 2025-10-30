@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include "PlatformTypes.h"
+#include "Platform.h"
 
 #ifndef TFIXED_DEBUG
 #if DEBUG
@@ -93,8 +93,8 @@ namespace Phoenix
     template <class TFrom, class TTo>
     static constexpr TTo ConvertTo(TFrom fromValue, uint8 fromB, uint8 toB)
     {
-        int64 Td = 1 << toB;
-        int64 Ud = 1 << fromB;
+        int64 Td = 1LL << toB;
+        int64 Ud = 1LL << fromB;
         int64 val = int64(fromValue) * Td / Ud;
         constexpr TTo qmint = std::numeric_limits<TTo>::min();
         constexpr TTo qmaxt = std::numeric_limits<TTo>::max();
@@ -106,19 +106,19 @@ namespace Phoenix
     template <class TFrom, class TTo>
     static constexpr TTo ConvertToQ(TFrom fromValue, uint8 toB)
     {
-        int64 Td = 1 << toB;
+        int64 Td = 1LL << toB;
         int64 val = int64(fromValue * Td);
         constexpr TTo qmint = std::numeric_limits<TTo>::min();
         constexpr TTo qmaxt = std::numeric_limits<TTo>::max();
         if (val > (TTo)qmaxt) return qmaxt;
         if (val < (TTo)qmint) return qmint;
-        return val;
+        return static_cast<TTo>(val);
     }
 
     template <class TFrom, class TTo>
     static constexpr TTo ConvertFromQ(TFrom fromValue, uint8 fromB)
     {
-        int64 Td = 1 << fromB;
+        int64 Td = 1LL << fromB;
         return static_cast<TTo>(fromValue) / Td;
     }
 
@@ -127,6 +127,7 @@ namespace Phoenix
     {
         static_assert(Tb < (sizeof(T) << 3) - 2);
         using ValueT = T;
+        using QT = TFixedQ_T<T>;
         static constexpr int64 D = 1LL << Tb;
         static constexpr int32 B = Tb;
 
@@ -150,14 +151,14 @@ namespace Phoenix
         // Convert from TFixed<Ub, U> to TFixed<Tb, T>::TValue
         template <class U> static constexpr T ConvertTo(U u, uint8 ub)
         {
-            return T(Phoenix::ConvertTo<T, U>(u, ub, Tb));
+            return T(Phoenix::ConvertTo<U, T>(u, ub, Tb));
         }
 
         // Convert from TFixed<Ub, U> to TFixed<Tb, T>::TValue
         template <int32 Ub, class U>
         static constexpr T ConvertTo(const TFixed<Ub, U>& other)
         {
-            return T(Phoenix::ConvertTo<T, U>(other.Value, Ub, Tb));
+            return T(Phoenix::ConvertTo<U, T>(other.Value, Ub, Tb));
         }
 
         constexpr TFixed() : Value(0){}
@@ -338,12 +339,12 @@ namespace Phoenix
     };
 
     // FP32
-    constexpr FP32::FP32(const FP64& other64): B(other64.B), Value(other64.Value) {}
-    constexpr FP32::operator FP64() const { return FP64(B, Value); }
+    constexpr FP32::FP32(const FP64& other64): B(other64.B), Value(static_cast<TValue>(other64.Value)) {}
+    constexpr FP32::operator FP64() const { return { Value, B }; }
 
     // FP64
     constexpr FP64::FP64(const FP32& other32): B(other32.B), Value(other32.Value) {}
-    constexpr FP64::operator FP32() const { return FP32(B, Value); }
+    constexpr FP64::operator FP32() const { return { static_cast<FP32::TValue>(Value), B }; }
 }
 
 #include "FixedPoint.inl"

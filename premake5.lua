@@ -53,10 +53,8 @@ project "PhoenixCore"
     files { "src/PhoenixCore/**", }
     includedirs { "src/PhoenixCore/Public/" }
 
-    defines { "PHOENIXCORE_DLL" }
-
-    filter "system:windows"
-        defines { "PHOENIXCORE_DLL_EXPORTS" }
+    defines { "PHOENIX_DLL" }
+    defines { "PHOENIXCORE_DLL_EXPORTS" }
 
     filter "configurations:Debug"
         defines { "DEBUG" }
@@ -71,13 +69,19 @@ project "PhoenixCore"
         
     filter {}
 
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "PhoenixSim"
     kind "SharedLib"
     location (projects)
 
     dependson { "PhoenixCore" }
 
-    defines { "PHOENIXSIM_DLL", "PHX_PROFILE_ENABLE" }
+    defines { "PHOENIX_DLL" }
+    defines { "PHOENIXSIM_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixSim/**"
@@ -92,9 +96,6 @@ project "PhoenixSim"
         "PhoenixCore"
     }
 
-    filter "system:windows"
-        defines { "PHOENIXSIM_DLL_EXPORTS" }
-
     filter "configurations:Debug"
         defines { "DEBUG" }
         runtime "Debug"
@@ -108,13 +109,19 @@ project "PhoenixSim"
         
     filter {}
 
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "PhoenixLua"
     kind "SharedLib"
     location (projects)
 
     dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim" }
 
-    defines { "PHOENIXLUA_DLL", "PHX_PROFILE_ENABLE" }
+    defines { "PHOENIX_DLL" }
+    defines { "PHOENIXLUA_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixLua/**"
@@ -139,9 +146,6 @@ project "PhoenixLua"
         "PhoenixSim"
     }
 
-    filter "system:windows"
-        defines { "PHOENIXLUA_DLL_EXPORTS" }
-
     filter "configurations:Debug"
         defines { "DEBUG" }
         runtime "Debug"
@@ -155,12 +159,18 @@ project "PhoenixLua"
         
     filter {}
 
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "TestApp"
     kind "ConsoleApp"
     location (projects)
 
     dependson { "PhoenixCore", "PhoenixSim", "PhoenixLua" }
 
+    defines { "PHOENIX_DLL" }
     defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
 
     files {
@@ -221,3 +231,8 @@ project "TestApp"
         optimize "speed"
         
     filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }

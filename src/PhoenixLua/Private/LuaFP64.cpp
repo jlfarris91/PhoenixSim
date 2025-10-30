@@ -28,12 +28,11 @@ FP64 Lua::ToFP64(lua_State* L, int32 pos)
             {
                 if (lua_isinteger(L, pos))
                 {
-                    lua_Integer l = lua_tointeger(L, pos);
-                    v = FP64(l);
+                    v = FP64(lua_tointeger(L, pos));
                 }
                 else
                 {
-                    v = FP64(lua_tonumber(L, pos));
+                    v = FP64(static_cast<FP64::TValue>(lua_tonumber(L, pos)));
                 }
                 break;
             }
@@ -60,7 +59,7 @@ int32 Lua::NewFP64(lua_State* L)
     // TODO (jfarris): How do we get the 'B' ?
 
     int32 type = lua_type(L, 1);
-    uint8 b = lua_tointeger(L, 1);
+    uint8 b = static_cast<uint8>(lua_tointeger(L, 1));
 
     FP64 v(0, b);
 
@@ -76,7 +75,7 @@ int32 Lua::NewFP64(lua_State* L)
         }
         else
         {
-            v = FP64(lua_tonumber(L, 1));
+            v = FP64(static_cast<FP64::TValue>(lua_tonumber(L, 1)));
         }
     }
 

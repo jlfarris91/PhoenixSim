@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include <type_traits>  // For std::conditional and std::is_same
 
 namespace Phoenix
@@ -20,10 +20,17 @@ namespace Phoenix
 
     // TFixed<Tb, T> == TFixed<Tb, T>
     template<uint8 Tb, class T>
-    constexpr bool operator==(const TFixed<Tb, T>& lhs, const TFixed<Tb, T>& rhs)
+    constexpr bool Equals(const TFixed<Tb, T>& lhs, const TFixed<Tb, T>& rhs, const TFixed<Tb, T>& threshold)
     {
         auto v = int64(lhs.Value) - rhs.Value; 
-        return (v < 0 ? -v : v) <= 1;
+        return (v < 0 ? -v : v) <= threshold.Value;
+    }
+
+    // TFixed<Tb, T> == TFixed<Tb, T>
+    template<uint8 Tb, class T>
+    constexpr bool operator==(const TFixed<Tb, T>& lhs, const TFixed<Tb, T>& rhs)
+    {
+        return Equals(lhs, rhs, TFixed<Tb, T>(TFixedQ_T<T>(1)));
     }
 
     // TFixed<Tb, T> == TFixed<Ub, U>
@@ -240,15 +247,13 @@ namespace Phoenix
     {
         constexpr int64 Td = 1 << Tb;
         constexpr int64 Ud = 1 << Ub;
-        // Preserve backing type when both operands have same type, otherwise use int64
-        using ResultType = typename std::conditional<std::is_same<T, U>::value, T, int64>::type;
         if constexpr (Tb < Ub)
         {
-            return TFixed<Ub, ResultType>(TFixedQ_T<ResultType>(int64(lhs.Value) * Ud / Td + rhs.Value));
+            return TFixed<Ub, int64>(Q64(int64(lhs.Value) * Ud / Td + rhs.Value));
         }
         else
         {
-            return TFixed<Tb, ResultType>(TFixedQ_T<ResultType>(lhs.Value + int64(rhs.Value) * Td / Ud));
+            return TFixed<Tb, int64>(Q64(lhs.Value + int64(rhs.Value) * Td / Ud));
         }
     }
 
@@ -449,9 +454,7 @@ namespace Phoenix
     {
         constexpr auto MIN = Tb < Ub ? Tb : Ub;
         constexpr auto MAX = Tb > Ub ? Tb : Ub;
-        // Preserve backing type when both operands have same type, otherwise use int64
-        using ResultType = typename std::conditional<std::is_same<T, U>::value, T, int64>::type;
-        return TFixed<MAX, ResultType>(TFixedQ_T<ResultType>((int64(lhs.Value) * rhs.Value) >> MIN));
+        return TFixed<MAX, int64>(Q64((int64(lhs.Value) * rhs.Value) >> MIN));
     }
 
     // TFixed * double
@@ -466,34 +469,6 @@ namespace Phoenix
     constexpr auto operator*(double lhs, const TFixed<Tb, T>& rhs)
     {
         return TFixed<Tb, T>(lhs) * rhs;
-    }
-
-    // int * TFixed  
-    template <uint8 Tb, class T>
-    constexpr auto operator*(int lhs, const TFixed<Tb, T>& rhs)
-    {
-        return TFixed<Tb, T>(lhs) * rhs;
-    }
-
-    // uint8 * TFixed
-    template <uint8 Tb, class T>
-    constexpr auto operator*(uint8 lhs, const TFixed<Tb, T>& rhs)
-    {
-        return TFixed<Tb, T>(lhs) * rhs;
-    }
-
-    // TFixed * int
-    template <uint8 Tb, class T>
-    constexpr auto operator*(const TFixed<Tb, T>& lhs, int rhs)
-    {
-        return lhs * TFixed<Tb, T>(rhs);
-    }
-
-    // TFixed * uint8
-    template <uint8 Tb, class T>
-    constexpr auto operator*(const TFixed<Tb, T>& lhs, uint8 rhs)
-    {
-        return lhs * TFixed<Tb, T>(rhs);
     }
 
     // TFixed<Tb, T> *= TFixed<Ub, U>
@@ -545,16 +520,25 @@ namespace Phoenix
     template<uint8 Tb, class T, uint8 Ub, class U>
     constexpr auto operator/(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     {
-        constexpr int64 Td = 1 << Tb;
-        constexpr int64 Ud = 1 << Ub;
-        if constexpr (Tb < Ub)
+        // This is the output type. For now we'll just return the same type as the lhs.
+        using V = T;
+        constexpr uint8 Vb = Tb;
+
+        constexpr int32 shift = Ub + Vb - Tb; 
+        int64 v = lhs.Value;
+
+        if constexpr (shift >= 0)
         {
-            return TFixed<Ub, T>(Q64(lhs.Value / int64(rhs.Value) * Td));
+            v <<= shift;
         }
         else
         {
-            return TFixed<Tb, T>(Q64(int64(lhs.Value) * Ud / rhs.Value));
+            v >>= -shift;
         }
+
+        v /= static_cast<int64>(rhs.Value);
+
+        return TFixed<Vb, V>(TFixedQ_T<V>(v));
     }
 
     // TFixed / double

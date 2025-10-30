@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "PhoenixSim.h"
+#include "FixedPoint/FixedTypes.h"
 
 namespace Phoenix
 {

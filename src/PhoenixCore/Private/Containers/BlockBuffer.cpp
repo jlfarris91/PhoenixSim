@@ -29,7 +29,7 @@ BlockBuffer::BlockBuffer(const CtorArgs& args)
         return static_cast<uint8>(a.Definition.Priority) < static_cast<uint8>(b.Definition.Priority);
     });
 
-    uint32_t totalSize = 0;
+    size_t totalSize = 0;
     for (Block& block : Blocks)
     {
         block.Offset = totalSize;
@@ -98,7 +98,7 @@ const uint8* BlockBuffer::GetData() const
     return Data.get();
 }
 
-uint32 BlockBuffer::GetSize() const
+size_t BlockBuffer::GetSize() const
 {
     return Size;
 }

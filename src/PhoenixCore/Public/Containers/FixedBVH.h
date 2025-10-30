@@ -3,7 +3,7 @@
 
 #include "CTZ.h"
 #include "PhoenixCore.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include "Containers/FixedArray.h"
 #include "FixedPoint/FixedVector.h"
 #include "FixedPoint/FixedBox.h"

@@ -7,7 +7,7 @@
 #include "DLLExport.h"
 #include "FeatureECS.h"
 #include "FixedPoint/FixedVector.h"
-#include "PlatformTypes.h"
+#include "Platform.h"
 #include "FixedPoint/FixedPoint.h"
 
 struct lua_State;

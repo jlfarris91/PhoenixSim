@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#include "Platform.h"
 #include "Hashing.h"
 
 namespace Phoenix
