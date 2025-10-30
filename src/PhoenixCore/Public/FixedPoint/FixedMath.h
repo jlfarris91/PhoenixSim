@@ -8,7 +8,7 @@ namespace Phoenix
     template <class T>
     struct TVec2;
 
-    template <uint64 Tb, class T>
+    template <uint8 Tb, class T>
     constexpr TFixed<Tb, T> Sqrt(const TFixed<Tb, T>& value)
     {
         return Cordic::Sqrt(value);

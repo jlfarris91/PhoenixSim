@@ -202,7 +202,7 @@ namespace Phoenix
     // Addition
     //
 
-    // template <int64 Tb, class T, int64 Ub, class U>
+    // template <uint8 Tb, class T, int64 Ub, class U>
     // constexpr auto ChkAdd(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     // {
     //     constexpr int64 Td = 1 << Tb;
@@ -433,7 +433,7 @@ namespace Phoenix
     // Multiplication
     //
 
-    // template <int64 Tb, class T, int64 Ub, class U>
+    // template <uint8 Tb, class T, int64 Ub, class U>
     // constexpr auto ChkMult(const TFixed<Tb, T>& lhs, const TFixed<Ub, U>& rhs)
     // {
     //     constexpr auto MIN = Tb < Ub ? Tb : Ub;

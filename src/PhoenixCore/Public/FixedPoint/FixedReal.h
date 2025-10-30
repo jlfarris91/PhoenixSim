@@ -7,7 +7,7 @@ namespace Phoenix
 {
     // Represents a real number with fixed precision.
     // Tb is the bits of the denominator. A Tb value of 0 represents an integer.
-    template <int64 Tb, class T = int32>
+    template <uint8 Tb, class T = int32>
     struct TReal
     {
         static constexpr int64 TBitsMinusOne = ((sizeof(T) << 3) - 1);
