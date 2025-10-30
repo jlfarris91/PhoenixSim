@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <algorithm>
 
 #include "PhoenixCore.h"
 #include "Platform.h"
