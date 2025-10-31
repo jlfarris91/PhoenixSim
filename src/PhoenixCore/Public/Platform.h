@@ -35,9 +35,11 @@ namespace Phoenix
 #endif
 
 #ifdef _WIN32
-    #define FORCEINLINE __forceinline
+    #define PHX_FORCEINLINE __forceinline
+    #define PHX_THREAD_PAUSE _mm_pause()
 #else
     // Linux/GCC
-    #define FORCEINLINE inline __attribute__((always_inline))
+    #define PHX_FORCEINLINE inline __attribute__((always_inline))
     #define _countof(arr) (sizeof(arr) / sizeof((arr)[0]))
+    #define PHX_THREAD_PAUSE nanosleep()
 #endif

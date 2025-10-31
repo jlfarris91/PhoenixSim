@@ -56,7 +56,7 @@ void ThreadPool::Submit(const TTask& task)
         {
             for (size_t i = 0; i < (1ULL << (attempts > 6 ? 6 : attempts)); ++i)
             {
-                _mm_pause();
+                PHX_THREAD_PAUSE;
             }
         }
         else
@@ -117,7 +117,7 @@ void ThreadPool::Worker(size_t workerId)
             {
                 for (size_t i = 0; i < (1ULL << spins); ++i)
                 {
-                    _mm_pause();
+                    PHX_THREAD_PAUSE;
                 }
             }
             else

@@ -64,13 +64,13 @@ namespace Phoenix
     }
 
     template <class T>
-    FORCEINLINE T&& Forward(std::remove_reference_t<T>& obj)
+    PHX_FORCEINLINE T&& Forward(std::remove_reference_t<T>& obj)
     {
         return (T&&)obj;
     }
 
     template <class T>
-    FORCEINLINE T&& Forward(std::remove_reference_t<T>&& obj)
+    PHX_FORCEINLINE T&& Forward(std::remove_reference_t<T>&& obj)
     {
         return (T&&)obj;
     }
