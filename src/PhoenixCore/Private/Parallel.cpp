@@ -1,24 +1,18 @@
 
 #include "Parallel.h"
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
 // Original implementation would go here for non-web builds
 // For web builds, we'll provide simplified stubs
 
+// Web build stubs
 namespace Phoenix
 {
-    namespace Threading
+    namespace Threading  
     {
-        // Web-compatible implementation (simplified)
         void SpinWait(uint32 cycles)
         {
-            // Simple busy wait without intrinsics
-            for (uint32 i = 0; i < cycles; ++i)
-            {
-                // Empty loop for web compatibility
-                volatile uint32 dummy = i;
-                (void)dummy;
-            }
+            // No-op for web builds
         }
     }
 }
