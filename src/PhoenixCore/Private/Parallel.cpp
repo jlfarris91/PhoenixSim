@@ -1,6 +1,35 @@
 
 #include "Parallel.h"
 
+#ifdef __EMSCRIPTEN__
+// Original implementation would go here for non-web builds
+// For web builds, we'll provide simplified stubs
+
+// Web build stubs
+namespace Phoenix
+{
+    namespace Threading  
+    {
+        void SpinWait(uint32 cycles)
+        {
+            // No-op for web builds
+        }
+    }
+}
+
+#else
+// Web build stubs
+namespace Phoenix
+{
+    namespace Threading  
+    {
+        void SpinWait(uint32 cycles)
+        {
+            // No-op for web builds
+        }
+    }
+}
+
 // xatomic.h is Windows-specific, using standard <atomic> and <thread> from Parallel.h
 
 #include "PhoenixCore.h"
@@ -137,3 +166,7 @@ void ThreadPool::Worker(size_t workerId)
         ActiveWorkerCount.fetch_sub(1, std::memory_order_acq_rel);
     }
 }
+
+#endif
+
+
