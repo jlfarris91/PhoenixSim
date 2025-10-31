@@ -85,7 +85,7 @@ void Session::Tick(const SessionStepArgs& args)
         return;
     }
 
-    auto hz = CLOCKS_PER_SEC / args.StepHz;
+    clock_t hz = CLOCKS_PER_SEC / args.StepHz;
 
     AccTickTime += dt;
     while (AccTickTime >= hz)
