@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <limits>
 
 #include "Platform.h"
 
@@ -52,7 +53,7 @@ namespace Phoenix
             SecPerFrame[SecPerFrameIdx] = dt;
             SecPerFrameIdx = (SecPerFrameIdx + 1) % NumFrames;
             SecPerFrameCount = std::min(SecPerFrameCount + 1, NumFrames);
-            Framerate = (SecPerFrameAccum > 0.0) ? (1.0 / (SecPerFrameAccum / (double)SecPerFrameCount)) : DBL_MAX;
+            Framerate = (SecPerFrameAccum > 0.0) ? (1.0 / (SecPerFrameAccum / (double)SecPerFrameCount)) : std::numeric_limits<double>::max();
 
             return Framerate;
         }
