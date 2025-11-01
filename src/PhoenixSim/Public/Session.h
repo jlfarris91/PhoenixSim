@@ -3,6 +3,7 @@
 #include <shared_mutex>
 
 #include "Features.h"
+#include "FPSCalc.h"
 
 namespace Phoenix
 {
@@ -48,7 +49,7 @@ namespace Phoenix
         clock_t GetStartTime() const;
         clock_t GetLastStepTime() const;
         simtime_t GetSimTime() const;
-        uint64 GetStepsPerSecond() const;
+        double GetFramerate() const;
 
         FeatureSet* GetFeatureSet() const;
         WorldManager* GetWorldManager() const;
@@ -72,9 +73,7 @@ namespace Phoenix
         simtime_t SimTime = 0;
 
         // Steps per second
-        uint64 SPS = 0;
-        uint64 SPSLastSimTime = 0;
-        clock_t SPSTimer = 0;
+        FPSCalc FPSCalc;
 
         TUniquePtr<BlockBuffer> SessionBuffer;
     };

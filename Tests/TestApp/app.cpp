@@ -121,7 +121,7 @@ void UpdateSessionWorker()
     {
         FrameMarkNamed("Sim");
 
-        clock_t currClockTime = clock();
+        clock_t currClockTime = PHX_CLOCK();
         clock_t deltaClockTime = currClockTime - lastClockTime;
         lastClockTime = currClockTime;
 
@@ -131,7 +131,7 @@ void UpdateSessionWorker()
 
         GSession->Tick(stepArgs);
 
-        GSessionFPS = static_cast<float>(GSession->GetStepsPerSecond());
+        GSessionFPS = static_cast<float>(GSession->GetFramerate());
 
         //Sleep(10);
     }
@@ -303,7 +303,7 @@ void OnAppRenderUI()
 
     if (ImGui::Begin("Debug"))
     {
-        ImGui::Text("Sim FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSessionFPS, GSessionFPS);
+        ImGui::Text("Sim FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
         ImGui::Text("SDL FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
         ImGui::Text("ImGui FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 

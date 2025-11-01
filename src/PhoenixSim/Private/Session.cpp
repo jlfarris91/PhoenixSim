@@ -51,11 +51,11 @@ void Session::Initialize()
         feature->Initialize();
     }
 
-    StartTime = clock();
+    StartTime = PHX_CLOCK();
     CurrTickTime = StartTime;
     LastStepTime = StartTime;
-    SPSTimer = StartTime;
     AccTickTime = 0;
+    FPSCalc.Reset();
 }
 
 void Session::Shutdown()
@@ -75,7 +75,7 @@ void Session::QueueAction(const Action& action)
 
 void Session::Tick(const SessionStepArgs& args)
 {
-    clock_t currTime = clock();
+    clock_t currTime = PHX_CLOCK();
     clock_t dt = currTime - CurrTickTime;
     CurrTickTime = currTime;
 
@@ -87,14 +87,16 @@ void Session::Tick(const SessionStepArgs& args)
 
     clock_t hz = CLOCKS_PER_SEC / args.StepHz;
 
+    FPSCalc.Tick();
+
     AccTickTime += dt;
     while (AccTickTime >= hz)
     {
-        clock_t startStepTime = clock();
+        clock_t startStepTime = PHX_CLOCK();
 
         Step(args);
 
-        clock_t endStepTime = clock();
+        clock_t endStepTime = PHX_CLOCK();
         clock_t stepElapsed = endStepTime - startStepTime;
 
         if (stepElapsed > CLOCKS_PER_SEC * 3)
@@ -103,7 +105,7 @@ void Session::Tick(const SessionStepArgs& args)
         }
 
         AccTickTime -= std::max(hz, stepElapsed);
-        CurrTickTime = clock();
+        CurrTickTime = PHX_CLOCK();
     }
 
     if (AccTickTime > 0)
@@ -115,20 +117,13 @@ void Session::Tick(const SessionStepArgs& args)
         usleep(static_cast<unsigned int>((AccTickTime * 1000000) / CLOCKS_PER_SEC));
 #endif
     }
-
-    if (clock() - SPSTimer > CLOCKS_PER_SEC)
-    {
-        SPSTimer = clock();
-        SPS = SimTime - SPSLastSimTime;
-        SPSLastSimTime = SimTime;
-    }
 }
 
 void Session::Step(const SessionStepArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
-    LastStepTime = clock();
+    LastStepTime = PHX_CLOCK();
     SimTime += 1;
 
     // Process actions
@@ -174,9 +169,9 @@ simtime_t Session::GetSimTime() const
     return SimTime;
 }
 
-uint64 Session::GetStepsPerSecond() const
+double Session::GetFramerate() const
 {
-    return SPS;
+    return FPSCalc.Framerate;
 }
 
 FeatureSet* Session::GetFeatureSet() const

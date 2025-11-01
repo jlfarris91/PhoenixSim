@@ -37,9 +37,11 @@ namespace Phoenix
 #ifdef _WIN32
     #define PHX_FORCEINLINE __forceinline
     #define PHX_THREAD_PAUSE() _mm_pause()
+    #define PHX_CLOCK() clock()
 #else
     // Linux/GCC
     #define PHX_FORCEINLINE inline __attribute__((always_inline))
     #define _countof(arr) (sizeof(arr) / sizeof((arr)[0]))
     #define PHX_THREAD_PAUSE() { do {} while(0); }
+    #define PHX_CLOCK() std::chrono::system_clock::now().time_since_epoch().count()
 #endif
