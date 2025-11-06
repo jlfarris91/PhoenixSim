@@ -22,6 +22,7 @@
 
 // Phoenix features
 #include "FeatureECS.h"
+#include "FeatureECS2.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
 #include "FeatureLua.h"
@@ -158,6 +159,8 @@ void DrawGrid();
 void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 {
     SetProfiler(&GTracyProfiler);
+
+    ECS2::Test();
 
     InitSession();
 
