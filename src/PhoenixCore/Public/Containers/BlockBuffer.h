@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "PhoenixCore.h"
+#include "Platform.h"
 #include "Reflection.h"
 
 namespace Phoenix

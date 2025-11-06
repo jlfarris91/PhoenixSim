@@ -14,10 +14,10 @@ namespace Phoenix
         static const FName Empty;
 
         constexpr FName() = default;
-        constexpr FName(hash_t hash) : Hash(hash) {}
+        constexpr FName(hash32_t hash) : Value(hash) {}
 
         constexpr FName(const char* chars, size_t len)
-            : Hash(Hashing::FN1VA32(chars, len))
+            : Value(Hashing::FNV1A32(chars, len))
         {
 #if DEBUG
             for (size_t i = 0; i < len && i < _countof(Debug); ++i)
@@ -25,12 +25,16 @@ namespace Phoenix
 #endif
         }
 
-        operator hash_t() const;
+        explicit operator hash32_t() const;
         bool operator==(const FName& other) const;
         bool operator!=(const FName& other) const;
+        std::strong_ordering operator<=>(const FName& other) const;
+
+        FName operator+(const FName& other) const;
+        FName& operator+=(const FName& other);
 
     private:
-        hash_t Hash = 0;
+        hash32_t Value = 0;
 
 #if DEBUG
     public:
@@ -43,3 +47,13 @@ namespace Phoenix
         return FName(chars, len);
     }
 }
+
+
+template <>
+struct std::hash<Phoenix::FName>
+{
+    std::size_t operator()(const Phoenix::FName& value) const noexcept
+    {
+        return std::hash<Phoenix::hash32_t>::operator()((Phoenix::hash32_t)value);
+    }
+};

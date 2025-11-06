@@ -1,6 +1,6 @@
 
 #include "PhoenixTracyImpl.h"
-#include "Tracy.hpp"
+#include <tracy/Tracy.hpp>
 
 using namespace tracy;
 

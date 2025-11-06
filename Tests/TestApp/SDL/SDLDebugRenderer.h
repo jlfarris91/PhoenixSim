@@ -5,7 +5,7 @@
 
 #include "Debug.h"
 #include "Color.h"
-#include "PhoenixCore.h"
+#include "Platform.h"
 
 namespace Phoenix
 {

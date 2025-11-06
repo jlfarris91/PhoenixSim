@@ -1,6 +1,6 @@
 
 // Tracy
-#include "Tracy.hpp"
+#include <tracy/Tracy.hpp>
 
 // SDL3
 #include <SDL3/SDL.h>

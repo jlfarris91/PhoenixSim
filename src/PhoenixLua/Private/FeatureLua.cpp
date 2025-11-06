@@ -48,7 +48,7 @@ void FeatureLua::Initialize()
 
     state["hash"] = [](const std::string& v)
     {
-        return FName(Hashing::FN1VA32(v.data(), v.size()));
+        return FName(Hashing::FNV1A32(v.data(), v.size()));
     };
 
     auto ecs = phoenix["ECS"].get_or_create<sol::table>();

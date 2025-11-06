@@ -5,7 +5,7 @@
 #include <SDL3/SDL_keycode.h>
 
 #include "Debug.h"
-#include "PhoenixCore.h"
+#include "Platform.h"
 #include "SDLViewport.h"
 
 namespace Phoenix

@@ -22,7 +22,7 @@
 #endif
 
 #ifndef ECS_MAX_COMPONENT_SIZE
-#define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash_t) + sizeof(int32))) + 64
+#define ECS_MAX_COMPONENT_SIZE (64 - (sizeof(hash32_t) + sizeof(int32))) + 64
 #endif
 
 #define DECLARE_ECS_COMPONENT(component) \

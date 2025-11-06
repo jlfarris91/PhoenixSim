@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Name.h"
 #include "PhoenixSim.h"
 #include "FixedPoint/FixedTypes.h"
 

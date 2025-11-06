@@ -47,13 +47,13 @@ project "sol2"
     }
 
 project "PhoenixCore"
-    kind "SharedLib"
+    kind "StaticLib"
     location (projects)
 
     files { "src/PhoenixCore/**", }
     includedirs { "src/PhoenixCore/Public/" }
 
-    defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_DLL" }
     defines { "PHOENIXCORE_DLL_EXPORTS" }
 
     filter "configurations:Debug"
@@ -75,12 +75,12 @@ project "PhoenixCore"
     }
 
 project "PhoenixSim"
-    kind "SharedLib"
+    kind "StaticLib"
     location (projects)
 
     dependson { "PhoenixCore" }
 
-    defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_DLL" }
     defines { "PHOENIXSIM_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
 
     files { 
@@ -115,12 +115,12 @@ project "PhoenixSim"
     }
 
 project "PhoenixLua"
-    kind "SharedLib"
+    kind "StaticLib"
     location (projects)
 
     dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim" }
 
-    defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_DLL" }
     defines { "PHOENIXLUA_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
 
     files { 
@@ -170,7 +170,7 @@ project "TestApp"
 
     dependson { "PhoenixCore", "PhoenixSim", "PhoenixLua" }
 
-    defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_DLL" }
     defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
 
     files {
@@ -190,9 +190,7 @@ project "TestApp"
     includedirs {
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
-        "src/PhoenixLua/Public",
-        ext .. "/imgui/**",
-        ext .. "/tracy/**"
+        "src/PhoenixLua/Public"
     }
 
     externalincludedirs {
@@ -200,7 +198,8 @@ project "TestApp"
         ext .. "/imgui/",
         ext .. "/imgui/**",
         ext .. "/nlohmann/*",
-        ext .. "/lua/lua-5.4.8/src/"
+        ext .. "/lua/lua-5.4.8/src/",
+        ext .. "/tracy/"
     }
 
     libdirs {

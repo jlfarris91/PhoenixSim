@@ -3,7 +3,7 @@
 
 // Tracy
 #include "PhoenixTracyImpl.h"
-#include <Tracy.hpp>
+#include <tracy/Tracy.hpp>
 
 // ImGui
 #include "imgui.h"

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CTZ.h"
-#include "PhoenixCore.h"
 #include "Platform.h"
 #include "Containers/FixedArray.h"
 #include "FixedPoint/FixedVector.h"

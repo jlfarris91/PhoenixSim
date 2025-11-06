@@ -5,14 +5,14 @@
 
 namespace Phoenix
 {
-    typedef size_t hash_t;
+    typedef uint32 hash32_t;
 
     struct PHOENIXCORE_API Hashing
     {
-        static constexpr hash_t FN1VA32(const char* data, size_t length)
+        static constexpr hash32_t FNV1A32(const char* data, size_t length, hash32_t basis = 0x811c9dc5)
         {
-            const hash_t prime = 0x1000193;
-            hash_t hash = 0x811c9dc5;
+            const hash32_t prime = 0x1000193;
+            hash32_t hash = basis;
 
             for (size_t i = 0; i < length; ++i)
             {
@@ -23,10 +23,10 @@ namespace Phoenix
             return hash;
         }
 
-        static hash_t FN1VA32(const void* data, size_t length)
+        static hash32_t FNV1A32(const void* data, size_t length, hash32_t basis = 0x811c9dc5)
         {
-            const hash_t prime = 0x1000193;
-            hash_t hash = 0x811c9dc5;
+            const hash32_t prime = 0x1000193;
+            hash32_t hash = basis;
 
             // Cannot be constexpr because of this cast
             auto chars = static_cast<const char*>(data);
@@ -40,9 +40,22 @@ namespace Phoenix
         }
 
         template <class T>
-        static constexpr hash_t FN1VA32(const T& obj)
+        static constexpr hash32_t FNV1A32(const T& obj, hash32_t basis = 0x811c9dc5)
         {
-            return FN1VA32(&obj, sizeof(T));
+            return FNV1A32(&obj, sizeof(T), basis);
+        }
+
+        static constexpr hash32_t FN1VA32Combine(hash32_t basis)
+        {
+            return basis;
+        }
+
+        template <class TArg0, class ...TArgs>
+        static constexpr hash32_t FN1VA32Combine(hash32_t basis, TArg0&& arg0, TArgs&&... args)
+        {
+            auto h = FNV1A32(arg0, basis);
+            h = FN1VA32Combine(h, args...);
+            return h;
         }
     };
 }

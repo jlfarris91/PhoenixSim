@@ -1,5 +1,5 @@
 
 #pragma once
 
-#include "PhoenixCore.h"
+#include "Platform.h"
 #include "DLLExport.h"

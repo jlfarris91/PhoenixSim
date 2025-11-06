@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <algorithm>
 
-#include "PhoenixCore.h"
 #include "Platform.h"
 #include "FixedPoint/FixedVector.h"
 

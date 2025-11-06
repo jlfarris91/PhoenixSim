@@ -3,7 +3,8 @@
 
 #include <memory>
 
-#include "PhoenixCore.h"
+#include "Name.h"
+#include "Platform.h"
 
 namespace Phoenix
 {

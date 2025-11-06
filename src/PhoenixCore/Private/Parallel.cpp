@@ -3,7 +3,7 @@
 
 // xatomic.h is Windows-specific, using standard <atomic> and <thread> from Parallel.h
 
-#include "PhoenixCore.h"
+#include "Platform.h"
 #include "Profiling.h"
 
 using namespace Phoenix;
