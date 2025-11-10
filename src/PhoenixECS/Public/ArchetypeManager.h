@@ -37,6 +37,32 @@ namespace Phoenix
                 return list && list->IsValid(handle);
             }
 
+            size_t GetNumActiveArchetypes() const
+            {
+                size_t total = 0;
+                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                {
+                    if (const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i}))
+                    {
+                        total += list->GetNumActiveInstances();
+                    }
+                }
+                return total;
+            }
+
+            size_t GetNumArchetypeLists() const
+            {
+                size_t total = 0;
+                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                {
+                    if (ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i}))
+                    {
+                        ++total;
+                    }
+                }
+                return total;
+            }
+
             bool RegisterArchetypeDefinition(const TArchetypeDefinition& definition)
             {
                 if (ArchetypeDefinitions.IsFull())
@@ -65,7 +91,7 @@ namespace Phoenix
                     return TEntityHandle();
                 }
 
-                return list->Allocate(entityId);
+                return list->Acquire(entityId);
             }
 
             // Release an archetype back to the pool
@@ -78,7 +104,7 @@ namespace Phoenix
                 }
 
                 // TODO (jfarris): release chunk when list becomes empty?
-                return list->Deallocate(handle);
+                return list->Release(handle);
             }
 
             bool SetArchetype(const TEntityHandle& handle, const FName& archetypeId)
@@ -198,6 +224,30 @@ namespace Phoenix
             {
                 const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle { handle.GetOwnerId() });
                 return list && list->IsValid(handle) ? list : nullptr;
+            }
+
+            void ForEachArchetypeList(const TFunction<void(TArchetypeList&)>& func)
+            {
+                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                {
+                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    if (list)
+                    {
+                        func(*list);
+                    }
+                }
+            }
+
+            void ForEachArchetypeList(const TFunction<void(const TArchetypeList&)>& func) const
+            {
+                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                {
+                    const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    if (list)
+                    {
+                        func(*list);
+                    }
+                }
             }
 
             void ForEachArchetypeList(const FName& archetypeId, const TFunction<void(TArchetypeList&)>& func)

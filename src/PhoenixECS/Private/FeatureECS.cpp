@@ -269,103 +269,69 @@ bool FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
     return GetEntityPtr(world, entityId) != nullptr;
 }
 
-int32 FeatureECS::GetEntityIndex(EntityId entityId)
-{
-    return entityId % decltype(FeatureECSDynamicBlock::Entities)::Capacity;
-}
-
 Entity* FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    uint32 index = GetEntityIndex(entityId);
-    if (!block.Entities.IsValidIndex(index))
-        return nullptr;
-    Entity& entity = block.Entities[index];
-    return entity.GetId() == entityId ? &entity : nullptr;
+    return block.Entities.GetEntityPtr(entityId);
 }
 
 const Entity* FeatureECS::GetEntityPtr(WorldConstRef world, EntityId entityId)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    uint32 index = GetEntityIndex(entityId);
-    if (!block.Entities.IsValidIndex(index))
-        return nullptr;
-    const Entity& entity = block.Entities[index];
-    return entity.GetId() == entityId ? &entity : nullptr;
+    return block.Entities.GetEntityPtr(entityId);
 }
 
 Entity& FeatureECS::GetEntityRef(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    uint32 index = GetEntityIndex(entityId);
-    Entity& entity = block.Entities[index];
-    return entity.GetId() == entityId ? entity : block.Entities[0];
+    return block.Entities.GetEntityRef(entityId);
 }
 
 const Entity& FeatureECS::GetEntityRef(WorldConstRef world, EntityId entityId)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    uint32 index = GetEntityIndex(entityId);
-    const Entity& entity = block.Entities[index];
-    return entity.GetId() == entityId ? entity : block.Entities[0];
+    return block.Entities.GetEntityRef(entityId);
 }
 
 EntityId FeatureECS::AcquireEntity(WorldRef world, const FName& kind)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
-    // Find the first invalid entity index
-    uint32 entityIdx = 1;
-    for (; entityIdx < PHX_ECS_MAX_ENTITIES; ++entityIdx)
-    {
-        if (block.Entities[entityIdx].GetId() == EntityId::Invalid)
-        {
-            break;
-        }
-    }
-
-    if (entityIdx == PHX_ECS_MAX_ENTITIES)
+    EntityId entityId = block.Entities.Acquire(kind);
+    if (entityId == EntityId::Invalid)
     {
         return EntityId::Invalid;
     }
 
-    if (!block.Entities.IsValidIndex(entityIdx))
-    {
-        block.Entities.SetNum(entityIdx + 1);
-    }
-
-    Entity& entity = block.Entities[entityIdx];
-    entity.Kind = kind;
-    entity.Handle = ArchetypeHandle();
-    entity.TagHead = INDEX_NONE;
+    Entity& entity = block.Entities.GetEntityRef(entityId);
 
     // Automatically acquire an archetype if the kind matches one
     if (block.ArchetypeManager.IsArchetypeRegistered(kind))
     {
-        entity.Handle = block.ArchetypeManager.Acquire(entityIdx, kind);
+        entity.Handle = block.ArchetypeManager.Acquire(entityId, kind);
     }
 
-    return entityIdx;
+    return entityId;
 }
 
 bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    int32 index = GetEntityIndex(entityId);
-    if (index == INDEX_NONE)
+
+    if (!block.Entities.IsValid(entityId))
     {
         return false;
     }
 
-    Entity& entity = block.Entities[index];
-    entity.Kind = FName::None;
+    Entity& entity = block.Entities.GetEntityRef(entityId);
 
     // If the entity has an archetype then release it now
     block.ArchetypeManager.Release(entity.Handle);
-    entity.Handle = ArchetypeHandle();
 
-    // Remove any tags
+    // Remove all associated tags
     RemoveAllTags(world, entityId);
+
+    block.Entities.Release(entityId);
 
     return true;
 }
@@ -373,37 +339,37 @@ bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
 bool FeatureECS::SetEntityKind(WorldRef world, EntityId entityId, const FName& kind)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    int32 index = GetEntityIndex(entityId);
-    if (index == INDEX_NONE)
+
+    Entity* entity = block.Entities.GetEntityPtr(entityId);
+    if (!entity)
     {
         return false;
     }
 
-    Entity& entity = block.Entities[index];
-    if (entity.Kind == kind)
+    if (entity->Kind == kind)
     {
         return true;
     }
 
     // If the entity has an archetype then release it now
-    block.ArchetypeManager.Release(entity.Handle);
+    (void)block.ArchetypeManager.Release(entity->Handle);
 
     // Automatically acquire an archetype if the kind matches one
     if (block.ArchetypeManager.IsArchetypeRegistered(kind))
     {
-        entity.Handle = block.ArchetypeManager.Acquire(entity.GetId(), kind);
+        entity->Handle = block.ArchetypeManager.Acquire(entity->GetId(), kind);
     }
 
     return true;
 }
 
-EntityQueryBuilder<TArchetypeManager<>> FeatureECS::Entities(WorldRef world)
+EntityQueryBuilder<ArchetypeManager> FeatureECS::Entities(WorldRef world)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.ArchetypeManager.Entities();
 }
 
-EntityQueryBuilder<TArchetypeManager<>> FeatureECS::Entities(WorldConstRef world)
+EntityQueryBuilder<ArchetypeManager> FeatureECS::Entities(WorldConstRef world)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.ArchetypeManager.Entities();

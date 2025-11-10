@@ -83,6 +83,11 @@ namespace Phoenix
                 return Components[index];
             }
 
+            constexpr bool IsValidIndex(size_t index) const
+            {
+                return Components.IsValidIndex(index);
+            }
+
             uint16 IndexOfComponent(const FName& componentId) const
             {
                 for (uint32 i = 0; i < Components.Num(); ++i)

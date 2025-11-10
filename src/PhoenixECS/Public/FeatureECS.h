@@ -6,6 +6,7 @@
 #include "Features.h"
 #include "FixedTagList.h"
 #include "ArchetypeManager.h"
+#include "FixedEntityList.h"
 #include "TransformComponent.h"
 
 #ifndef PHX_ECS_MAX_ENTITIES
@@ -31,7 +32,7 @@ namespace Phoenix
             PHX_DECLARE_BLOCK_DYNAMIC(FeatureECSDynamicBlock)
 
             ArchetypeManager ArchetypeManager;
-            TFixedArray<Entity, PHX_ECS_MAX_ENTITIES> Entities;
+            FixedEntityList<PHX_ECS_MAX_ENTITIES> Entities;
             FixedTagList<PHX_ECS_MAX_TAGS> Tags;
             TFixedArray<EntityId, PHX_ECS_MAX_ENTITIES> Groups;
         };
@@ -105,8 +106,6 @@ namespace Phoenix
             //
             
             static bool IsEntityValid(WorldConstRef world, EntityId entityId);
-
-            static int32 GetEntityIndex(EntityId entityId);
             
             static Entity* GetEntityPtr(WorldRef world, EntityId entityId);
             static const Entity* GetEntityPtr(WorldConstRef world, EntityId entityId);

@@ -14,9 +14,16 @@ namespace Phoenix
         {
         public:
 
-            constexpr size_t Num() const
+            static constexpr size_t Capacity = N;
+
+            constexpr size_t GetSize() const
             {
                 return Tags.Num();
+            }
+
+            constexpr size_t GetNumActive() const
+            {
+                return NumActiveTags;
             }
 
             bool HasTag(const Entity& entity, const FName& tagName) const
@@ -40,11 +47,11 @@ namespace Phoenix
 
                 // Find the next available tag index
                 {
-                    for (int32 i = 1; i < N; ++i)
+                    for (size_t i = 1; i < Capacity; ++i)
                     {
                         if (Tags[i].TagName == FName::None)
                         {
-                            newTagIndex = i;
+                            newTagIndex = (int32)i;
                             break;
                         }
                     }
@@ -86,6 +93,8 @@ namespace Phoenix
                 tag.Next = INDEX_NONE;
                 tag.TagName = tagName;
 
+                ++NumActiveTags;
+
                 return true;
             }
 
@@ -126,6 +135,8 @@ namespace Phoenix
                 tagToRemove.TagName = FName::None;
                 tagToRemove.Next = INDEX_NONE;
 
+                --NumActiveTags;
+
                 return true;
                 
             }
@@ -141,6 +152,7 @@ namespace Phoenix
 
                     tagIndex = tag.Next;
                     numTagsRemoved++;
+                    --NumActiveTags;
 
                     // Reset tag data
                     tag.TagName = FName::None;
@@ -169,7 +181,8 @@ namespace Phoenix
 
         private:
 
-            TFixedArray<EntityTag, N> Tags;
+            TFixedArray<EntityTag, Capacity> Tags;
+            size_t NumActiveTags = 0;
         };
     }
 }

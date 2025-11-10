@@ -6,7 +6,7 @@
 
 using namespace Phoenix;
 
-void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDesc)
+void DrawPropertyEditor(void* obj, const PropertyDescriptor& propertyDesc)
 {
 #define NUMERIC_EDITOR(type, imgui_type) \
     { \
@@ -62,6 +62,56 @@ void DrawPropertyEditor(void* obj, const Phoenix::PropertyDescriptor& propertyDe
 #undef NUMERIC_EDITOR
 }
 
+void DrawPropertyEditor(const void* obj, const PropertyDescriptor& propertyDesc)
+{
+    ImGui::BeginDisabled(true);
+
+#define NUMERIC_EDITOR(type, imgui_type) \
+    { \
+        type v_min = std::numeric_limits<type>::min(), v_max = std::numeric_limits<type>::max(); \
+        ImGui::SetNextItemWidth(-FLT_MIN); \
+        type v = propertyDesc.PropertyAccessor->Get<type>(obj); \
+        ImGui::DragScalar("##Editor", imgui_type, &v, 1.0f, &v_min, &v_max); \
+    }
+
+    switch (propertyDesc.ValueType)
+    {
+        case EPropertyValueType::Int8:      NUMERIC_EDITOR(int8, ImGuiDataType_S8) break;
+        case EPropertyValueType::UInt8:     NUMERIC_EDITOR(uint8, ImGuiDataType_U8) break;
+        case EPropertyValueType::Int16:     NUMERIC_EDITOR(int16, ImGuiDataType_S16) break;
+        case EPropertyValueType::UInt16:    NUMERIC_EDITOR(uint16, ImGuiDataType_U16) break;
+        case EPropertyValueType::Int32:     NUMERIC_EDITOR(int32, ImGuiDataType_S32) break;
+        case EPropertyValueType::UInt32:    NUMERIC_EDITOR(uint32, ImGuiDataType_U32) break;
+        case EPropertyValueType::Int64:     NUMERIC_EDITOR(int64, ImGuiDataType_S64) break;
+        case EPropertyValueType::UInt64:    NUMERIC_EDITOR(uint64, ImGuiDataType_U64) break;
+        case EPropertyValueType::Float:     NUMERIC_EDITOR(float, ImGuiDataType_Float) break;
+        case EPropertyValueType::Double:    NUMERIC_EDITOR(double, ImGuiDataType_Double) break;
+        case EPropertyValueType::Bool:
+            {
+                bool v = propertyDesc.PropertyAccessor->Get<bool>(obj);
+                ImGui::Checkbox("##Editor", &v);
+                break;
+            }
+        case EPropertyValueType::String:
+            {
+                PHXString v = propertyDesc.PropertyAccessor->Get<PHXString>(obj);
+                
+                char buff[MAX_PATH];
+                strcpy_s(buff, MAX_PATH, v.data());
+
+                ImGui::InputText("##Editor", buff, MAX_PATH);
+                break;
+            }
+        case EPropertyValueType::Name:          break;
+        case EPropertyValueType::FixedPoint:    break;
+        default: break;
+    }
+
+#undef NUMERIC_EDITOR
+
+    ImGui::EndDisabled();
+}
+
 void DrawPropertyGrid(void* obj, const TypeDescriptor& descriptor)
 {
     if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
@@ -100,6 +150,32 @@ void DrawPropertyGrid(void* obj, const TypeDescriptor& descriptor)
             ImGui::TableNextColumn();
 
             void* actualObj = propertyDesc.PropertyAccessor->IsStatic() ? nullptr : obj;
+            DrawPropertyEditor(actualObj, propertyDesc);
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndTable();
+    }
+}
+
+void DrawPropertyGrid(const void* obj, const TypeDescriptor& descriptor)
+{
+    if (ImGui::BeginTable("##properties", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
+    {
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 2.0f); // Default twice larger
+
+        for (const auto& propertyDesc : descriptor.Properties | std::views::values)
+        {
+            ImGui::TableNextRow();
+            ImGui::PushID(propertyDesc.Name.c_str());
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(propertyDesc.Name.c_str());
+            ImGui::TableNextColumn();
+
+            const void* actualObj = propertyDesc.PropertyAccessor->IsStatic() ? nullptr : obj;
             DrawPropertyEditor(actualObj, propertyDesc);
 
             ImGui::PopID();

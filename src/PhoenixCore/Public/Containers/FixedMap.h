@@ -13,6 +13,7 @@ namespace Phoenix
     {
     public:
 
+        using TElement = TPair<TKey, TValue>;
         static constexpr size_t Capacity = N;
 
         TFixedMap()
@@ -22,7 +23,7 @@ namespace Phoenix
 
         bool IsFull() const
         {
-            return Size == N;
+            return Size == Capacity;
         }
 
         bool IsEmpty() const
@@ -38,21 +39,21 @@ namespace Phoenix
         void Reset()
         {
             Size = 0;
-            memset(&Items[0], 0, sizeof(Element) * N);
+            memset(&Items[0], 0, sizeof(TElement) * Capacity);
         }
 
         bool Insert(const TKey& key, const TValue& value = {})
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].Key != 0 && Items[slot].Key != key)
+            if (Items[slot].first != 0 && Items[slot].first != key)
             {
                 // Map is full
                 return false;
             }
 
-            Items[slot].Key = key;
-            Items[slot].Value = value;
+            Items[slot].first = key;
+            Items[slot].second = value;
             return true;
         }
 
@@ -61,14 +62,14 @@ namespace Phoenix
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].Key != 0 && Items[slot].Key != key)
+            if (Items[slot].first != 0 && Items[slot].first != key)
             {
                 // Map is full
                 return false;
             }
 
-            Items[slot].Key = key;
-            new (&Items[slot].Value) TValue(args...);
+            Items[slot].first = key;
+            new (&Items[slot].second) TValue(args...);
 
             return true;
         }
@@ -77,37 +78,37 @@ namespace Phoenix
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].Key != 0)
+            if (Items[slot].first != 0)
             {
                 // KVP already exists
-                if (Items[slot].Key == key)
+                if (Items[slot].first == key)
                 {
-                    Items[slot].Value = TValue();
-                    return Items[slot].Value;
+                    Items[slot].second = TValue();
+                    return Items[slot].second;
                 }
 
                 // Map is full
                 PHX_ASSERT(false);
             }
 
-            Items[slot].Key = key;
-            Items[slot].Value = TValue();
+            Items[slot].first = key;
+            Items[slot].second = TValue();
 
-            return Items[slot].Value;
+            return Items[slot].second;
         }
 
         bool Contains(const TKey& key) const
         {
             size_t slot = FindSlot(key);
-            return Items[slot].Key == key;
+            return Items[slot].first == key;
         }
 
         TValue* GetPtr(const TKey& key)
         {
             size_t slot = FindSlot(key);
-            if (Items[slot].Key == key)
+            if (Items[slot].first == key)
             {
-                return &Items[slot].Value;
+                return &Items[slot].second;
             }
             return nullptr;
         }
@@ -115,9 +116,9 @@ namespace Phoenix
         const TValue* GetPtr(const TKey& key) const
         {
             size_t slot = FindSlot(key);
-            if (Items[slot].Key == key)
+            if (Items[slot].first == key)
             {
-                return &Items[slot].Value;
+                return &Items[slot].second;
             }
             return nullptr;
         }
@@ -146,13 +147,13 @@ namespace Phoenix
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].Key != 0)
+            if (Items[slot].first != 0)
             {
                 // KVP already exists
-                if (Items[slot].Key == key)
+                if (Items[slot].first == key)
                 {
-                    Items[slot].Value = value;
-                    return &Items[slot].Value;
+                    Items[slot].second = value;
+                    return &Items[slot].second;
                 }
 
                 // Map is full
@@ -163,20 +164,20 @@ namespace Phoenix
             Items[slot] = value;
             ++Size;
 
-            return &Items[slot].Value;
+            return &Items[slot].second;
         }
 
         TValue* FindOrAddDefaulted(const TKey& key)
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].Key != 0)
+            if (Items[slot].first != 0)
             {
                 // KVP already exists
-                if (Items[slot].Key == key)
+                if (Items[slot].first == key)
                 {
-                    Items[slot].Value = TValue();
-                    return &Items[slot].Value;
+                    Items[slot].second = TValue();
+                    return &Items[slot].second;
                 }
 
                 // Map is full
@@ -187,7 +188,7 @@ namespace Phoenix
             Items[slot] = TValue();
             ++Size;
 
-            return &Items[slot].Value;
+            return &Items[slot].second;
         }
 
         // See https://en.wikipedia.org/wiki/Open_addressing
@@ -196,13 +197,13 @@ namespace Phoenix
             size_t i = FindSlot(key);
 
             // Slot is not occupied
-            if (Items[i].Key == 0)
+            if (Items[i].first == 0)
             {
                 return false;
             }
 
             // Mark slot as unoccupied
-            Items[i].Key = 0;
+            Items[i].first = 0;
 
             PHX_ASSERT(Size > 0);
             --Size;
@@ -212,12 +213,12 @@ namespace Phoenix
             for (;;)
             {
                 j = (j + 1) % Capacity;
-                if (Items[j].Key == 0)
+                if (Items[j].first == 0)
                 {
                     break;
                 }
 
-                size_t k = Hash(Items[j].Key);
+                size_t k = Hash(Items[j].first);
 
                 // determine if k lies cyclically in (i,j]
                 // i ≤ j: |    i..k..j    |
@@ -238,7 +239,7 @@ namespace Phoenix
                 Items[i] = Items[j];
 
                 // Mark slot[j] as unoccupied
-                Items[j].Key = 0;
+                Items[j].first = 0;
 
                 i = j;
             }
@@ -246,12 +247,60 @@ namespace Phoenix
             return true;
         }
 
+        struct Iter
+        {
+            Iter(TFixedMap* map, size_t index) : Map(map), Index(index) {}
+
+            TPair<TKey, TValue&> operator*() const
+            {
+                return { Map->Items[Index].first, Map->Items[Index].second };
+            }
+
+            Iter& operator++()
+            {
+                Index = Map->FindNextOccupiedSlot(Index + 1);
+                return *this;
+            }
+
+            bool operator==(const Iter& other) const = default;
+
+            TFixedMap* Map;
+            size_t Index;
+        };
+
+        Iter begin() { return Iter(this, FindNextOccupiedSlot(0)); }
+        Iter end() { return Iter(this, Capacity); }
+
+        struct ConstIter
+        {
+            ConstIter(const TFixedMap* map, size_t index) : Map(map), Index(index) {}
+
+            const TElement& operator*() const
+            {
+                return Map->Items[Index];
+            }
+
+            ConstIter& operator++()
+            {
+                Index = Map->FindNextOccupiedSlot(Index + 1);
+                return *this;
+            }
+
+            bool operator==(const ConstIter& other) const = default;
+
+            const TFixedMap* Map;
+            size_t Index;
+        };
+
+        ConstIter begin() const { return ConstIter(this, FindNextOccupiedSlot(0)); }
+        ConstIter end() const { return ConstIter(this, Capacity); }
+
     private:
 
         static size_t Hash(const TKey& key)
         {
             static THasher hasher;
-            return hasher(key) % N;
+            return hasher(key) % Capacity;
         }
 
         size_t FindSlot(const TKey& key) const
@@ -259,7 +308,7 @@ namespace Phoenix
             size_t hash = Hash(key);
             size_t index = hash & (Capacity - 1);
             size_t startIndex = index;
-            while (Items[index].Key != 0 && Items[index].Key != key)
+            while (Items[index].first != 0 && Items[index].first != key)
             {
                 index = (index + 1) & (Capacity - 1);
                 if (index == startIndex)
@@ -268,13 +317,16 @@ namespace Phoenix
             return index;
         }
 
-        struct Element
+        size_t FindNextOccupiedSlot(size_t index) const
         {
-            TKey Key = {};
-            TValue Value = {};
-        };
+            while (index < Capacity && Items[index].first == 0)
+            {
+                ++index;
+            }
+            return index;
+        }
 
-        Element Items[N];
+        TElement Items[N];
         size_t Size = 0;
     };
 }

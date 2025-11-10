@@ -310,16 +310,6 @@ void OnAppRenderUI()
         ImGui::Text("SDL FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
         ImGui::Text("ImGui FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
-        if (GCurrWorldView)
-        {
-            const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
-
-            ImGui::Text("ECS: E:%zu T:%zu G:%zu",
-                ecsDynamicBlock.Entities.Num(),
-                ecsDynamicBlock.Tags.Num(),
-                ecsDynamicBlock.Groups.Num());
-        }
-
         if (ImGui::CollapsingHeader("Features"))
         {
             for (const auto& feature : GSession->GetFeatureSet()->GetFeatures())
@@ -350,29 +340,179 @@ void OnAppRenderUI()
         ImGui::End();
     }
     
-    // if (ImGui::Begin("ECS"))
-    // {
-    //     if (GCurrWorldView)
-    //     {
-    //         const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
-    //
-    //         ImGui::Text("ECS: E:%zu T:%zu G:%zu",
-    //             ecsDynamicBlock.Entities.Num(),
-    //             ecsDynamicBlock.Tags.Num(),
-    //             ecsDynamicBlock.Groups.Num());
-    //
-    //         if (ImGui::TreeNode("Archetype Lists"))
-    //         {
-    //
-    //             ecsDynamicBlock.ArchetypeManager.
-    //
-    //             ImGui::TreePop();
-    //         }
-    //         
-    //     }
-    //
-    //     ImGui::End();
-    // }
+    if (ImGui::Begin("ECS"))
+    {
+        if (GCurrWorldView)
+        {
+            const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
+
+            if (ImGui::BeginTable("Props", 2))
+            {
+                ImGui::TableNextColumn();
+                ImGui::Text("Num Entities:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", ecsDynamicBlock.Entities.GetNumActive());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Entities HWM:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", ecsDynamicBlock.Entities.GetSize());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Num Tags:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", ecsDynamicBlock.Tags.GetNumActive());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("Tags HWM:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", ecsDynamicBlock.Tags.GetSize());
+                                
+                ImGui::EndTable();
+            }
+    
+            if (ImGui::TreeNode("Archetypes:"))
+            {
+                const auto& archetypeManager = ecsDynamicBlock.ArchetypeManager;
+
+                if (ImGui::BeginTable("Props", 2))
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Num Active:");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%u", archetypeManager.GetNumActiveArchetypes());
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("Num Lists:");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%u", archetypeManager.GetNumArchetypeLists());
+                                
+                    ImGui::EndTable();
+                }
+
+                if (ImGui::TreeNode("Definitions:"))
+                {
+                    uint32 index = 0;
+                    for (auto && [id, archDef] : ecsDynamicBlock.ArchetypeManager.ArchetypeDefinitions)
+                    {
+                        char treeNodeId[64];
+                        sprintf_s(treeNodeId, _countof(treeNodeId), "[%u] %u", index, (hash32_t)id);
+
+                        if (ImGui::TreeNode(treeNodeId))
+                        {
+                            if (ImGui::BeginTable("Props", 2))
+                            {
+                                ImGui::TableNextColumn();
+                                ImGui::Text("Num Comps:");
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%u", archDef.GetNumComponents());
+
+                                ImGui::TableNextRow();
+                                ImGui::TableNextColumn();
+                                ImGui::Text("Total Size:");
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%u", archDef.GetTotalSize());
+                                
+                                ImGui::EndTable();
+                            }
+
+                            if (ImGui::TreeNode("Components:"))
+                            {
+                                for (auto i = 0; i < archDef.GetNumComponents(); ++i)
+                                {
+                                    const ComponentDefinition& compDef = archDef.Components[i];
+                                    
+                                    if (ImGui::TreeNode(compDef.TypeDescriptor->CName))
+                                    {
+                                        if (ImGui::BeginTable("Props", 2))
+                                        {                                
+                                            ImGui::EndTable();
+                                        }
+                                        
+                                        ImGui::TreePop();
+                                    }
+                                }
+
+                                ImGui::TreePop();
+                            }
+                            
+                            ImGui::TreePop();
+                        }
+                        
+                        ++index;
+                    }
+                    
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Chunks:"))
+                {
+                    uint32 listIndex = 0;
+
+                    archetypeManager.ForEachArchetypeList([&listIndex](const ArchetypeList& list)
+                    {
+                        char treeNodeId[64];
+                        sprintf_s(treeNodeId, _countof(treeNodeId), "[%u] %u (%u)", listIndex, list.GetId(), (hash32_t)list.GetDefinition().GetId());
+
+                        if (ImGui::TreeNode(treeNodeId))
+                        {
+                            if (ImGui::BeginTable("Props", 2))
+                            {
+                                ImGui::TableNextColumn();
+                                ImGui::Text("Instances:");
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%u / %u", list.GetNumActiveInstances(), list.GetInstanceCapacity());
+
+                                ImGui::TableNextColumn();
+                                ImGui::Text("Size:");
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%u / %u", list.GetSize(), ArchetypeList::Capacity);
+
+                                ImGui::EndTable();
+                            }
+
+                            if (ImGui::TreeNode("Instances:"))
+                            {
+                                uint32 instanceIndex = 0;
+                                list.ForEachInstance([&](const ArchetypeHandle& handle)
+                                {
+                                    char instanceTreeNodeId[64];
+                                    sprintf_s(instanceTreeNodeId, _countof(treeNodeId), "[%u] %u", instanceIndex, (hash32_t)handle.GetEntityId());
+
+                                    if (ImGui::TreeNode(instanceTreeNodeId))
+                                    {
+                                        list.ForEachComponent(handle, [](const ComponentDefinition& compDef, const void* comp)
+                                        {
+                                            if (compDef.TypeDescriptor && ImGui::TreeNode(compDef.TypeDescriptor->CName))
+                                            {
+                                                DrawPropertyGrid(comp, *compDef.TypeDescriptor);
+                                                ImGui::TreePop();
+                                            }
+                                        });
+
+                                        ImGui::TreePop();
+                                    }
+                                });
+
+                                ImGui::TreePop();
+                            }
+
+                            ImGui::TreePop();
+                        }
+
+                        ++listIndex;
+                    });
+
+                    ImGui::TreePop();
+                }
+                
+                ImGui::TreePop();
+            }
+            
+        }
+    
+        ImGui::End();
+    }
 }
 
 void OnAppEvent(SDL_Event* event)

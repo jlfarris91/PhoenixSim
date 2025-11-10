@@ -18,6 +18,8 @@ namespace Phoenix
 
             ArchetypeHandle() = default;
 
+            ArchetypeHandle(EntityId entityId) : EntityId(entityId) {}
+
             uint32 GetOwnerId() const
             {
                 return OwnerId;

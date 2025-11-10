@@ -48,6 +48,8 @@ namespace Phoenix
         {
         public:
 
+            static constexpr size_t Capacity = N;
+
             using Handle = ArchetypeHandle;
 
             TArchetypeList(const TArchetypeDefinition& definition, uint32 id = 0)
@@ -83,17 +85,32 @@ namespace Phoenix
 
             constexpr uint32 GetSize() const
             {
-                return Size;
+                return NumInstances * GetEntityTotalSize();
             }
 
             constexpr bool IsFull() const
             {
-                return Size + Definition.TotalSize >= N;
+                return NumActiveInstances == GetInstanceCapacity();
+            }
+
+            constexpr uint32 GetNumInstances() const
+            {
+                return NumInstances;
+            }
+
+            constexpr uint32 GetNumActiveInstances() const
+            {
+                return NumActiveInstances;
+            }
+
+            constexpr uint32 GetInstanceCapacity() const
+            {
+                return Capacity / GetEntityTotalSize();
             }
 
             constexpr bool IsValid(const Handle& handle) const
             {
-                if (!OwnsHandle(handle) || handle.Id >= Size)
+                if (!OwnsHandle(handle) || handle.Id >= NumInstances)
                 {
                     return false;
                 }
@@ -107,7 +124,7 @@ namespace Phoenix
                 return handle.OwnerId == Id;
             }
 
-            Handle Allocate(EntityId entityId)
+            Handle Acquire(EntityId entityId)
             {
                 if (IsFull())
                 {
@@ -117,7 +134,7 @@ namespace Phoenix
                 uint32 slotIndex = FindFreeSlot();
                 if (slotIndex == Index<uint32>::None)
                 {
-                    slotIndex = Size++;
+                    slotIndex = NumInstances++;
                 }
                 
                 Handle handle = { Id, slotIndex, entityId };
@@ -129,12 +146,12 @@ namespace Phoenix
 
                 Definition.Construct(entityComponentDataPtr);
 
-                ++NumActiveEntities;
+                ++NumActiveInstances;
 
                 return handle;
             }
 
-            bool Deallocate(const Handle& handle)
+            bool Release(const Handle& handle)
             {
                 if (!OwnsHandle(handle))
                 {
@@ -164,7 +181,7 @@ namespace Phoenix
 
                 Definition.Deconstruct(entityComponentDataPtr);
 
-                --NumActiveEntities;
+                --NumActiveInstances;
 
                 return true;
             }
@@ -222,17 +239,32 @@ namespace Phoenix
             constexpr uint32 GetComponentLocalOffset(const FName& componentId) const
             {
                 uint32 index = Definition.IndexOfComponent(componentId);
-                if (index == Index<uint32>::None)
+                if (!Definition.IsValidIndex(index))
                 {
                     return Index<uint32>::None;
                 }
                 return Definition[index].Offset;
             }
 
+            void ForEachInstance(TFunction<void(const Handle&)>&& func) const
+            {
+                for (uint32 i = 0; i < NumInstances; ++i)
+                {
+                    const ArchetypeInstance* instance = GetEntityPtr(i);
+
+                    if (instance->EntityId == EntityId::Invalid)
+                    {
+                        continue;
+                    }
+
+                    func(Handle(Id, i, instance->EntityId));
+                }
+            }
+
             template <class ...TComponents>
             void ForEachEntity(TFunction<void(EntityId, TComponents...)>&& func)
             {
-                for (uint32 i = 0; i < Size; ++i)
+                for (uint32 i = 0; i < NumInstances; ++i)
                 {
                     ArchetypeInstance* instance = GetEntityPtr(i);
 
@@ -250,10 +282,10 @@ namespace Phoenix
             {
                 for (uint8 i = 0; i < Definition.GetNumComponents(); ++i)
                 {
-                    ComponentDefinition& componentDefinition = Definition[i];
+                    const ComponentDefinition& componentDefinition = Definition[i];
                     if (void* compPtr = GetComponent(handle, componentDefinition.Id))
                     {
-                        func(compPtr);
+                        func(componentDefinition, compPtr);
                     }
                 }
             }
@@ -263,10 +295,10 @@ namespace Phoenix
             {
                 for (uint8 i = 0; i < Definition.GetNumComponents(); ++i)
                 {
-                    ComponentDefinition& componentDefinition = Definition[i];
+                    const ComponentDefinition& componentDefinition = Definition[i];
                     if (const void* compPtr = GetComponent(handle, componentDefinition.Id))
                     {
-                        func(compPtr);
+                        func(componentDefinition, compPtr);
                     }
                 }
             }
@@ -284,7 +316,7 @@ namespace Phoenix
                 }
 
                 Handle result;
-                for (uint32 i = handle.Id; i < Size; ++i)
+                for (uint32 i = handle.Id; i < NumInstances; ++i)
                 {
                     ArchetypeInstance* instance = GetEntityPtr(i);
 
@@ -497,11 +529,11 @@ namespace Phoenix
 
             uint32 Id = 0;
             TArchetypeDefinition Definition;
-            uint32 Size = 0;
-            uint32 NumActiveEntities = 0;
+            uint32 NumInstances = 0;
+            uint32 NumActiveInstances = 0;
             uint32 FreeHead = Index<uint32>::None;
             uint32 FreeTail = Index<uint32>::None;
-            uint8 Data[N] = {};
+            uint8 Data[Capacity] = {};
         };
 
         template <class ...TComponents>
@@ -512,7 +544,7 @@ namespace Phoenix
             {
                 EntityComponentSpan span;
                 span.RawData = list.GetData();
-                span.Num = list.GetSize();
+                span.Num = list.GetNumInstances();
                 span.Step = list.GetEntityTotalSize();
 
                 uint32 offsets[sizeof...(TComponents)] = { list.GetComponentLocalOffset(Underlying_T<TComponents>::StaticTypeName)... };

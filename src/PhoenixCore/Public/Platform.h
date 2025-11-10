@@ -91,6 +91,7 @@ namespace Phoenix
     template <class T> using TArray = std::vector<T>;
     template <class T, class THasher = std::hash<T>> using TSet = std::unordered_set<T, THasher>;
     template <class ...TArgs> using TTuple = std::tuple<TArgs...>;
+    template <class TKey, class TValue> using TPair = std::pair<TKey, TValue>;
     template <class TKey, class TValue> using TMap = std::map<TKey, TValue>;
     template <class T> using TDelegate = std::function<T>;
 

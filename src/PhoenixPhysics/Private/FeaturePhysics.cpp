@@ -37,6 +37,7 @@ bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
                 break;
 
             TransformComponent* transformComp = FeatureECS::GetComponent<TransformComponent>(world, entityId);
+            PHX_ASSERT(transformComp);
             transformComp->Transform.Position.X = action.Action.Data[1].Distance;
             transformComp->Transform.Position.Y = action.Action.Data[2].Distance;
             transformComp->Transform.Rotation = action.Action.Data[3].Degrees;
