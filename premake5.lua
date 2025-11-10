@@ -21,6 +21,7 @@ workspace "Phoenix"
     group "Phoenix"
         project "PhoenixCore"
         project "PhoenixSim"
+        project "PhoenixECS"
         project "PhoenixLua"
 
     group "Tests"
@@ -54,7 +55,7 @@ project "PhoenixCore"
     includedirs { "src/PhoenixCore/Public/" }
 
     -- defines { "PHOENIX_DLL" }
-    defines { "PHOENIXCORE_DLL_EXPORTS" }
+    -- defines { "PHOENIXCORE_DLL_EXPORTS" }
 
     filter "configurations:Debug"
         defines { "DEBUG" }
@@ -81,7 +82,8 @@ project "PhoenixSim"
     dependson { "PhoenixCore" }
 
     -- defines { "PHOENIX_DLL" }
-    defines { "PHOENIXSIM_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
+    -- defines { "PHOENIXSIM_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixSim/**"
@@ -114,6 +116,49 @@ project "PhoenixSim"
         "4251", "4275"
     }
 
+project "PhoenixECS"
+    kind "StaticLib"
+    location (projects)
+
+    dependson { "PhoenixCore", "PhoenixSim" }
+
+    -- defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIXECS_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
+
+    files { 
+        "src/PhoenixECS/**"
+    }
+
+    includedirs {
+        "src/PhoenixECS/Public",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+    }
+
+    links {
+        "PhoenixCore",
+        "PhoenixSim"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "PhoenixLua"
     kind "StaticLib"
     location (projects)
@@ -121,7 +166,8 @@ project "PhoenixLua"
     dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim" }
 
     -- defines { "PHOENIX_DLL" }
-    defines { "PHOENIXLUA_DLL_EXPORTS", "PHX_PROFILE_ENABLE" }
+    -- defines { "PHOENIXSIM_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
 
     files { 
         "src/PhoenixLua/**"
@@ -168,7 +214,7 @@ project "TestApp"
     kind "ConsoleApp"
     location (projects)
 
-    dependson { "PhoenixCore", "PhoenixSim", "PhoenixLua" }
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixLua" }
 
     -- defines { "PHOENIX_DLL" }
     defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
@@ -190,6 +236,7 @@ project "TestApp"
     includedirs {
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixECS/Public",
         "src/PhoenixLua/Public"
     }
 
@@ -210,6 +257,7 @@ project "TestApp"
         "lua",
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixECS",
         "PhoenixLua",
         "SDL3"
     }

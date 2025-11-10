@@ -48,7 +48,6 @@ namespace Phoenix
     }
 }
 
-
 template <>
 struct std::hash<Phoenix::FName>
 {

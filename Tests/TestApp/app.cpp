@@ -160,9 +160,9 @@ void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 {
     SetProfiler(&GTracyProfiler);
 
-    ECS2::Test();
-
     InitSession();
+
+    ECS2::Test(GSession);
 
     GWindow = window;
     GRenderer = renderer;

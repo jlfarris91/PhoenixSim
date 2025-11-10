@@ -89,7 +89,7 @@ namespace Phoenix
     typedef std::string PHXString;
 
     template <class T> using TArray = std::vector<T>;
-    template <class T, class THasher> using TSet = std::unordered_set<T, THasher>;
+    template <class T, class THasher = std::hash<T>> using TSet = std::unordered_set<T, THasher>;
     template <class ...TArgs> using TTuple = std::tuple<TArgs...>;
     template <class TKey, class TValue> using TMap = std::map<TKey, TValue>;
     template <class T> using TDelegate = std::function<T>;
@@ -145,6 +145,15 @@ namespace Phoenix
     {
         return std::move<T>(arg);
     }
+
+    template <class T>
+    struct Underlying
+    {
+        using type = std::remove_cv_t<std::remove_pointer_t<std::remove_reference_t<T>>>;
+    };
+
+    template <class T>
+    using Underlying_T = typename Underlying<T>::type;
 
     typedef int64 dt_t;
     typedef uint64 simtime_t;

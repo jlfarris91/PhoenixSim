@@ -425,23 +425,24 @@ namespace Phoenix
 
     struct PHOENIXCORE_API BaseDescriptor
     {
-        PHXString Name;
-        struct TypeDescriptor* Descriptor; 
+        const char* CName;
+        const struct TypeDescriptor* Descriptor; 
     };
 
     struct PHOENIXCORE_API TypeDescriptor
     {
         virtual ~TypeDescriptor() {}
 
-        FName GetName() const { return Name; }
+        const char* GetCName() const { return CName; }
+        FName GetFName() const { return Name; }
         PHXString GetDisplayName() const { return DisplayName; }
 
         template <class T>
-        void RegisterInterface()
+        void RegisterBase()
         {
             const auto& baseDescriptor = T::GetStaticTypeDescriptor();
-            BaseDescriptor& descriptor = Bases[baseDescriptor.GetName()];
-            descriptor.Name = baseDescriptor.GetName();
+            BaseDescriptor& descriptor = Bases[baseDescriptor.GetCName()];
+            descriptor.CName = baseDescriptor.GetCName();
             descriptor.Descriptor = &baseDescriptor;
         }
 
@@ -530,36 +531,50 @@ namespace Phoenix
             return descriptor;
         }
 
-        void PlacementNew(uint8* data) const
+        void DefaultConstruct(void* data) const
         {
-            if (PlacementNewFunc)
+            if (DefaultConstructFunc)
             {
-                PlacementNewFunc(data);
+                DefaultConstructFunc(data);
+            }
+        }
+
+        void Destruct(void* data) const
+        {
+            if (DestructFunc)
+            {
+                DestructFunc(data);
             }
         }
 
         TMap<PHXString, PropertyDescriptor> Properties;
         TMap<PHXString, MethodDescriptor> Methods;
         TMap<PHXString, BaseDescriptor> Bases;
-        TFunction<void(void*)> PlacementNewFunc;
+        void (*DefaultConstructFunc)(void*) = nullptr;
+        void (*DestructFunc)(void*) = nullptr;
+        const char* CName;
         FName Name;
         const char* DisplayName;
+        size_t Size; 
     };
 
     template <class T, class T2 = void>
-    struct TPlacementNewFunc;
+    struct TTypeHelper;
 
     template <class T>
-    struct TPlacementNewFunc<T, std::enable_if_t<!std::is_default_constructible_v<T>>>
+    struct TTypeHelper<T, std::enable_if_t<!std::is_default_constructible_v<T>>>
     {
-        static void PlacementNew(void* data) {}
+        static void DefaultConstruct(void* data) { memset(data, 0, sizeof(T)); }
+        static void Destruct(void* data) { static_cast<T*>(data)->~T(); }
     };
 
     template <class T>
-    struct TPlacementNewFunc<T, std::enable_if_t<std::is_default_constructible_v<T>>>
+    struct TTypeHelper<T, std::enable_if_t<std::is_default_constructible_v<T>>>
     {
-        static void PlacementNew(void* data) { new (data) T(); } 
+        static void DefaultConstruct(void* data) { new (data) T(); }
+        static void Destruct(void* data) { static_cast<T*>(data)->~T(); }
     };
+
 
 #define PHX_DECLARE_TYPE_BEGIN(type) \
     public: \
@@ -572,9 +587,12 @@ namespace Phoenix
             static TypeDescriptor Construct() \
             { \
                 TypeDescriptor definition; \
+                definition.CName = #type; \
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
-                definition.PlacementNewFunc = &TPlacementNewFunc<type>::PlacementNew;
+                definition.DefaultConstructFunc = &TTypeHelper<type>::DefaultConstruct;\
+                definition.DestructFunc = &TTypeHelper<type>::Destruct; \
+                definition.Size = sizeof(ThisType);
 
 #define PHX_DECLARE_TYPE_END() \
                 return definition; \
@@ -582,15 +600,17 @@ namespace Phoenix
         }; \
     public: \
         static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
-        const TypeDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
+        const TypeDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
 
 #define PHX_DECLARE_TYPE(type) \
     PHX_DECLARE_TYPE_BEGIN(type) \
     PHX_DECLARE_TYPE_END()
 
-#define PHX_DECLARE_INTERFACE_BEGIN(type) \
+#define PHX_DECLARE_DERIVED_TYPE_BEGIN(type, base) \
     public: \
         using ThisType = type; \
+        using BaseType = base; \
+        static constexpr FName StaticTypeName = #type##_n; \
     private: \
         struct STypeDescriptor { \
             static constexpr FName StaticName = #type##_n; \
@@ -598,8 +618,42 @@ namespace Phoenix
             static TypeDescriptor Construct() \
             { \
                 TypeDescriptor definition; \
+                definition.CName = #type; \
                 definition.Name = StaticName; \
                 definition.DisplayName = StaticDisplayName; \
+                definition.DefaultConstructFunc = &TTypeHelper<type>::DefaultConstruct;\
+                definition.DestructFunc = &TTypeHelper<type>::Destruct; \
+                definition.Size = sizeof(ThisType); \
+                definition.RegisterBase<base>();
+
+#define PHX_DECLARE_DERIVED_TYPE_END() \
+                return definition; \
+            } \
+        }; \
+    public: \
+        static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
+        const TypeDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
+
+#define PHX_DECLARE_DERIVED_TYPE(type, base) \
+    PHX_DECLARE_DERIVED_TYPE_BEGIN(type, base) \
+    PHX_DECLARE_DERIVED_TYPE_END()
+    
+#define PHX_DECLARE_INTERFACE_BEGIN(type) \
+    public: \
+        using ThisType = type; \
+        static constexpr FName StaticTypeName = #type##_n; \
+        virtual ~type() = default; \
+    private: \
+        struct STypeDescriptor { \
+            static constexpr FName StaticName = #type##_n; \
+            static constexpr const char* StaticDisplayName = #type; \
+            static TypeDescriptor Construct() \
+            { \
+                TypeDescriptor definition; \
+                definition.CName = #type; \
+                definition.Name = StaticName; \
+                definition.DisplayName = StaticDisplayName; \
+                definition.Size = sizeof(ThisType);
 
 #define PHX_DECLARE_INTERFACE_END() \
                 return definition; \
@@ -607,7 +661,7 @@ namespace Phoenix
         }; \
     public: \
         static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
-        const TypeDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
+        virtual const TypeDescriptor& GetTypeDescriptor() const { return GetStaticTypeDescriptor(); }
 
 #define PHX_DECLARE_INTERFACE(type) \
     PHX_DECLARE_INTERFACE_BEGIN(type) \
@@ -620,5 +674,5 @@ namespace Phoenix
 #define PHX_REGISTER_METHOD(name) definition.RegisterMethod<ThisType>(#name, &ThisType::name);
 #define PHX_REGISTER_CONST_METHOD(name) definition.RegisterConstMethod<ThisType>(#name, &ThisType::name);
 #define PHX_REGISTER_STATIC_METHOD(name) definition.RegisterStaticMethod(#name, &ThisType::name);
-#define PHX_REGISTER_INTERFACE(name) definition.RegisterInterface<name>();
+#define PHX_REGISTER_BASE(name) definition.RegisterBase<name>();
 }

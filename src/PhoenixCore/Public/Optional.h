@@ -12,6 +12,7 @@ namespace Phoenix
         TOptional(const T& value) : Value(value), bHasValue(true) {}
         TOptional(T&& value) noexcept : Value(std::move(value)), bHasValue(true) {}
         TOptional(const TOptional& other) : Value(other.Value), bHasValue(other.bHasValue) {}
+        TOptional(TOptional&& other) : Value(std::move(other.Value)), bHasValue(std::move(other.bHasValue)) {}
 
         bool IsSet() const
         {
@@ -119,9 +120,10 @@ namespace Phoenix
             return *this;
         }
 
-        TOptional& operator=(TOptional&& value) noexcept
+        TOptional& operator=(TOptional&& other) noexcept
         {
-            *this = std::move(value);
+            Value = std::move(other.Value);
+            bHasValue = std::move(other.bHasValue);
             return *this;
         }
 

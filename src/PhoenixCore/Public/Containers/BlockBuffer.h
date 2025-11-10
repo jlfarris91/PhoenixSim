@@ -31,7 +31,7 @@ namespace Phoenix
             void RegisterBlock()
             {
                 const TypeDescriptor& type = TBlock::GetStaticTypeDescriptor();
-                Definitions.emplace_back(type.GetName(), sizeof(TBlock), (uint8)TBlock::StaticBlockType, &type);
+                Definitions.emplace_back(type.GetFName(), sizeof(TBlock), (uint8)TBlock::StaticBlockType, &type);
             }
 
             TArray<BlockDefinition> Definitions;

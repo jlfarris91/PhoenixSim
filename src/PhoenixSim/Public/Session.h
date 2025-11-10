@@ -77,5 +77,10 @@ namespace Phoenix
 
         TUniquePtr<BlockBuffer> SessionBuffer;
     };
+
+    using SessionPtr = Session*;
+    using SessionConstPtr = const Session*;
+    using SessionRef = Session&;
+    using SessionConstRef = const Session&;
 }
 

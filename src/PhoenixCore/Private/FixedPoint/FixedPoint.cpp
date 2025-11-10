@@ -76,29 +76,6 @@ static_assert(5.0f - Fixed32_16(10.0f) == Fixed32_16(-5.0f));
 // Multiplication
 //
 //
-// constexpr auto i = 32767;
-// constexpr auto ii = i*i;
-// constexpr auto a = int64(i) * (1 << 16);
-// constexpr auto aa = a * a;
-//
-// constexpr auto x = Distance(i);
-// constexpr auto xx = x*x;
-// constexpr auto x2 = Distance::ConvertToRaw(xx);
-// constexpr auto x3 = Distance(Q64(x2));
-// constexpr auto x4 = FixedUtils::Mult128(xx.Value, (1 << 16));
-// constexpr auto x5 = FixedUtils::Div128(x4, 100);
-// constexpr auto x6 = Distance(Q64(x5));
-//
-// constexpr auto s3 = TFixed<16>::ConvertToRaw(xx);
-// constexpr auto asdf = TFixed<32, int64>(Q64(aa));
-// constexpr auto asdf2 = FixedUtils::Mult128(int64(x.Value), x.Value);
-// constexpr auto asdf3 = asdf2.NarrowToI64<0>();
-// constexpr auto asdf4 = TFixed<16, int32>(Q64(asdf3));
-// constexpr auto asdfasdf = TFixed<16>(xx);
-// constexpr auto z16 = TFixed<16>(512);
-// constexpr auto z8 = TFixed<8>(512);
-// constexpr auto z1 = TFixed<16>(Q64(TFixed<16>::ConvertToRaw(z16)));
-// constexpr auto z2 = TFixed<16>(Q64(TFixed<16>::ConvertToRaw(z8)));
 
 static_assert(Fixed32_16(5.0f) * Fixed32_16(2.0f) == 10);
 static_assert(Fixed32_16(5.0f) * Fixed32_16(2.0f) == 10.0f);

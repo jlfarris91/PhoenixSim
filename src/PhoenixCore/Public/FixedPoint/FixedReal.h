@@ -55,13 +55,4 @@ namespace Phoenix
 
         T Value = 1;
     };
-
-    constexpr TReal<0> asdf(32, 2);
-    constexpr double n = asdf.Num();
-    constexpr double d = asdf.Den();
-    constexpr double v = asdf;
-
-    constexpr double aa = TReal<2>(2147483647);
-
-    static_assert((double)TReal<16>(32, 2) == 16.0);
 }

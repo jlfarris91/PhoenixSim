@@ -49,7 +49,37 @@ namespace Phoenix
             {
                 return InvalidHandle;
             }
-            return arena->Id;
+            return { arena->Id };
+        }
+
+        template <class T>
+        Handle Allocate(const T& value = {})
+        {
+            Arena* arena = AllocateArena(sizeof(T));
+            if (!arena)
+            {
+                return InvalidHandle;
+            }
+
+            void* data = GetArenaData(arena);
+            new (data) Underlying_T<T>(value);
+
+            return { arena->Id };
+        }
+
+        template <class T>
+        Handle Allocate(T&& value)
+        {
+            Arena* arena = AllocateArena(sizeof(T));
+            if (!arena)
+            {
+                return InvalidHandle;
+            }
+
+            void* data = GetArenaData(arena);
+            new (data) Underlying_T<T>(std::move(value));
+
+            return { arena->Id };
         }
 
         template <class T, class ...TArgs>
@@ -62,10 +92,19 @@ namespace Phoenix
             }
 
             void* data = GetArenaData(arena);
-            T* typedData = static_cast<T*>(data);
-            new (typedData) T(args...);
+            new (data) Underlying_T<T>(args...);
 
-            return arena->Id;
+            return { arena->Id };
+        }
+
+        void* Get(const Handle& handle)
+        {
+            return GetArenaData(handle);
+        }
+
+        const void* Get(const Handle& handle) const
+        {
+            return GetArenaData(handle);
         }
 
         template <class T = void>
@@ -92,6 +131,88 @@ namespace Phoenix
             return GetArenaData(handle);
         }
 
+        struct Iter
+        {
+            Iter(TFixedArena* owner, Arena* arena) : Owner(owner), Curr(arena) {}
+
+            TTuple<Handle, void*> operator*() const
+            {
+                if (Curr)
+                {
+                    return { Handle { Curr->Id }, TFixedArena::GetArenaData(Curr) };
+                }
+                return { InvalidHandle, nullptr };
+            }
+
+            Iter& operator++()
+            {
+                if (Curr)
+                {
+                    Curr = Curr->Next;
+                }
+                return *this;
+            }
+
+            bool operator==(const Iter& other) const
+            {
+                return Owner == other.Owner && Curr == other.Curr;
+            }
+            
+            TFixedArena* Owner;
+            Arena* Curr;
+        };
+
+        Iter begin()
+        {
+            return Iter(this, GetFirstArena());
+        }
+
+        Iter end()
+        {
+            return Iter(this, nullptr);
+        }
+
+        struct ConstIter
+        {
+            ConstIter(const TFixedArena* owner, const Arena* arena) : Owner(owner), Curr(arena) {}
+
+            TTuple<Handle, const void*> operator*() const
+            {
+                if (Curr)
+                {
+                    return { Handle { Curr->Id }, TFixedArena::GetArenaData(Curr) };
+                }
+                return { InvalidHandle, nullptr };
+            }
+
+            Iter& operator++()
+            {
+                if (Curr)
+                {
+                    Curr = Curr->Next;
+                }
+                return *this;
+            }
+
+            bool operator==(const Iter& other) const
+            {
+                return Owner == other.Owner && Curr == other.Curr;
+            }
+            
+            const TFixedArena* Owner;
+            const Arena* Curr;
+        };
+
+        ConstIter begin() const
+        {
+            return ConstIter(this, GetFirstArena());
+        }
+
+        ConstIter end() const
+        {
+            return ConstIter(this, nullptr);
+        }
+
     private:
 
         Arena* GetFirstArena()
@@ -100,7 +221,7 @@ namespace Phoenix
             {
                 return nullptr;
             }
-            return static_cast<Arena*>(&Data[0]);
+            return reinterpret_cast<Arena*>(&Data[0]);
         }
 
         const Arena* GetFirstArena() const
@@ -109,7 +230,7 @@ namespace Phoenix
             {
                 return nullptr;
             }
-            return static_cast<const Arena*>(&Data[0]);
+            return reinterpret_cast<const Arena*>(&Data[0]);
         }
 
         Arena* GetArena(const Handle& handle)
@@ -156,17 +277,17 @@ namespace Phoenix
 
         static void* GetArenaData(Arena* arena)
         {
-            return static_cast<void*>(arena) + sizeof(Arena);
+            return reinterpret_cast<uint8*>(arena) + sizeof(Arena);
         }
 
         static void* GetArenaData(const Arena* arena)
         {
-            return static_cast<const void*>(arena) + sizeof(Arena);
+            return reinterpret_cast<const uint8*>(arena) + sizeof(Arena);
         }
 
         Arena* AllocateArena(size_t size)
         {
-            if (Size + size >= N)
+            if (Size + sizeof(Arena) + size >= N)
             {
                 return nullptr;
             }
@@ -186,7 +307,7 @@ namespace Phoenix
 
             TailArena = arena;
 
-            Size += size;
+            Size += sizeof(Arena) + size;
 
             return arena;
         }

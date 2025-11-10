@@ -61,8 +61,6 @@ namespace Phoenix
         template <class T, class ...TArgs>
         Handle Allocate(uint32 userData, TArgs&& ...args)
         {
-            constexpr auto asdf = sizeof(T);
-            constexpr auto asdf2 = ChunkMaxSize;
             PHX_ASSERT(sizeof(T) <= ChunkMaxSize);
 
             if (IsFull())

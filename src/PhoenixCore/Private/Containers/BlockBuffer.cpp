@@ -42,7 +42,7 @@ BlockBuffer::BlockBuffer(const CtorArgs& args)
     uint8* dataPtr = Data.get();
     for (Block& block : Blocks)
     {
-        block.Definition.Type->PlacementNew(dataPtr + block.Offset);
+        block.Definition.Type->DefaultConstruct(dataPtr + block.Offset);
     }
 }
 

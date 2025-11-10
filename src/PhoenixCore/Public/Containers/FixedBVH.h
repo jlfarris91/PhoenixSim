@@ -124,7 +124,4 @@ namespace Phoenix
 
         TFixedArray<Node, N> Nodes;
     };
-
-    using ASDF = TFixedBVH<int32, 1024>;
-    constexpr auto s = sizeof(ASDF::Node);
 }
