@@ -217,7 +217,7 @@ namespace Phoenix
                     break;
                 }
 
-                size_t k = Hash(Items[k].Key);
+                size_t k = Hash(Items[j].Key);
 
                 // determine if k lies cyclically in (i,j]
                 // i ≤ j: |    i..k..j    |

@@ -22,6 +22,7 @@ workspace "Phoenix"
         project "PhoenixCore"
         project "PhoenixSim"
         project "PhoenixECS"
+        project "PhoenixPhysics"
         project "PhoenixLua"
 
     group "Tests"
@@ -159,11 +160,56 @@ project "PhoenixECS"
         "4251", "4275"
     }
 
+project "PhoenixPhysics"
+    kind "StaticLib"
+    location (projects)
+
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS" }
+
+    -- defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_PHYSICS_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
+
+    files { 
+        "src/PhoenixPhysics/**"
+    }
+
+    includedirs {
+        "src/PhoenixPhysics/Public",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+        "src/PhoenixECS/Public"
+    }
+
+    links {
+        "PhoenixCore",
+        "PhoenixSim",
+        "PhoenixECS"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "PhoenixLua"
     kind "StaticLib"
     location (projects)
 
-    dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim" }
+    dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixPhysics" }
 
     -- defines { "PHOENIX_DLL" }
     -- defines { "PHOENIXSIM_DLL_EXPORTS" }
@@ -178,6 +224,8 @@ project "PhoenixLua"
         "src/PhoenixLua/Private",
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixECS/Public",
+        "src/PhoenixPhysics/Public",
     }
 
     externalincludedirs {
@@ -189,7 +237,9 @@ project "PhoenixLua"
     links {
         "lua",
         "PhoenixCore",
-        "PhoenixSim"
+        "PhoenixSim",
+        "PhoenixECS",
+        "PhoenixPhysics",
     }
 
     filter "configurations:Debug"
@@ -214,7 +264,7 @@ project "TestApp"
     kind "ConsoleApp"
     location (projects)
 
-    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixLua" }
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixPhysics", "PhoenixLua" }
 
     -- defines { "PHOENIX_DLL" }
     defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
@@ -237,6 +287,7 @@ project "TestApp"
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
         "src/PhoenixECS/Public",
+        "src/PhoenixPhysics/Public",
         "src/PhoenixLua/Public"
     }
 
@@ -258,6 +309,7 @@ project "TestApp"
         "PhoenixCore",
         "PhoenixSim",
         "PhoenixECS",
+        "PhoenixPhysics",
         "PhoenixLua",
         "SDL3"
     }

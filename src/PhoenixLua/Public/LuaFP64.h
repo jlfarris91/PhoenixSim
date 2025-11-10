@@ -4,9 +4,7 @@
 #include <sol/sol.hpp>
 #include <sol/types.hpp>
 
-#include "DLLExport.h"
 #include "FeatureECS.h"
-#include "FixedPoint/FixedVector.h"
 #include "Platform.h"
 #include "FixedPoint/FixedPoint.h"
 

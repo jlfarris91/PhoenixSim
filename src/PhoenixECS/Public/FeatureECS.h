@@ -5,6 +5,7 @@
 #include "Entity.h"
 #include "Features.h"
 #include "FixedTagList.h"
+#include "ArchetypeManager.h"
 #include "TransformComponent.h"
 
 #ifndef PHX_ECS_MAX_ENTITIES
@@ -17,7 +18,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         class ISystem;
 
@@ -118,15 +119,55 @@ namespace Phoenix
 
             static bool SetEntityKind(WorldRef world, EntityId entityId, const FName& kind);
 
+            static EntityQueryBuilder<ArchetypeManager> Entities(WorldRef world);
+
+            static EntityQueryBuilder<ArchetypeManager> Entities(WorldConstRef world);
+
+            template <class ...TComponents>
+            static void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
+            {
+                FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+                if (!block)
+                {
+                    return;
+                }
+
+                return block->ArchetypeManager.ForEachEntity<TComponents...>(query, func);
+            }
+
+            template <class ...TComponents>
+            void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
+            {
+                FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+                if (!block)
+                {
+                    return;
+                }
+
+                return block->ArchetypeManager.ForEachEntity<TComponents...>(query, func);
+            }
+
             //
             // Archetype Management
             //
 
-            // Gets the pointer to a component on an entity if it exists.
-            static IComponent* GetComponentPtr(WorldRef world, EntityId entityId, const FName& componentType);
+            static bool RegisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition);
+
+            template <class ...TComponents>
+            static bool RegisterArchetypeDefinition(WorldRef world, const TOptional<FName>& id)
+            {
+                return RegisterArchetypeDefinition(world, ArchetypeDefinition::Create<TComponents...>(id));
+            }
+
+            static bool UnregisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition);
+
+            static bool HasArchetypeDefinition(WorldConstRef world, const FName& name);
 
             // Gets the pointer to a component on an entity if it exists.
-            static const IComponent* GetComponentPtr(WorldConstRef world, EntityId entityId, const FName& componentType);
+            static IComponent* GetComponent(WorldRef world, EntityId entityId, const FName& componentType);
+
+            // Gets the pointer to a component on an entity if it exists.
+            static const IComponent* GetComponent(WorldConstRef world, EntityId entityId, const FName& componentType);
 
             // Gets a reference to a component on an entity if it exists.
             static IComponent& GetComponentRef(WorldRef world, EntityId entityId, const FName& componentType);
@@ -136,17 +177,17 @@ namespace Phoenix
 
             // Gets the pointer to a component on an entity if it exists.
             template <class T>
-            static T* GetComponentPtr(WorldRef world, EntityId entityId)
+            static T* GetComponent(WorldRef world, EntityId entityId)
             {
-                IComponent* comp = GetComponentPtr(world, entityId, T::StaticName);
+                IComponent* comp = GetComponent(world, entityId, T::StaticTypeName);
                 return static_cast<T*>(comp);
             }
 
             // Gets the pointer to a component on an entity if it exists.
             template <class T>
-            static const T* GetComponentPtr(WorldConstRef world, EntityId entityId)
+            static const T* GetComponent(WorldConstRef world, EntityId entityId)
             {
-                const IComponent* comp = GetComponentPtr(world, entityId, T::StaticName);
+                const IComponent* comp = GetComponent(world, entityId, T::StaticTypeName);
                 return static_cast<const T*>(comp);
             }
 

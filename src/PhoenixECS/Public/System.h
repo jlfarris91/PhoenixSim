@@ -7,10 +7,10 @@
 
 namespace Phoenix
 {
-    namespace ECS2
-    {
-        class Session;
+    class Session;
 
+    namespace ECS
+    {
         struct PHOENIXECS_API SystemUpdateArgs
         {
             simtime_t SimTime = 0;
@@ -58,3 +58,10 @@ namespace Phoenix
         };
     }
 }
+
+#define PHX_ECS_DECLARE_SYSTEM_BEGIN(type) PHX_DECLARE_DERIVED_TYPE_BEGIN(type, ECS::ISystem)
+#define PHX_ECS_DECLARE_SYSTEM_END() PHX_DECLARE_DERIVED_TYPE_END()
+
+#define PHX_ECS_DECLARE_SYSTEM(type) \
+    PHX_ECS_DECLARE_SYSTEM_BEGIN(type) \
+    PHX_ECS_DECLARE_SYSTEM_END()

@@ -22,7 +22,6 @@
 
 // Phoenix features
 #include "FeatureECS.h"
-#include "FeatureECS2.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
 #include "FeatureLua.h"
@@ -35,6 +34,7 @@
 #include "SDL/SDLViewport.h"
 
 // Test App Tools
+#include "BodyComponent.h"
 #include "Tools/CameraTool.h"
 #include "Tools/EntityTool.h"
 #include "Tools/ImGuiPropertyGrid.h"
@@ -108,6 +108,8 @@ void InitSession()
 
     auto primaryWorld = worldManager->NewWorld("TestWorld"_n);
 
+    FeatureECS::RegisterArchetypeDefinition<TransformComponent, BodyComponent>(*primaryWorld, "Unit"_n);
+    
     GSessionThread = new std::thread(UpdateSessionWorker);
 }
 
@@ -162,8 +164,6 @@ void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 
     InitSession();
 
-    ECS2::Test(GSession);
-
     GWindow = window;
     GRenderer = renderer;
 
@@ -190,8 +190,6 @@ void OnAppRenderWorld()
 {
     float mx, my;
     SDL_GetMouseState(&mx, &my);
-
-    Vec2 mouseWorldPos = GViewport->ViewportPosToWorldPos({mx, my});
 
     ++GRendererFPSCounter;
     Uint64 currTicks = SDL_GetTicks();
@@ -222,34 +220,36 @@ void OnAppRenderWorld()
 
             GEntityBodies.clear();
 
-            EntityComponentsContainer<TransformComponent, BodyComponent> bodyComponents(*GCurrWorldView);
-
-            for (auto && [entity, transformComp, bodyComp] : bodyComponents)
-            {
-                EntityBodyShape entityBodyShape;
-                entityBodyShape.Transform = transformComp->Transform;
-                entityBodyShape.Radius = bodyComp->Radius;
-                entityBodyShape.Color = SDL_Color(0, 255, 0);
-                entityBodyShape.ZCode = transformComp->ZCode;
-                entityBodyShape.VelLen = bodyComp->LinearVelocity.Length();
-
-                if (!HasAnyFlags(bodyComp->Flags, EBodyFlags::Awake))
+            FeatureECS::Entities(*GCurrWorldView)
+                .ForEachEntity(TFunction([](const EntityComponentSpan<const TransformComponent&, const BodyComponent&>& span)
                 {
-                    entityBodyShape.Color = SDL_Color(0, 128, 0);
-                }
-
-                if (bodyComp->Movement == EBodyMovement::Attached &&
-                    transformComp->AttachParent != EntityId::Invalid)
-                {
-                    if (TransformComponent* parentTransformComp = FeatureECS::GetComponentDataPtr<TransformComponent>(*GCurrWorldView, transformComp->AttachParent))
+                    for (auto && [entity, transformComp, bodyComp] : span)
                     {
-                        entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
-                        entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
-                    }
-                }
+                        EntityBodyShape entityBodyShape;
+                        entityBodyShape.Transform = transformComp.Transform;
+                        entityBodyShape.Radius = bodyComp.Radius;
+                        entityBodyShape.Color = SDL_Color(0, 255, 0);
+                        entityBodyShape.ZCode = transformComp.ZCode;
+                        entityBodyShape.VelLen = bodyComp.LinearVelocity.Length();
 
-                GEntityBodies.push_back(entityBodyShape);
-            }
+                        if (!HasAnyFlags(bodyComp.Flags, EBodyFlags::Awake))
+                        {
+                            entityBodyShape.Color = SDL_Color(0, 128, 0);
+                        }
+
+                        if (bodyComp.Movement == EBodyMovement::Attached &&
+                            transformComp.AttachParent != EntityId::Invalid)
+                        {
+                            if (TransformComponent* parentTransformComp = FeatureECS::GetComponent<TransformComponent>(*GCurrWorldView, transformComp.AttachParent))
+                            {
+                                entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
+                                entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
+                            }
+                        }
+
+                        GEntityBodies.push_back(entityBodyShape);
+                    }
+                }));
         }
     }
 
@@ -306,17 +306,16 @@ void OnAppRenderUI()
 
     if (ImGui::Begin("Debug"))
     {
-        ImGui::Text("Sim FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
-        ImGui::Text("SDL FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
-        ImGui::Text("ImGui FPS:"); ImGui::SameLine(80); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::Text("Sim FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
+        ImGui::Text("SDL FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
+        ImGui::Text("ImGui FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
         if (GCurrWorldView)
         {
             const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
 
-            ImGui::Text("ECS: E:%zu C:%zu T:%zu G:%zu",
+            ImGui::Text("ECS: E:%zu T:%zu G:%zu",
                 ecsDynamicBlock.Entities.Num(),
-                ecsDynamicBlock.Components.Num(),
                 ecsDynamicBlock.Tags.Num(),
                 ecsDynamicBlock.Groups.Num());
         }
@@ -350,6 +349,30 @@ void OnAppRenderUI()
 
         ImGui::End();
     }
+    
+    // if (ImGui::Begin("ECS"))
+    // {
+    //     if (GCurrWorldView)
+    //     {
+    //         const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
+    //
+    //         ImGui::Text("ECS: E:%zu T:%zu G:%zu",
+    //             ecsDynamicBlock.Entities.Num(),
+    //             ecsDynamicBlock.Tags.Num(),
+    //             ecsDynamicBlock.Groups.Num());
+    //
+    //         if (ImGui::TreeNode("Archetype Lists"))
+    //         {
+    //
+    //             ecsDynamicBlock.ArchetypeManager.
+    //
+    //             ImGui::TreePop();
+    //         }
+    //         
+    //     }
+    //
+    //     ImGui::End();
+    // }
 }
 
 void OnAppEvent(SDL_Event* event)

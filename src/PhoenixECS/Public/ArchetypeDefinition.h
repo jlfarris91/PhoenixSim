@@ -3,12 +3,13 @@
 
 #include "Platform.h"
 #include "Name.h"
+#include "Optional.h"
 #include "Reflection.h"
 #include "Containers/FixedArray.h"
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         struct ComponentDefinition
         {
@@ -16,6 +17,13 @@ namespace Phoenix
             uint16 Size = 0;
             uint16 Offset = 0;
             const TypeDescriptor* TypeDescriptor;
+
+            template <class T>
+            static ComponentDefinition Create(const FName& id = T::StaticTypeName)
+            {
+                const struct TypeDescriptor& descriptor = T::GetStaticTypeDescriptor();
+                return { id, (uint16)descriptor.GetSize(), 0, &descriptor };
+            }
         };
 
         template <uint8 MaxComponents>
@@ -37,6 +45,21 @@ namespace Phoenix
                     TotalSize += def.Size;
                     Id += def.Id;
                 }
+            }
+
+            template <class ...TComponents>
+            static TArchetypeDefinition Create(const TOptional<FName>& id)
+            {
+                static const ComponentDefinition comps[sizeof...(TComponents)] =
+                {
+                    ComponentDefinition::Create<TComponents>()...
+                };
+                TArchetypeDefinition definition(comps, sizeof...(TComponents));
+                if (id.IsSet())
+                {
+                    definition.Id = id.Get();
+                }
+                return definition;
             }
 
             FName GetId() const

@@ -13,7 +13,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         enum class EComponentAccess : uint8
         {
@@ -70,10 +70,16 @@ namespace Phoenix
         class EntityQueryBuilder;
 
         template <class ...TComponents>
-        using TEntityQueryWorkFunc = TFunction<void(WorldRef world, EntityId, TComponents...)>;
+        using TEntityQueryFunc = TFunction<void(EntityId, TComponents...)>;
 
         template <class ...TComponents>
-        using TEntityQueryWorkBufferFunc = TFunction<void(WorldRef world, const EntityComponentSpan<TComponents...>&)>;
+        using TEntityQueryJobFunc = TFunction<void(WorldRef world, EntityId, TComponents...)>;
+
+        template <class ...TComponents>
+        using TEntityQueryBufferFunc = TFunction<void(const EntityComponentSpan<TComponents...>&)>;
+
+        template <class ...TComponents>
+        using TEntityQueryBufferJobFunc = TFunction<void(WorldRef world, const EntityComponentSpan<TComponents...>&)>;
 
         struct EntityQuery
         {
@@ -184,7 +190,7 @@ namespace Phoenix
         {
             using TArchetypeList = typename TEntityManager::TArchetypeList;
 
-            TEntityQueryWorker(TArchetypeList* list, const TEntityQueryWorkFunc<TComponents...>& func) : List(list), Func(func)
+            TEntityQueryWorker(TArchetypeList* list, const TEntityQueryJobFunc<TComponents...>& func) : List(list), Func(func)
             {
                 PHX_ASSERT(List);
             }
@@ -198,7 +204,7 @@ namespace Phoenix
             }
 
             TArchetypeList* List;
-            TEntityQueryWorkFunc<TComponents...> Func;
+            TEntityQueryJobFunc<TComponents...> Func;
         };
 
         template <class TEntityManager, class ...TComponents>
@@ -206,7 +212,7 @@ namespace Phoenix
         {
             using TArchetypeList = typename TEntityManager::TArchetypeList;
 
-            TEntityQueryBufferWorker(TArchetypeList* list, const TEntityQueryWorkBufferFunc<TComponents...>& func) : List(list), Func(func)
+            TEntityQueryBufferWorker(TArchetypeList* list, const TEntityQueryBufferJobFunc<TComponents...>& func) : List(list), Func(func)
             {
                 PHX_ASSERT(List);
             }
@@ -217,7 +223,7 @@ namespace Phoenix
             }
 
             TArchetypeList* List;
-            TEntityQueryWorkBufferFunc<TComponents...> Func;
+            TEntityQueryBufferJobFunc<TComponents...> Func;
         };
         
         template <class TEntityManager>
@@ -342,7 +348,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            EntityQueryBuilder& Schedule(const TEntityQueryWorkFunc<TComponents...>& func)
+            EntityQueryBuilder& Schedule(const TEntityQueryJobFunc<TComponents...>& func)
             {
                 (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
                 EntityManager->Schedule(Query, func);
@@ -351,7 +357,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            EntityQueryBuilder& Schedule(const TEntityQueryWorkBufferFunc<TComponents...>& func)
+            EntityQueryBuilder& Schedule(const TEntityQueryBufferJobFunc<TComponents...>& func)
             {
                 (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
                 EntityManager->Schedule(Query, func);
@@ -360,7 +366,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            EntityQueryBuilder& ScheduleParallel(const TEntityQueryWorkFunc<TComponents...>& func)
+            EntityQueryBuilder& ScheduleParallel(const TEntityQueryJobFunc<TComponents...>& func)
             {
                 (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
                 EntityManager->ScheduleParallel(Query, func);
@@ -369,12 +375,26 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            EntityQueryBuilder& ScheduleParallel(const TEntityQueryWorkBufferFunc<TComponents...>& func)
+            EntityQueryBuilder& ScheduleParallel(const TEntityQueryBufferJobFunc<TComponents...>& func)
             {
                 (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
                 EntityManager->ScheduleParallel(Query, func);
                 Query.Reset();
                 return *this;
+            }
+
+            template <class ...TComponents>
+            void ForEachEntity(const TEntityQueryFunc<TComponents...>& func)
+            {
+                (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
+                return EntityManager->template ForEachEntity<TComponents...>(Query, func);
+            }
+
+            template <class ...TComponents>
+            void ForEachEntity(const TEntityQueryBufferFunc<TComponents...>& func)
+            {
+                (RequireAllComponents<TComponents>(ComponentAccessFromT<TComponents>::ComponentAccess), ...);
+                return EntityManager->template ForEachEntity<TComponents...>(Query, func);
             }
             
         private:

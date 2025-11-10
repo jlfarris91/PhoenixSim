@@ -1,13 +1,13 @@
 ﻿
 #pragma once
 
-#include "ArchetypeHandle.h"
 #include "DLLExport.h"
+#include "ArchetypeHandle.h"
 #include "Name.h"
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         struct PHOENIXECS_API Entity
         {

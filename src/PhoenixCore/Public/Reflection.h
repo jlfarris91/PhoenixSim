@@ -436,6 +436,7 @@ namespace Phoenix
         const char* GetCName() const { return CName; }
         FName GetFName() const { return Name; }
         PHXString GetDisplayName() const { return DisplayName; }
+        size_t GetSize() const { return Size; }
 
         template <class T>
         void RegisterBase()
@@ -631,8 +632,8 @@ namespace Phoenix
             } \
         }; \
     public: \
-        static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = STypeDescriptor::Construct(); return sd; } \
-        const TypeDescriptor& GetTypeDescriptor() const override { return GetStaticTypeDescriptor(); }
+        static const TypeDescriptor& GetStaticTypeDescriptor() { static TypeDescriptor sd = ThisType::STypeDescriptor::Construct(); return sd; } \
+        const TypeDescriptor& GetTypeDescriptor() const override { return ThisType::GetStaticTypeDescriptor(); }
 
 #define PHX_DECLARE_DERIVED_TYPE(type, base) \
     PHX_DECLARE_DERIVED_TYPE_BEGIN(type, base) \

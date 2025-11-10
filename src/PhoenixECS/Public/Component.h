@@ -5,7 +5,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         struct PHOENIXECS_API IComponent
         {

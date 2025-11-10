@@ -1,15 +1,18 @@
 ﻿
-#include "FeatureECS2.h"
+#include "FeatureECS.h"
 
 #include "MortonCode.h"
 #include "Profiling.h"
 #include "System.h"
 
-Phoenix::ECS2::FeatureECS::FeatureECS()
+using namespace Phoenix;
+using namespace Phoenix::ECS;
+
+FeatureECS::FeatureECS()
 {
 }
 
-Phoenix::ECS2::FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
+FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
 {
     for (const TSharedPtr<ISystem>& system : args.Systems)
     {
@@ -17,7 +20,7 @@ Phoenix::ECS2::FeatureECS::FeatureECS(const FeatureECSCtorArgs& args)
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnPreUpdate(const FeatureUpdateArgs& args)
+void FeatureECS::OnPreUpdate(const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -31,7 +34,7 @@ void Phoenix::ECS2::FeatureECS::OnPreUpdate(const FeatureUpdateArgs& args)
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnUpdate(const FeatureUpdateArgs& args)
+void FeatureECS::OnUpdate(const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -45,7 +48,7 @@ void Phoenix::ECS2::FeatureECS::OnUpdate(const FeatureUpdateArgs& args)
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnPostUpdate(const FeatureUpdateArgs& args)
+void FeatureECS::OnPostUpdate(const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -59,7 +62,7 @@ void Phoenix::ECS2::FeatureECS::OnPostUpdate(const FeatureUpdateArgs& args)
     }
 }
 
-bool Phoenix::ECS2::FeatureECS::OnPreHandleAction(const FeatureActionArgs& action)
+bool FeatureECS::OnPreHandleAction(const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -78,7 +81,7 @@ bool Phoenix::ECS2::FeatureECS::OnPreHandleAction(const FeatureActionArgs& actio
     return false;
 }
 
-bool Phoenix::ECS2::FeatureECS::OnHandleAction(const FeatureActionArgs& action)
+bool FeatureECS::OnHandleAction(const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -97,7 +100,7 @@ bool Phoenix::ECS2::FeatureECS::OnHandleAction(const FeatureActionArgs& action)
     return false;
 }
 
-bool Phoenix::ECS2::FeatureECS::OnPostHandleAction(const FeatureActionArgs& action)
+bool FeatureECS::OnPostHandleAction(const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -116,7 +119,7 @@ bool Phoenix::ECS2::FeatureECS::OnPostHandleAction(const FeatureActionArgs& acti
     return false;
 }
 
-void Phoenix::ECS2::FeatureECS::OnWorldInitialize(WorldRef world)
+void FeatureECS::OnWorldInitialize(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -126,7 +129,7 @@ void Phoenix::ECS2::FeatureECS::OnWorldInitialize(WorldRef world)
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnWorldShutdown(WorldRef world)
+void FeatureECS::OnWorldShutdown(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -136,7 +139,7 @@ void Phoenix::ECS2::FeatureECS::OnWorldShutdown(WorldRef world)
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -152,7 +155,7 @@ void Phoenix::ECS2::FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUp
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -166,7 +169,7 @@ void Phoenix::ECS2::FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdat
     }
 }
 
-void Phoenix::ECS2::FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -182,7 +185,7 @@ void Phoenix::ECS2::FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureU
     CompactWorldBuffer(world);
 }
 
-bool Phoenix::ECS2::FeatureECS::OnPreHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
+bool FeatureECS::OnPreHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -201,7 +204,7 @@ bool Phoenix::ECS2::FeatureECS::OnPreHandleWorldAction(WorldRef world, const Fea
     return false;
 }
 
-bool Phoenix::ECS2::FeatureECS::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
+bool FeatureECS::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -220,7 +223,7 @@ bool Phoenix::ECS2::FeatureECS::OnHandleWorldAction(WorldRef world, const Featur
     return false;
 }
 
-bool Phoenix::ECS2::FeatureECS::OnPostHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
+bool FeatureECS::OnPostHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -239,7 +242,7 @@ bool Phoenix::ECS2::FeatureECS::OnPostHandleWorldAction(WorldRef world, const Fe
     return false;
 }
 
-void Phoenix::ECS2::FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
+void FeatureECS::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
 {
     for (const TSharedPtr<ISystem>& system : Systems)
     {
@@ -247,12 +250,12 @@ void Phoenix::ECS2::FeatureECS::OnDebugRender(WorldConstRef world, const IDebugS
     }
 }
 
-void Phoenix::ECS2::FeatureECS::RegisterSystem(const TSharedPtr<ISystem>& system)
+void FeatureECS::RegisterSystem(const TSharedPtr<ISystem>& system)
 {
     Systems.push_back(system);
 }
 
-bool Phoenix::ECS2::FeatureECS::UnregisterSystem(const TSharedPtr<ISystem>& system)
+bool FeatureECS::UnregisterSystem(const TSharedPtr<ISystem>& system)
 {
     auto iter = std::ranges::find(Systems, system);
     if (iter == Systems.end())
@@ -261,17 +264,17 @@ bool Phoenix::ECS2::FeatureECS::UnregisterSystem(const TSharedPtr<ISystem>& syst
     return true;
 }
 
-bool Phoenix::ECS2::FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
+bool FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
 {
     return GetEntityPtr(world, entityId) != nullptr;
 }
 
-Phoenix::int32 Phoenix::ECS2::FeatureECS::GetEntityIndex(EntityId entityId)
+int32 FeatureECS::GetEntityIndex(EntityId entityId)
 {
     return entityId % decltype(FeatureECSDynamicBlock::Entities)::Capacity;
 }
 
-Phoenix::ECS2::Entity* Phoenix::ECS2::FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
+Entity* FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
@@ -281,7 +284,7 @@ Phoenix::ECS2::Entity* Phoenix::ECS2::FeatureECS::GetEntityPtr(WorldRef world, E
     return entity.GetId() == entityId ? &entity : nullptr;
 }
 
-const Phoenix::ECS2::Entity* Phoenix::ECS2::FeatureECS::GetEntityPtr(WorldConstRef world, EntityId entityId)
+const Entity* FeatureECS::GetEntityPtr(WorldConstRef world, EntityId entityId)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
@@ -291,7 +294,7 @@ const Phoenix::ECS2::Entity* Phoenix::ECS2::FeatureECS::GetEntityPtr(WorldConstR
     return entity.GetId() == entityId ? &entity : nullptr;
 }
 
-Phoenix::ECS2::Entity& Phoenix::ECS2::FeatureECS::GetEntityRef(WorldRef world, EntityId entityId)
+Entity& FeatureECS::GetEntityRef(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
@@ -299,7 +302,7 @@ Phoenix::ECS2::Entity& Phoenix::ECS2::FeatureECS::GetEntityRef(WorldRef world, E
     return entity.GetId() == entityId ? entity : block.Entities[0];
 }
 
-const Phoenix::ECS2::Entity& Phoenix::ECS2::FeatureECS::GetEntityRef(WorldConstRef world, EntityId entityId)
+const Entity& FeatureECS::GetEntityRef(WorldConstRef world, EntityId entityId)
 {
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     uint32 index = GetEntityIndex(entityId);
@@ -307,7 +310,7 @@ const Phoenix::ECS2::Entity& Phoenix::ECS2::FeatureECS::GetEntityRef(WorldConstR
     return entity.GetId() == entityId ? entity : block.Entities[0];
 }
 
-Phoenix::ECS2::EntityId Phoenix::ECS2::FeatureECS::AcquireEntity(WorldRef world, const FName& kind)
+EntityId FeatureECS::AcquireEntity(WorldRef world, const FName& kind)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
@@ -337,7 +340,7 @@ Phoenix::ECS2::EntityId Phoenix::ECS2::FeatureECS::AcquireEntity(WorldRef world,
     entity.TagHead = INDEX_NONE;
 
     // Automatically acquire an archetype if the kind matches one
-    if (block.ArchetypeManager.HasArchetypeDefinition(kind))
+    if (block.ArchetypeManager.IsArchetypeRegistered(kind))
     {
         entity.Handle = block.ArchetypeManager.Acquire(entityIdx, kind);
     }
@@ -345,7 +348,7 @@ Phoenix::ECS2::EntityId Phoenix::ECS2::FeatureECS::AcquireEntity(WorldRef world,
     return entityIdx;
 }
 
-bool Phoenix::ECS2::FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
+bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     int32 index = GetEntityIndex(entityId);
@@ -367,7 +370,7 @@ bool Phoenix::ECS2::FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
     return true;
 }
 
-bool Phoenix::ECS2::FeatureECS::SetEntityKind(WorldRef world, EntityId entityId, const FName& kind)
+bool FeatureECS::SetEntityKind(WorldRef world, EntityId entityId, const FName& kind)
 {
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     int32 index = GetEntityIndex(entityId);
@@ -386,7 +389,7 @@ bool Phoenix::ECS2::FeatureECS::SetEntityKind(WorldRef world, EntityId entityId,
     block.ArchetypeManager.Release(entity.Handle);
 
     // Automatically acquire an archetype if the kind matches one
-    if (block.ArchetypeManager.HasArchetypeDefinition(kind))
+    if (block.ArchetypeManager.IsArchetypeRegistered(kind))
     {
         entity.Handle = block.ArchetypeManager.Acquire(entity.GetId(), kind);
     }
@@ -394,7 +397,52 @@ bool Phoenix::ECS2::FeatureECS::SetEntityKind(WorldRef world, EntityId entityId,
     return true;
 }
 
-Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::GetComponentPtr(
+EntityQueryBuilder<TArchetypeManager<>> FeatureECS::Entities(WorldRef world)
+{
+    FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+    return block.ArchetypeManager.Entities();
+}
+
+EntityQueryBuilder<TArchetypeManager<>> FeatureECS::Entities(WorldConstRef world)
+{
+    const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
+    return block.ArchetypeManager.Entities();
+}
+
+bool FeatureECS::RegisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition)
+{
+    FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+    if (!block)
+    {
+        return false;
+    }
+
+    return block->ArchetypeManager.RegisterArchetypeDefinition(definition);
+}
+
+bool FeatureECS::UnregisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition)
+{
+    FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+    if (!block)
+    {
+        return false;
+    }
+
+    return block->ArchetypeManager.UnregisterArchetypeDefinition(definition);
+}
+
+bool FeatureECS::HasArchetypeDefinition(WorldConstRef world, const FName& name)
+{
+    const FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+    if (!block)
+    {
+        return false;
+    }
+
+    return block->ArchetypeManager.IsArchetypeRegistered(name);
+}
+
+IComponent* FeatureECS::GetComponent(
     WorldRef world,
     EntityId entityId,
     const FName& componentType)
@@ -414,7 +462,7 @@ Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::GetComponentPtr(
     return static_cast<IComponent*>(block->ArchetypeManager.GetComponentPtr(entity->Handle, componentType));
 }
 
-const Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::GetComponentPtr(
+const IComponent* FeatureECS::GetComponent(
     WorldConstRef world,
     EntityId entityId,
     const FName& componentType)
@@ -434,27 +482,27 @@ const Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::GetComponentPtr(
     return static_cast<const IComponent*>(block->ArchetypeManager.GetComponentPtr(entity->Handle, componentType));
 }
 
-Phoenix::ECS2::IComponent& Phoenix::ECS2::FeatureECS::GetComponentRef(
+IComponent& FeatureECS::GetComponentRef(
     WorldRef world,
     EntityId entityId,
     const FName& componentType)
 {
-    IComponent* component = GetComponentPtr(world, entityId, componentType);
+    IComponent* component = GetComponent(world, entityId, componentType);
     PHX_ASSERT(component);
     return *component;
 }
 
-const Phoenix::ECS2::IComponent& Phoenix::ECS2::FeatureECS::GetComponentRef(
+const IComponent& FeatureECS::GetComponentRef(
     WorldConstRef world,
     EntityId entityId,
     const FName& componentType)
 {
-    const IComponent* component = GetComponentPtr(world, entityId, componentType);
+    const IComponent* component = GetComponent(world, entityId, componentType);
     PHX_ASSERT(component);
     return *component;
 }
 
-Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::AddComponent(
+IComponent* FeatureECS::AddComponent(
     WorldRef world,
     EntityId entityId,
     const FName& componentType)
@@ -474,7 +522,7 @@ Phoenix::ECS2::IComponent* Phoenix::ECS2::FeatureECS::AddComponent(
     return static_cast<IComponent*>(block->ArchetypeManager.AddComponent(entity->Handle, componentType));
 }
 
-bool Phoenix::ECS2::FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, const FName& componentType)
+bool FeatureECS::RemoveComponent(WorldRef world, EntityId entityId, const FName& componentType)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -491,7 +539,7 @@ bool Phoenix::ECS2::FeatureECS::RemoveComponent(WorldRef world, EntityId entityI
     return block->ArchetypeManager.RemoveComponent(entity->Handle, componentType);
 }
 
-Phoenix::uint32 Phoenix::ECS2::FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
+uint32 FeatureECS::RemoveAllComponents(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -507,7 +555,7 @@ Phoenix::uint32 Phoenix::ECS2::FeatureECS::RemoveAllComponents(WorldRef world, E
 
     return block->ArchetypeManager.RemoveAllComponents(entity->Handle);
 }
-bool Phoenix::ECS2::FeatureECS::HasTag(WorldConstRef world, EntityId entityId, const FName& tagName)
+bool FeatureECS::HasTag(WorldConstRef world, EntityId entityId, const FName& tagName)
 {
     const FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -524,7 +572,7 @@ bool Phoenix::ECS2::FeatureECS::HasTag(WorldConstRef world, EntityId entityId, c
     return block->Tags.HasTag(*entity, tagName);
 }
 
-bool Phoenix::ECS2::FeatureECS::AddTag(WorldRef world, EntityId entityId, const FName& tagName)
+bool FeatureECS::AddTag(WorldRef world, EntityId entityId, const FName& tagName)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -541,7 +589,7 @@ bool Phoenix::ECS2::FeatureECS::AddTag(WorldRef world, EntityId entityId, const 
     return block->Tags.AddTag(*entity, tagName);
 }
 
-bool Phoenix::ECS2::FeatureECS::RemoveTag(WorldRef world, EntityId entityId, const FName& tagName)
+bool FeatureECS::RemoveTag(WorldRef world, EntityId entityId, const FName& tagName)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -558,7 +606,7 @@ bool Phoenix::ECS2::FeatureECS::RemoveTag(WorldRef world, EntityId entityId, con
     return block->Tags.RemoveTag(*entity, tagName);
 }
 
-Phoenix::uint32 Phoenix::ECS2::FeatureECS::RemoveAllTags(WorldRef world, EntityId entityId)
+uint32 FeatureECS::RemoveAllTags(WorldRef world, EntityId entityId)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
@@ -575,7 +623,7 @@ Phoenix::uint32 Phoenix::ECS2::FeatureECS::RemoveAllTags(WorldRef world, EntityI
     return block->Tags.RemoveAllTags(*entity);
 }
 
-void Phoenix::ECS2::FeatureECS::QueryEntitiesInRange(
+void FeatureECS::QueryEntitiesInRange(
     WorldConstRef world,
     const Vec2& pos,
     Distance range,
@@ -600,26 +648,33 @@ void Phoenix::ECS2::FeatureECS::QueryEntitiesInRange(
         });
 }
 
-void Phoenix::ECS2::FeatureECS::SortEntitiesByZCode(WorldRef world)
+void FeatureECS::SortEntitiesByZCode(WorldRef world)
 {
-    // PHX_PROFILE_ZONE_SCOPED;
-    //
-    // FeatureECSScratchBlock* scratchBlock = world.GetBlock<FeatureECSScratchBlock>();
-    //
-    // // Gather all entities with transform components
-    // {
-    //     scratchBlock->EntityTransforms.Refresh(world);
-    // }
-    //
-    // // Calculate z-codes and sort entities
-    // scratchBlock->SortedEntities.Reset();
-    // for (auto && [entity, transformComp] : scratchBlock->EntityTransforms)
-    // {
-    //     transformComp->ZCode = ToMortonCode(transformComp->Transform.Position);
-    //     scratchBlock->SortedEntities.EmplaceBack(entity->Id, transformComp, transformComp->ZCode);
-    // }
+    PHX_PROFILE_ZONE_SCOPED;
+    
+    FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
+    
+    // Calculate z-codes and sort entities
+    scratchBlock.SortedEntities.Reset();
+    Entities(world)
+        .ForEachEntity(TFunction([&](const EntityComponentSpan<TransformComponent&>& span)
+        {
+            for (auto && [entityId, transformComp] : span)
+            {
+                transformComp.ZCode = ToMortonCode(transformComp.Transform.Position);
+                scratchBlock.SortedEntities.EmplaceBack(entityId, &transformComp, transformComp.ZCode);
+            }
+        }));
+
+    // Sort entities by their zcodes
+    std::ranges::sort(
+        scratchBlock.SortedEntities,
+        [](const EntityTransform& a, const EntityTransform& b)
+        {
+            return a.ZCode < b.ZCode;
+        });
 }
 
-void Phoenix::ECS2::FeatureECS::CompactWorldBuffer(WorldRef world)
+void FeatureECS::CompactWorldBuffer(WorldRef world)
 {
 }

@@ -1,14 +1,13 @@
 ﻿
-#include "FeaturePhysics.h"
+#include "PhysicsSystem.h"
 
-#include <algorithm>
-
+#include "BodyComponent.h"
 #include "Color.h"
 #include "Debug.h"
+#include "FeaturePhysics.h"
 #include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
-#include "Session.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -16,7 +15,7 @@ using namespace Phoenix::Physics;
 
 constexpr uint8 SLEEP_TIMER = 1;
 
-void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
+void PhysicsSystem::OnPreWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -27,26 +26,24 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
     scratchBlock.MaxQueryBodyCount = 0;
     scratchBlock.Contacts.Reset();
     scratchBlock.ContactSet.Reset();
-    
-    // Gather all transform + body component pairs
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("GatherBodyComponents");
-
-        scratchBlock.EntityBodies.Refresh(world);
-    }
 
     // Sort entity bodies by z-code (calculated by FeatureECS)
     {
         PHX_PROFILE_ZONE_SCOPED_N("SortBodiesByZCode");
 
         scratchBlock.SortedEntities.Reset();
-        for (auto && [entity, transformComp, bodyComp] : scratchBlock.EntityBodies)
-        {
-            scratchBlock.SortedEntities.EmplaceBack(entity->Id, transformComp, bodyComp, transformComp->ZCode);
-        }
+        FeatureECS::Entities(world)
+            .ForEachEntity(TFunction([&](const EntityComponentSpan<TransformComponent&, BodyComponent&>& span)
+            {
+                for (auto && [entityId, transformComp, bodyComp] : span)
+                {
+                    scratchBlock.SortedEntities.EmplaceBack(entityId, &transformComp, &bodyComp, transformComp.ZCode);
+                }
+            }));
 
         // Sort entities by their zcodes
-        std::ranges::sort(scratchBlock.SortedEntities,
+        std::ranges::sort(
+            scratchBlock.SortedEntities,
             [](const EntityBody& a, const EntityBody& b)
             {
                 return a.ZCode < b.ZCode;
@@ -54,7 +51,7 @@ void PhysicsSystem::OnPreUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 }
 
-void PhysicsSystem::OnUpdate(WorldRef world, const SystemUpdateArgs& args)
+void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -373,151 +370,4 @@ void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state,
             renderer.DrawLine(s, e, Color(255, 255, 255));
         }
     }
-}
-
-FeaturePhysics::FeaturePhysics()
-{
-}
-
-void FeaturePhysics::Initialize()
-{
-    PhysicsSystem = MakeShared<Physics::PhysicsSystem>();
-
-    TSharedPtr<FeatureECS> featureECS = Session->GetFeatureSet()->GetFeature<FeatureECS>();
-    featureECS->RegisterSystem(PhysicsSystem);
-}
-
-bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
-{
-    IFeature::OnHandleWorldAction(world, action);
-
-    if (action.Action.Verb == "release_entities_in_range"_n)
-    {
-        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
-        Distance range = action.Action.Data[2].Distance;
-
-        TArray<EntityBody> outEntities;
-        QueryEntitiesInRange(world, pos, range, outEntities);
-
-        for (const EntityBody& entityBody : outEntities)
-        {
-            const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
-            if (Vec2::Distance(pos, entityPos) < range)
-            {
-                FeatureECS::ReleaseEntity(world, entityBody.EntityId);
-            }
-        }
-
-        return true;
-    }
-
-    if (action.Action.Verb == "push_entities_in_range"_n)
-    {
-        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
-        Distance range = action.Action.Data[2].Distance;
-        Value force = action.Action.Data[3].Distance;
-        AddExplosionForceToEntitiesInRange(world, pos, range, force);
-
-        return true;
-    }
-
-    if (action.Action.Verb == "set_allow_sleep"_n)
-    {
-        bool allowSleep = action.Action.Data[0].Bool;
-        world.GetBlockRef<FeaturePhysicsDynamicBlock>().bAllowSleep = allowSleep;
-
-        return true;
-    }
-
-    return false;
-}
-
-void FeaturePhysics::QueryEntitiesInRange(
-    WorldConstRef world,
-    const Vec2& pos,
-    Distance range,
-    TArray<EntityBody>& outEntities)
-{
-    PHX_PROFILE_ZONE_SCOPED;
-
-    const FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
-
-    TMortonCodeRangeArray ranges;
-    
-    // Query for overlapping morton ranges
-    {
-        MortonCodeAABB aabb = ToMortonCodeAABB(pos, range);
-        MortonCodeQuery(aabb, ranges);
-    }
-
-    TArray<EntityBody*> overlappingEntities;
-    ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
-        scratchBlock.SortedEntities,
-        ranges,
-        [&](const EntityBody& entityBody)
-        {
-            outEntities.push_back(entityBody);
-        });
-}
-
-void FeaturePhysics::AddExplosionForceToEntitiesInRange(WorldRef world, const Vec2& pos, Distance range, Value force)
-{
-    // Distance rangeSq = range * range;
-
-    TArray<EntityBody> outEntities;
-    QueryEntitiesInRange(world, pos, range, outEntities);
-
-    for (const EntityBody& entityBody : outEntities)
-    {
-        const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
-        Vec2 dir = entityPos - pos;
-        Distance dist = dir.Length();
-        if (dist < range)
-        {
-            Value t = 1.0f - dist / range;
-            Value f = force / entityBody.BodyComponent->InvMass;
-            entityBody.BodyComponent->LinearVelocity += dir.Normalized() * f * t;
-        }
-    }
-}
-
-void FeaturePhysics::AddForce(WorldRef world, EntityId entityId, const Vec2& force)
-{
-    BodyComponent* bodyComponent = FeatureECS::GetComponentDataPtr<BodyComponent>(world, entityId);
-    if (!bodyComponent)
-    {
-        return;
-    }
-
-    bodyComponent->LinearVelocity += force;
-}
-
-bool FeaturePhysics::GetDebugDrawContacts() const
-{
-    return PhysicsSystem && PhysicsSystem->bDebugDrawContacts;
-}
-
-void FeaturePhysics::SetDebugDrawContacts(const bool& value)
-{
-    if (PhysicsSystem)
-    {
-        PhysicsSystem->bDebugDrawContacts = value;
-    }
-}
-
-bool FeaturePhysics::GetAllowSleep() const
-{
-    WorldSharedPtr worldPtr = Session->GetWorldManager()->GetPrimaryWorld();
-    if (!worldPtr) return false;
-    auto blockPtr = worldPtr->GetBlock<FeaturePhysicsDynamicBlock>();
-    if (!blockPtr) return false;
-    return blockPtr->bAllowSleep;
-}
-
-void FeaturePhysics::SetAllowSleep(const bool& value)
-{
-    Action action;
-    action.Verb = "set_allow_sleep"_n;
-    action.Data[0].Bool = value;
-    Session->QueueAction(action);
 }

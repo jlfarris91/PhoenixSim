@@ -5,6 +5,7 @@
 
 #include <lua.h>
 
+#include "BodyComponent.h"
 #include "FeatureECS.h"
 #include "FeaturePhysics.h"
 #include "Flags.h"
@@ -88,17 +89,21 @@ void FeatureLua::Initialize()
             if (entityId == ECS::EntityId::Invalid)
                 break;
 
-            ECS::TransformComponent* transformComp = ECS::FeatureECS::AddComponent<ECS::TransformComponent>(*world, entityId);
-            transformComp->Transform.Position.X = x;
-            transformComp->Transform.Position.Y = y;
-            transformComp->Transform.Rotation = facing;
+            if (ECS::TransformComponent* transformComp = ECS::FeatureECS::GetComponent<ECS::TransformComponent>(*world, entityId))
+            {
+                transformComp->Transform.Position.X = x;
+                transformComp->Transform.Position.Y = y;
+                transformComp->Transform.Rotation = facing;
+            }
 
-            Physics::BodyComponent* bodyComp = ECS::FeatureECS::AddComponent<Physics::BodyComponent>(*world, entityId);
-            bodyComp->CollisionMask = 1;
-            bodyComp->Radius = 0.6; // Lancer :)
-            bodyComp->InvMass = OneDivBy<Value>(1.0f);
-            bodyComp->LinearDamping = 5.f;
-            SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
+            if (Physics::BodyComponent* bodyComp = ECS::FeatureECS::AddComponent<Physics::BodyComponent>(*world, entityId))
+            {
+                bodyComp->CollisionMask = 1;
+                bodyComp->Radius = 0.6; // Lancer :)
+                bodyComp->InvMass = OneDivBy<Value>(1.0f);
+                bodyComp->LinearDamping = 5.f;
+                SetFlagRef(bodyComp->Flags, Physics::EBodyFlags::Awake, true);
+            }
         }
 
         return i;

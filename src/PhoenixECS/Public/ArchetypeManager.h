@@ -14,7 +14,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         template <
             class TArchetypeDefinition = TArchetypeDefinition<8>,
@@ -51,7 +51,7 @@ namespace Phoenix
                 return ArchetypeDefinitions.Remove(definition.GetId());
             }
 
-            bool HasArchetypeDefinition(const FName& name) const
+            bool IsArchetypeRegistered(const FName& name) const
             {
                 return ArchetypeDefinitions.Contains(name);
             }
@@ -134,7 +134,7 @@ namespace Phoenix
                     return nullptr;
                 }
 
-                return list->GetComponentPtr(handle, componentId);
+                return list->GetComponent(handle, componentId);
             }
 
             const void* GetComponentPtr(const TEntityHandle& handle, const FName& componentId) const
@@ -145,7 +145,7 @@ namespace Phoenix
                     return nullptr;
                 }
 
-                return list->GetComponentPtr(handle, componentId);
+                return list->GetComponent(handle, componentId);
             }
 
             template <class T>
@@ -157,7 +157,7 @@ namespace Phoenix
                     return nullptr;
                 }
 
-                return list->template GetComponentPtr<T>(handle);
+                return list->template GetComponent<T>(handle);
             }
 
             template <class T>
@@ -169,7 +169,7 @@ namespace Phoenix
                     return nullptr;
                 }
 
-                return list->template GetComponentPtr<T>(handle);
+                return list->template GetComponent<T>(handle);
             }
 
             TArchetypeList* FindFirstArchetypeList(const FName& archetypeId, bool includeFullLists = false)
@@ -217,7 +217,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void ForEachEntity(const EntityQuery& query, const TEntityQueryWorkFunc<TComponents...>& func)
+            void ForEachEntity(const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
             {
                 for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
                 {
@@ -233,7 +233,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void ForEachEntity(const EntityQuery& query, const TEntityQueryWorkBufferFunc<TComponents...>& func)
+            void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
                 for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
                 {
@@ -274,8 +274,13 @@ namespace Phoenix
                 return EntityQueryBuilder<TArchetypeManager>(this);
             }
 
+            EntityQueryBuilder<TArchetypeManager> Entities() const
+            {
+                return EntityQueryBuilder<TArchetypeManager>(const_cast<TArchetypeManager*>(this));
+            }
+
             template <class ...TComponents>
-            void Schedule(const EntityQuery& query, const TEntityQueryWorkFunc<TComponents...>& func)
+            void Schedule(const EntityQuery& query, const TEntityQueryJobFunc<TComponents...>& func)
             {
                 PHX_ASSERT(!Queries.IsFull());
 
@@ -291,7 +296,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void Schedule(const EntityQuery& query, const TEntityQueryWorkBufferFunc<TComponents...>& func)
+            void Schedule(const EntityQuery& query, const TEntityQueryBufferJobFunc<TComponents...>& func)
             {
                 PHX_ASSERT(!Queries.IsFull());
 
@@ -307,7 +312,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void ScheduleParallel(const EntityQuery& query, const TEntityQueryWorkFunc<TComponents...>& func)
+            void ScheduleParallel(const EntityQuery& query, const TEntityQueryJobFunc<TComponents...>& func)
             {
                 PHX_ASSERT(!Queries.IsFull());
 
@@ -323,7 +328,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void ScheduleParallel(const EntityQuery& query, const TEntityQueryWorkBufferFunc<TComponents...>& func)
+            void ScheduleParallel(const EntityQuery& query, const TEntityQueryBufferJobFunc<TComponents...>& func)
             {
                 PHX_ASSERT(!Queries.IsFull());
 
@@ -375,7 +380,5 @@ namespace Phoenix
             TFixedArena<1024> Queries; 
             TChunkAllocator ChunkAllocator;
         };
-        
-        PHOENIXECS_API void Test(Session* session);
     }
 }

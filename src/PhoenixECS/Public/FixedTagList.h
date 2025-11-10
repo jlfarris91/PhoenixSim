@@ -7,12 +7,17 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         template <size_t N>
         class FixedTagList
         {
         public:
+
+            constexpr size_t Num() const
+            {
+                return Tags.Num();
+            }
 
             bool HasTag(const Entity& entity, const FName& tagName) const
             {

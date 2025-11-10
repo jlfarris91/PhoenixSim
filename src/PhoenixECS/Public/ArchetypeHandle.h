@@ -6,7 +6,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         template <class TArchetypeDefinition, uint32 N>
         class TArchetypeList;

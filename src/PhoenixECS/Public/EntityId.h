@@ -6,7 +6,7 @@
 
 namespace Phoenix
 {
-    namespace ECS2
+    namespace ECS
     {
         typedef uint32 entityid_t;
         
