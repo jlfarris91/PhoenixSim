@@ -73,6 +73,11 @@ namespace Phoenix
                 return Definition;
             }
 
+            bool HasArchetypeDefinition(const FName& archetypeIdOrHash) const
+            {
+                return Definition.HasIdOrHash(archetypeIdOrHash);
+            }
+
             constexpr uint8* GetData()
             {
                 return Data;
@@ -280,7 +285,7 @@ namespace Phoenix
             template <class TCallback>
             void ForEachComponent(const Handle& handle, TCallback&& func)
             {
-                for (uint8 i = 0; i < Definition.GetNumComponents(); ++i)
+                for (uint8 i = 0; i < (uint8)Definition.GetNumComponents(); ++i)
                 {
                     const ComponentDefinition& componentDefinition = Definition[i];
                     if (void* compPtr = GetComponent(handle, componentDefinition.Id))

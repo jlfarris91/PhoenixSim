@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "Features.h"
+#include "Flags.h"
 #include "Profiling.h"
 
 
@@ -31,6 +32,21 @@ World::World(World&& other) noexcept
 FName World::GetName() const
 {
     return Name;
+}
+
+bool World::IsInitialized() const
+{
+    return HasAnyFlags(Flags, EWorldFlags::Initialized);
+}
+
+bool World::IsShutDown() const
+{
+    return HasAnyFlags(Flags, EWorldFlags::ShutDown);
+}
+
+bool World::IsActive() const
+{
+    return HasNoneFlags(Flags, EWorldFlags::Initialized, EWorldFlags::ShutDown);
 }
 
 World& World::operator=(const World& other)
@@ -101,8 +117,6 @@ WorldSharedPtr WorldManager::NewWorld(const FName& name)
     world = std::make_shared<World>(worldCtorArgs);
     Worlds.push_back(world);
 
-    InitializeWorld(*world);
-
     return world;
 }
 
@@ -135,6 +149,14 @@ void WorldManager::Step(const WorldStepArgs& args)
     else
     {
         worlds = Worlds;
+    }
+
+    for (const WorldSharedPtr& world : worlds)
+    {
+        if (!world->IsInitialized())
+        {
+            InitializeWorld(*world);
+        }
     }
 
     // TODO (jfarris): parallelize
@@ -174,6 +196,8 @@ void WorldManager::InitializeWorld(WorldRef world) const
     {
         feature->OnWorldInitialize(world);
     }
+
+    SetFlagRef(world.Flags, EWorldFlags::Initialized, true);
 }
 
 void WorldManager::ShutdownWorld(WorldRef world) const
@@ -183,6 +207,8 @@ void WorldManager::ShutdownWorld(WorldRef world) const
     {
         feature->OnWorldShutdown(world);
     }
+
+    SetFlagRef(world.Flags, EWorldFlags::ShutDown, true);
 }
 
 void WorldManager::UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) const

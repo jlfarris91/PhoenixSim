@@ -25,13 +25,33 @@ namespace Phoenix
 #endif
         }
 
-        explicit operator hash32_t() const;
-        bool operator==(const FName& other) const;
-        bool operator!=(const FName& other) const;
-        std::strong_ordering operator<=>(const FName& other) const;
+        constexpr explicit operator hash32_t() const
+        {
+            return Value;
+        }
+
+        constexpr bool operator==(const FName& other) const
+        {
+            return Value == other.Value;
+        }
+
+        constexpr bool operator!=(const FName& other) const
+        {
+            return Value != other.Value;
+        }
+
+        constexpr std::strong_ordering operator<=>(const FName& other) const
+        {
+            return Value <=> other.Value;
+        }
 
         FName operator+(const FName& other) const;
         FName& operator+=(const FName& other);
+
+        constexpr static bool IsNoneOrEmpty(const FName& name)
+        {
+            return name == None || name == Empty;
+        }
 
     private:
         hash32_t Value = 0;

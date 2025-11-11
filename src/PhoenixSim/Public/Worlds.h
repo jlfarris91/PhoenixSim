@@ -21,6 +21,13 @@ namespace Phoenix
 
 namespace Phoenix
 {
+    enum class EWorldFlags : uint8
+    {
+        None = 0,
+        Initialized = 1,
+        ShutDown = 2
+    };
+    
     struct PHOENIXSIM_API WorldCtorArgs
     {
         FName Name;
@@ -37,6 +44,10 @@ namespace Phoenix
         ~World() = default;
 
         FName GetName() const;
+
+        bool IsInitialized() const;
+        bool IsShutDown() const;
+        bool IsActive() const;
 
         World& operator=(const World& other);
         World& operator=(World&& other) noexcept;
@@ -84,8 +95,12 @@ namespace Phoenix
         }
 
     private:
+
+        friend class WorldManager;
+        
         FName Name;
         BlockBuffer Buffer;
+        EWorldFlags Flags = EWorldFlags::None;
     };
 
     typedef World* WorldPtr;

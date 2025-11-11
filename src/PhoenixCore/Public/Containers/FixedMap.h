@@ -170,7 +170,6 @@ namespace Phoenix
                 // KVP already exists
                 if (Items[slot].first == key)
                 {
-                    Items[slot].second = value;
                     return &Items[slot].second;
                 }
 
@@ -194,7 +193,6 @@ namespace Phoenix
                 // KVP already exists
                 if (Items[slot].first == key)
                 {
-                    Items[slot].second = TValue();
                     return &Items[slot].second;
                 }
 

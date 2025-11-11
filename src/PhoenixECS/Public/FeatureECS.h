@@ -153,7 +153,7 @@ namespace Phoenix
             static bool RegisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition);
 
             template <class ...TComponents>
-            static bool RegisterArchetypeDefinition(WorldRef world, const TOptional<FName>& id)
+            static bool RegisterArchetypeDefinition(WorldRef world, const FName& id = FName::None)
             {
                 return RegisterArchetypeDefinition(world, ArchetypeDefinition::Create<TComponents...>(id));
             }

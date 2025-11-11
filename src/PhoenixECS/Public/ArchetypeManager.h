@@ -28,8 +28,8 @@ namespace Phoenix
         public:
 
             using TArchetypeList = TArchetypeList<TArchetypeDefinition, ArchetypeListSize>;
-            using TChunkAllocator = TFixedBlockAllocator<MaxNumArchetypeLists, sizeof(TArchetypeList)>;
-            using TBlockHandle = typename TChunkAllocator::Handle;
+            using TArchetypeLists = TFixedBlockAllocator<MaxNumArchetypeLists, sizeof(TArchetypeList)>;
+            using TBlockHandle = typename TArchetypeLists::Handle;
             using TEntityHandle = typename TArchetypeList::Handle;
             using TComponentDefMap = TFixedMap<FName, ComponentDefinition, MaxNumComponents>;
             using TArchetypeDefMap = TFixedMap<FName, TArchetypeDefinition, MaxNumArchetypes>;
@@ -43,9 +43,9 @@ namespace Phoenix
             size_t GetNumActiveArchetypes() const
             {
                 size_t total = 0;
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    if (const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle))
+                    if (const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle))
                     {
                         total += list->GetNumActiveInstances();
                     }
@@ -55,7 +55,7 @@ namespace Phoenix
 
             size_t GetNumArchetypeLists() const
             {
-                return BlockAllocator.GetNumOccupiedBlocks();
+                return ArchetypeLists.GetNumOccupiedBlocks();
             }
 
             //
@@ -69,9 +69,14 @@ namespace Phoenix
 
             bool RegisterArchetypeDefinition(const TArchetypeDefinition& definition)
             {
-                if (IsArchetypeRegistered(definition.GetId()))
+                if (ArchetypeDefinitions.Contains(definition.GetArchetypeHash()))
                 {
                     return true;
+                }
+
+                if (FName::IsNoneOrEmpty(definition.GetArchetypeHash()))
+                {
+                    return false;
                 }
 
                 if (ArchetypeDefinitions.IsFull())
@@ -87,18 +92,48 @@ namespace Phoenix
                     }
                 }
 
-                return ArchetypeDefinitions.Insert(definition.GetId(), definition);
+                return ArchetypeDefinitions.Insert(definition.GetArchetypeHash(), definition);
             }
 
             bool UnregisterArchetypeDefinition(const TArchetypeDefinition& definition)
             {
                 // TODO (jfarris): what should we do with existing archetype lists?
-                return ArchetypeDefinitions.Remove(definition.GetId());
+                return ArchetypeDefinitions.Remove(definition.GetArchetypeHash());
             }
 
-            bool IsArchetypeRegistered(const FName& archetypeId) const
+            bool IsArchetypeRegistered(const FName& archetypeIdOrHash) const
             {
-                return ArchetypeDefinitions.Contains(archetypeId);
+                return GetArchetypeDefinition(archetypeIdOrHash) != nullptr;
+            }
+
+            FName GetArchetypeHash(const FName& archetypeId) const
+            {
+                const TArchetypeDefinition* archDefPtr = GetArchetypeDefinitionById(archetypeId);
+                return archDefPtr ? archDefPtr->GetArchetypeHash() : FName::None;
+            }
+
+            const TArchetypeDefinition* GetArchetypeDefinitionByHash(const FName& archetypeHash) const
+            {
+                return ArchetypeDefinitions.GetPtr(archetypeHash);
+            }
+
+            const TArchetypeDefinition* GetArchetypeDefinitionById(const FName& archetypeId) const
+            {
+                for (auto && [compHash, archDef] : ArchetypeDefinitions)
+                {
+                    if (archDef.GetId() == archetypeId)
+                        return &archDef;
+                }
+                return nullptr;
+            }
+
+            const TArchetypeDefinition* GetArchetypeDefinition(const FName& archetypeIdOrHash) const
+            {
+                if (const TArchetypeDefinition* archDefPtr = GetArchetypeDefinitionByHash(archetypeIdOrHash))
+                {
+                    return archDefPtr;
+                }
+                return GetArchetypeDefinitionById(archetypeIdOrHash);
             }
 
             //
@@ -133,9 +168,9 @@ namespace Phoenix
             }
 
             // Acquire an archetype for a given entity
-            TEntityHandle Acquire(EntityId entityId, const FName& archetypeId)
+            TEntityHandle Acquire(EntityId entityId, const FName& archetypeIdOrHash)
             {
-                TArchetypeList* list = FindOrAddArchetypeList(archetypeId);
+                TArchetypeList* list = FindOrAddArchetypeList(archetypeIdOrHash);
                 if (!list)
                 {
                     return TEntityHandle();
@@ -159,20 +194,20 @@ namespace Phoenix
 
             // Sets the archetype of a given entity to a new archetype.
             // Data for any components shared between the current archetype and the new archetype are preserved.
-            TEntityHandle SetArchetype(const TEntityHandle& handle, const FName& archetypeId)
+            TEntityHandle SetArchetype(const TEntityHandle& handle, const FName& archetypeIdOrHash)
             {
                 typename TArchetypeList::Handle newHandle(handle.GetEntityId());
 
                 TArchetypeList* currList = FindOwningArchetypeList(handle);
 
                 // The entity is already in a list with the given archetype id. Nothing changes.
-                if (currList && currList->GetDefinition().GetId() == archetypeId)
+                if (currList && currList->HasArchetypeDefinition(archetypeIdOrHash))
                 {
                     return handle;
                 }
 
                 // Allocate a new archetype for the entity in a new list.
-                if (TArchetypeList* newList = FindOrAddArchetypeList(archetypeId))
+                if (TArchetypeList* newList = FindOrAddArchetypeList(archetypeIdOrHash))
                 {
                     newHandle = newList->Acquire(handle.GetEntityId());
 
@@ -215,14 +250,14 @@ namespace Phoenix
                     return nullptr;
                 }
 
-                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetId(), newArchDef);
+                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetArchetypeHash(), newArchDef);
                 if (!archDef)
                 {
                     // Failed to add the new archetype, probably out of space.
                     return nullptr;
                 }
 
-                inOutHandle = SetArchetype(inOutHandle, archDef->GetId());
+                inOutHandle = SetArchetype(inOutHandle, archDef->GetArchetypeHash());
 
                 return GetComponent(inOutHandle, componentDef.Id);
             }
@@ -282,14 +317,14 @@ namespace Phoenix
                     return false;
                 }
 
-                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetId(), newArchDef);
+                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetArchetypeHash(), newArchDef);
                 if (!archDef)
                 {
                     // Failed to add the new archetype, probably out of space.
                     return false;
                 }
 
-                inOutHandle = SetArchetype(inOutHandle, archDef->GetId());
+                inOutHandle = SetArchetype(inOutHandle, archDef->GetArchetypeHash());
                 
                 return true;
             }
@@ -352,12 +387,12 @@ namespace Phoenix
                 return list->template GetComponent<T>(handle);
             }
 
-            TArchetypeList* FindFirstArchetypeList(const FName& archetypeId, bool includeFullLists = false)
+            TArchetypeList* FindFirstArchetypeList(const FName& archetypeIdOrHash, bool includeFullLists = false)
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
-                    if (list && list->GetDefinition().GetId() == archetypeId && (includeFullLists || !list->IsFull()))
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
+                    if (list && list->HasArchetypeDefinition(archetypeIdOrHash) && (includeFullLists || !list->IsFull()))
                     {
                         return list;
                     }
@@ -367,21 +402,21 @@ namespace Phoenix
 
             TArchetypeList* FindOwningArchetypeList(const TEntityHandle& handle)
             {
-                TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
+                TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
                 return list && list->IsValid(handle) ? list : nullptr;
             }
 
             const TArchetypeList* FindOwningArchetypeList(const TEntityHandle& handle) const
             {
-                const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
+                const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
                 return list && list->IsValid(handle) ? list : nullptr;
             }
 
             void ForEachArchetypeList(const TFunction<void(TArchetypeList&)>& func)
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list)
                     {
                         func(*list);
@@ -391,9 +426,9 @@ namespace Phoenix
 
             void ForEachArchetypeList(const TFunction<void(const TArchetypeList&)>& func) const
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list)
                     {
                         func(*list);
@@ -401,12 +436,12 @@ namespace Phoenix
                 }
             }
 
-            void ForEachArchetypeList(const FName& archetypeId, const TFunction<void(TArchetypeList&)>& func)
+            void ForEachArchetypeList(const FName& archetypeIdOrHash, const TFunction<void(TArchetypeList&)>& func)
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
-                    if (list && list->GetDefinition()->GetId() == archetypeId)
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
+                    if (list && list->HasArchetypeDefinition(archetypeIdOrHash))
                     {
                         func(*list);
                     }
@@ -416,9 +451,9 @@ namespace Phoenix
             template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         list->template ForEachEntity<TComponents...>([&](EntityId entityId, TComponents ...components)
@@ -432,9 +467,9 @@ namespace Phoenix
             template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         func(EntityComponentSpan<TComponents...>::FromList(*list));
@@ -481,9 +516,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -497,9 +532,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -513,9 +548,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -529,9 +564,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -553,45 +588,50 @@ namespace Phoenix
             void Compact()
             {
                 // Free any archetype lists with no active instances.
-                for (const TBlockHandle& handle : BlockAllocator)
+                for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && list->GetNumActiveInstances() == 0)
                     {
-                        BlockAllocator.Deallocate(handle);
+                        ArchetypeLists.Deallocate(handle);
                     }
                 }
 
-                BlockAllocator.Compact();
+                ArchetypeLists.Compact();
             }
 
         private:
 
-            TArchetypeList* FindOrAddArchetypeList(const FName& archetypeId)
+            TArchetypeList* FindOrAddArchetypeList(const FName& archetypeIdOrHash)
             {
-                TArchetypeList* list = FindFirstArchetypeList(archetypeId, false);
+                TArchetypeList* list = FindFirstArchetypeList(archetypeIdOrHash, false);
                 if (list)
                 {
                     return list;
                 }
                 
-                TArchetypeDefinition* archetypeDef = ArchetypeDefinitions.GetPtr(archetypeId);
+                const TArchetypeDefinition* archetypeDef = GetArchetypeDefinition(archetypeIdOrHash);
                 if (!archetypeDef)
                 {
                     return nullptr;
                 }
                 
-                TBlockHandle handle = BlockAllocator.template Allocate<TArchetypeList>((uint32)archetypeId, *archetypeDef);
-                list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                TBlockHandle handle = ArchetypeLists.template Allocate<TArchetypeList>(archetypeDef->GetArchetypeHash(), *archetypeDef);
+                list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                 list->SetId(handle.Id);
 
                 return list;
             }
 
+            // A mapping of component id to component definition.
             TComponentDefMap ComponentDefinitions;
+
+            // A mapping of archetype hash to archetype definition.
             TArchetypeDefMap ArchetypeDefinitions;
-            TFixedArena<1024> Queries; 
-            TChunkAllocator BlockAllocator;
+
+            TArchetypeLists ArchetypeLists;
+
+            TFixedArena<1024> Queries;
         };
     }
 }

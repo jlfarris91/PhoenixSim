@@ -33,7 +33,8 @@ namespace Phoenix
         {
             TArchetypeDefinition() = default;
 
-            TArchetypeDefinition(const ComponentDefinition* comps, uint8 n)
+            TArchetypeDefinition(const FName& id, const ComponentDefinition* comps, uint8 n)
+                : Id(id)
             {
                 PHX_ASSERT(n <= MaxComponents);
 
@@ -46,18 +47,13 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            static TArchetypeDefinition Create(const TOptional<FName>& id)
+            static TArchetypeDefinition Create(const FName& id = FName::None)
             {
                 static const ComponentDefinition comps[sizeof...(TComponents)] =
                 {
                     ComponentDefinition::Create<TComponents>()...
                 };
-                TArchetypeDefinition definition(comps, sizeof...(TComponents));
-                if (id.IsSet())
-                {
-                    definition.Id = id.Get();
-                }
-                return definition;
+                return TArchetypeDefinition(id, comps, sizeof...(TComponents));
             }
 
             // Returns a new archetype definition with the newly added component.
@@ -73,6 +69,7 @@ namespace Phoenix
                 }
                 
                 outArchDef = baseArchDef;
+                outArchDef.Id = FName::None;
                 outArchDef.Components.PushBack(componentDefinition);
                 outArchDef.OnComponentsChanged();
                 return true;
@@ -99,6 +96,7 @@ namespace Phoenix
                 }
                 
                 outArchDef = baseArchDef;
+                outArchDef.Id = FName::None;
                 outArchDef.Components.RemoveAt(componentIndex);
                 outArchDef.OnComponentsChanged();
                 return true;
@@ -116,9 +114,19 @@ namespace Phoenix
                 return Id;
             }
 
-            constexpr uint16 GetNumComponents() const
+            constexpr hash32_t GetArchetypeHash() const
             {
-                return (uint16)Components.Num();
+                return Hash;
+            }
+
+            constexpr bool HasIdOrHash(const FName& archetypeIdOrHash) const
+            {
+                return Id == archetypeIdOrHash || Hash == (hash32_t)archetypeIdOrHash;
+            }
+
+            constexpr uint8 GetNumComponents() const
+            {
+                return (uint8)Components.Num();
             }
 
             constexpr uint16 GetTotalSize() const
@@ -198,17 +206,24 @@ namespace Phoenix
                     });
 
                 TotalSize = 0;
-                Id = 0;
+                Hash = 0;
+
+                bool generateId = FName::IsNoneOrEmpty(Id);
 
                 for (uint8 i = 0; i < (uint8)Components.Num(); ++i)
                 {
                     Components[i].Offset = TotalSize;
                     TotalSize += Components[i].Size;
-                    Id += Components[i].Id;
+                    Hash = Hashing::FN1VA32Combine(Hash, (hash32_t)Components[i].Id);
+                    if (generateId)
+                    {
+                        Id += Components[i].Id;
+                    }
                 }
             }
 
-            FName Id = 0;
+            FName Id;
+            hash32_t Hash = 0;
             TFixedArray<ComponentDefinition, MaxComponents> Components;
             uint16 TotalSize = 0;
         };
