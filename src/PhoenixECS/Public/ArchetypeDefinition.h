@@ -1,6 +1,8 @@
 ﻿
 #pragma once
 
+#include <algorithm>
+
 #include "Platform.h"
 #include "Name.h"
 #include "Optional.h"
@@ -35,16 +37,12 @@ namespace Phoenix
             {
                 PHX_ASSERT(n <= MaxComponents);
 
-                TotalSize = 0;
-                Id = 0;
                 for (uint8 i = 0; i < n; ++i)
                 {
-                    ComponentDefinition& def = Components.Add_GetRef(comps[i]);
-                    def.Offset = TotalSize;
-
-                    TotalSize += def.Size;
-                    Id += def.Id;
+                    Components.PushBack(comps[i]);
                 }
+
+                OnComponentsChanged();
             }
 
             template <class ...TComponents>
@@ -62,22 +60,73 @@ namespace Phoenix
                 return definition;
             }
 
-            FName GetId() const
+            // Returns a new archetype definition with the newly added component.
+            static bool AddComponent(
+                const TArchetypeDefinition& baseArchDef,
+                const ComponentDefinition& componentDefinition,
+                TArchetypeDefinition& outArchDef)
+            {
+                for (size_t i = 0; i < baseArchDef.Components.Num(); ++i)
+                {
+                    if (baseArchDef.Components[i].Id == componentDefinition.Id)
+                        return false;
+                }
+                
+                outArchDef = baseArchDef;
+                outArchDef.Components.PushBack(componentDefinition);
+                outArchDef.OnComponentsChanged();
+                return true;
+            }
+
+            // Returns a new archetype definition with the newly added component.
+            template <class TComponent>
+            static bool AddComponent(const TArchetypeDefinition& baseArchDef, TArchetypeDefinition& outArchDef)
+            {
+                ComponentDefinition compDef = ComponentDefinition::Create<TComponent>();
+                return AddComponent(baseArchDef, compDef, outArchDef);
+            }
+
+            // Returns a new archetype definition without the given component.
+            static bool RemoveComponent(
+                const TArchetypeDefinition& baseArchDef,
+                const FName& componentId,
+                TArchetypeDefinition& outArchDef)
+            {
+                uint16 componentIndex = baseArchDef.IndexOfComponent(componentId);
+                if (componentIndex == Index<uint16>::None)
+                {
+                    return false;
+                }
+                
+                outArchDef = baseArchDef;
+                outArchDef.Components.RemoveAt(componentIndex);
+                outArchDef.OnComponentsChanged();
+                return true;
+            }
+
+            // Returns a new archetype definition with the newly added component.
+            template <class TComponent>
+            static bool RemoveComponent(const TArchetypeDefinition& baseArchDef, TArchetypeDefinition& outArchDef)
+            {
+                return RemoveComponent(baseArchDef, TComponent::StaticTypeName, outArchDef);
+            }
+
+            constexpr FName GetId() const
             {
                 return Id;
             }
 
-            uint16 GetNumComponents() const
+            constexpr uint16 GetNumComponents() const
             {
-                return Components.Num();
+                return (uint16)Components.Num();
             }
 
-            uint16 GetTotalSize() const
+            constexpr uint16 GetTotalSize() const
             {
                 return TotalSize;
             }
 
-            const ComponentDefinition& operator[](uint32 index) const
+            constexpr const ComponentDefinition& operator[](uint32 index) const
             {
                 PHX_ASSERT(index < MaxComponents);
                 return Components[index];
@@ -88,14 +137,14 @@ namespace Phoenix
                 return Components.IsValidIndex(index);
             }
 
-            uint16 IndexOfComponent(const FName& componentId) const
+            constexpr uint16 IndexOfComponent(const FName& componentId) const
             {
-                for (uint32 i = 0; i < Components.Num(); ++i)
+                for (size_t i = 0; i < Components.Num(); ++i)
                 {
                     if (Components[i].Id == componentId)
-                        return i;
+                        return (uint16)i;
                 }
-                return -1;
+                return Index<uint16>::None;
             }
 
             void Construct(void* data) const
@@ -135,6 +184,29 @@ namespace Phoenix
 
             auto begin() const { return Components.begin(); }
             auto end() const { return Components.end(); }
+
+        private:
+
+            void OnComponentsChanged()
+            {
+                // Sort components by id so that the archetype id is stable
+                std::ranges::sort(
+                    Components,
+                    [](const ComponentDefinition& a, const ComponentDefinition& b)
+                    {
+                        return (hash32_t)a.Id < (hash32_t)b.Id;
+                    });
+
+                TotalSize = 0;
+                Id = 0;
+
+                for (uint8 i = 0; i < (uint8)Components.Num(); ++i)
+                {
+                    Components[i].Offset = TotalSize;
+                    TotalSize += Components[i].Size;
+                    Id += Components[i].Id;
+                }
+            }
 
             FName Id = 0;
             TFixedArray<ComponentDefinition, MaxComponents> Components;

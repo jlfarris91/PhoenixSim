@@ -425,7 +425,7 @@ IComponent* FeatureECS::GetComponent(
         return nullptr;
     }
 
-    return static_cast<IComponent*>(block->ArchetypeManager.GetComponentPtr(entity->Handle, componentType));
+    return static_cast<IComponent*>(block->ArchetypeManager.GetComponent(entity->Handle, componentType));
 }
 
 const IComponent* FeatureECS::GetComponent(
@@ -445,7 +445,7 @@ const IComponent* FeatureECS::GetComponent(
         return nullptr;
     }
 
-    return static_cast<const IComponent*>(block->ArchetypeManager.GetComponentPtr(entity->Handle, componentType));
+    return static_cast<const IComponent*>(block->ArchetypeManager.GetComponent(entity->Handle, componentType));
 }
 
 IComponent& FeatureECS::GetComponentRef(
@@ -643,4 +643,6 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
 
 void FeatureECS::CompactWorldBuffer(WorldRef world)
 {
+    FeatureECSDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureECSDynamicBlock>();
+    dynamicBlock.ArchetypeManager.Compact();
 }

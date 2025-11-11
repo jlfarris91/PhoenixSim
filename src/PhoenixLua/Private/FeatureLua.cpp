@@ -89,7 +89,7 @@ void FeatureLua::Initialize()
             if (entityId == ECS::EntityId::Invalid)
                 break;
 
-            if (ECS::TransformComponent* transformComp = ECS::FeatureECS::GetComponent<ECS::TransformComponent>(*world, entityId))
+            if (ECS::TransformComponent* transformComp = ECS::FeatureECS::AddComponent<ECS::TransformComponent>(*world, entityId))
             {
                 transformComp->Transform.Position.X = x;
                 transformComp->Transform.Position.Y = y;

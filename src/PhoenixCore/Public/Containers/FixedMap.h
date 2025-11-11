@@ -46,14 +46,23 @@ namespace Phoenix
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].first != 0 && Items[slot].first != key)
+            if (Items[slot].first != 0)
             {
+                // KVP already exists
+                if (Items[slot].first == key)
+                {
+                    Items[slot].second = value;
+                    return true;
+                }
+
                 // Map is full
                 return false;
             }
 
             Items[slot].first = key;
             Items[slot].second = value;
+            ++Size;
+
             return true;
         }
 
@@ -62,14 +71,22 @@ namespace Phoenix
         {
             size_t slot = FindSlot(key);
 
-            if (Items[slot].first != 0 && Items[slot].first != key)
+            if (Items[slot].first != 0)
             {
+                // KVP already exists
+                if (Items[slot].first == key)
+                {
+                    new (&Items[slot].second) TValue(args...);
+                    return true;
+                }
+
                 // Map is full
                 return false;
             }
 
             Items[slot].first = key;
             new (&Items[slot].second) TValue(args...);
+            ++Size;
 
             return true;
         }
@@ -93,6 +110,7 @@ namespace Phoenix
 
             Items[slot].first = key;
             Items[slot].second = TValue();
+            ++Size;
 
             return Items[slot].second;
         }
@@ -160,8 +178,8 @@ namespace Phoenix
                 return nullptr;
             }
 
-            Items[slot] = key;
-            Items[slot] = value;
+            Items[slot].first = key;
+            Items[slot].second = value;
             ++Size;
 
             return &Items[slot].second;
@@ -184,8 +202,8 @@ namespace Phoenix
                 return nullptr;
             }
 
-            Items[slot] = key;
-            Items[slot] = TValue();
+            Items[slot].first = key;
+            Items[slot].second = TValue();
             ++Size;
 
             return &Items[slot].second;

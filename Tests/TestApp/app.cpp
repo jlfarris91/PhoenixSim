@@ -393,7 +393,7 @@ void OnAppRenderUI()
                 if (ImGui::TreeNode("Definitions:"))
                 {
                     uint32 index = 0;
-                    for (auto && [id, archDef] : ecsDynamicBlock.ArchetypeManager.ArchetypeDefinitions)
+                    for (auto && [id, archDef] : ecsDynamicBlock.ArchetypeManager.GetArchetypeDefinitions())
                     {
                         char treeNodeId[64];
                         sprintf_s(treeNodeId, _countof(treeNodeId), "[%u] %u", index, (hash32_t)id);
@@ -420,7 +420,7 @@ void OnAppRenderUI()
                             {
                                 for (auto i = 0; i < archDef.GetNumComponents(); ++i)
                                 {
-                                    const ComponentDefinition& compDef = archDef.Components[i];
+                                    const ComponentDefinition& compDef = archDef[i];
                                     
                                     if (ImGui::TreeNode(compDef.TypeDescriptor->CName))
                                     {
@@ -492,6 +492,8 @@ void OnAppRenderUI()
 
                                         ImGui::TreePop();
                                     }
+
+                                    ++instanceIndex;
                                 });
 
                                 ImGui::TreePop();

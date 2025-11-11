@@ -25,7 +25,7 @@ namespace Phoenix
 
         using ArchetypeDefinition = TArchetypeDefinition<8>;
         using ArchetypeList = TArchetypeList<ArchetypeDefinition, 16000>;
-        using ArchetypeManager = TArchetypeManager<ArchetypeDefinition, 32, 1024, 16000>;
+        using ArchetypeManager = TArchetypeManager<ArchetypeDefinition, 128, 32, 1024, 16000>;
 
         struct PHOENIXECS_API FeatureECSDynamicBlock : BufferBlockBase
         {

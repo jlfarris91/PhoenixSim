@@ -8,7 +8,7 @@
 #include "Containers/FixedMap.h"
 #include "Name.h"
 #include "Session.h"
-#include "Containers/FixedChunkAllocator.h"
+#include "Containers/FixedBlockAllocator.h"
 #include "Utils.h"
 #include "Containers/FixedArena.h"
 
@@ -18,6 +18,7 @@ namespace Phoenix
     {
         template <
             class TArchetypeDefinition = TArchetypeDefinition<8>,
+            uint16 MaxNumComponents = 128,
             uint16 MaxNumArchetypes = 32,
             uint16 MaxNumArchetypeLists = 1024,
             uint32 ArchetypeListSize = 16000
@@ -27,9 +28,11 @@ namespace Phoenix
         public:
 
             using TArchetypeList = TArchetypeList<TArchetypeDefinition, ArchetypeListSize>;
-            using TChunkAllocator = TFixedChunkAllocator<MaxNumArchetypeLists, sizeof(TArchetypeList)>;
-            using TChunkHandle = typename TChunkAllocator::Handle;
+            using TChunkAllocator = TFixedBlockAllocator<MaxNumArchetypeLists, sizeof(TArchetypeList)>;
+            using TBlockHandle = typename TChunkAllocator::Handle;
             using TEntityHandle = typename TArchetypeList::Handle;
+            using TComponentDefMap = TFixedMap<FName, ComponentDefinition, MaxNumComponents>;
+            using TArchetypeDefMap = TFixedMap<FName, TArchetypeDefinition, MaxNumArchetypes>;
 
             bool IsValid(TEntityHandle handle) const
             {
@@ -40,9 +43,9 @@ namespace Phoenix
             size_t GetNumActiveArchetypes() const
             {
                 size_t total = 0;
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    if (const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i}))
+                    if (const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle))
                     {
                         total += list->GetNumActiveInstances();
                     }
@@ -52,21 +55,37 @@ namespace Phoenix
 
             size_t GetNumArchetypeLists() const
             {
-                size_t total = 0;
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
-                {
-                    if (ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i}))
-                    {
-                        ++total;
-                    }
-                }
-                return total;
+                return BlockAllocator.GetNumOccupiedBlocks();
+            }
+
+            //
+            // Archetype Definitions
+            //
+
+            const TArchetypeDefMap& GetArchetypeDefinitions() const
+            {
+                return ArchetypeDefinitions;
             }
 
             bool RegisterArchetypeDefinition(const TArchetypeDefinition& definition)
             {
+                if (IsArchetypeRegistered(definition.GetId()))
+                {
+                    return true;
+                }
+
                 if (ArchetypeDefinitions.IsFull())
+                {
                     return false;
+                }
+
+                for (uint16 i = 0; i < definition.GetNumComponents(); ++i)
+                {
+                    if (!RegisterComponentDefinition(definition[i]))
+                    {
+                        return false;
+                    }
+                }
 
                 return ArchetypeDefinitions.Insert(definition.GetId(), definition);
             }
@@ -77,9 +96,40 @@ namespace Phoenix
                 return ArchetypeDefinitions.Remove(definition.GetId());
             }
 
-            bool IsArchetypeRegistered(const FName& name) const
+            bool IsArchetypeRegistered(const FName& archetypeId) const
             {
-                return ArchetypeDefinitions.Contains(name);
+                return ArchetypeDefinitions.Contains(archetypeId);
+            }
+
+            //
+            // Component Definitions
+            //
+
+            const TComponentDefMap& GetComponentDefinitions() const
+            {
+                return ComponentDefinitions;
+            }
+
+            bool RegisterComponentDefinition(const ComponentDefinition& definition)
+            {
+                if (IsComponentRegistered(definition.Id))
+                    return true;
+
+                if (ComponentDefinitions.IsFull())
+                    return false;
+
+                return ComponentDefinitions.Insert(definition.Id, definition);
+            }
+
+            bool UnregisterComponentDefinition(const ComponentDefinition& definition)
+            {
+                // TODO (jfarris): what should we do with existing archetype definitions containing the component?
+                return ComponentDefinitions.Remove(definition.Id);
+            }
+
+            bool IsComponentRegistered(const FName& componentId) const
+            {
+                return ComponentDefinitions.Contains(componentId);
             }
 
             // Acquire an archetype for a given entity
@@ -107,52 +157,156 @@ namespace Phoenix
                 return list->Release(handle);
             }
 
-            bool SetArchetype(const TEntityHandle& handle, const FName& archetypeId)
+            // Sets the archetype of a given entity to a new archetype.
+            // Data for any components shared between the current archetype and the new archetype are preserved.
+            TEntityHandle SetArchetype(const TEntityHandle& handle, const FName& archetypeId)
             {
-                // TODO (jfarris): implement
-                return false;
+                typename TArchetypeList::Handle newHandle(handle.GetEntityId());
+
+                TArchetypeList* currList = FindOwningArchetypeList(handle);
+
+                // The entity is already in a list with the given archetype id. Nothing changes.
+                if (currList && currList->GetDefinition().GetId() == archetypeId)
+                {
+                    return handle;
+                }
+
+                // Allocate a new archetype for the entity in a new list.
+                if (TArchetypeList* newList = FindOrAddArchetypeList(archetypeId))
+                {
+                    newHandle = newList->Acquire(handle.GetEntityId());
+
+                    // Copy over any component data to the new archetype
+                    if (currList)
+                    {
+                        currList->ForEachComponent(handle, [&](const ComponentDefinition& compDef, const void* currComp)
+                        {
+                            if (void* newComp = newList->GetComponent(newHandle, compDef.Id))
+                            {
+                                memcpy(newComp, currComp, compDef.Size);
+                            }
+                        });
+                    }
+                }
+                
+                // Try to remove the entity from the list it currently belongs to.
+                if (currList)
+                {
+                    currList->Release(handle);
+                }
+
+                return newHandle;
             }
 
-            void* AddComponent(const TEntityHandle& handle, const FName& componentId)
+            void* AddComponent(TEntityHandle& inOutHandle, const ComponentDefinition& componentDef)
             {
-                // TODO (jfarris): implement
-                return nullptr;
+                TArchetypeDefinition currArchDef;
+
+                if (const TArchetypeList* currList = FindOwningArchetypeList(inOutHandle))
+                {
+                    currArchDef = currList->GetDefinition();
+                }
+
+                TArchetypeDefinition newArchDef;
+                if (!TArchetypeDefinition::AddComponent(currArchDef, componentDef, newArchDef))
+                {
+                    // Failed to add the component to the archetype. Could be that the current archetype definition
+                    // already had that component or it can't add any more components.
+                    return nullptr;
+                }
+
+                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetId(), newArchDef);
+                if (!archDef)
+                {
+                    // Failed to add the new archetype, probably out of space.
+                    return nullptr;
+                }
+
+                inOutHandle = SetArchetype(inOutHandle, archDef->GetId());
+
+                return GetComponent(inOutHandle, componentDef.Id);
+            }
+
+            void* AddComponent(TEntityHandle& inOutHandle, const FName& componentId)
+            {
+                const ComponentDefinition* compDef = ComponentDefinitions.GetPtr(componentId);
+                if (!compDef)
+                {
+                    return nullptr;
+                }
+
+                return AddComponent(inOutHandle, *compDef);
             }
 
             template <class T>
-            T* AddComponent(const TEntityHandle& handle, const T& defaultValue = {})
+            T* AddComponent(TEntityHandle& inOutHandle, const T& defaultValue = {})
             {
-                // TODO (jfarris): implement
-                return nullptr;
+                ComponentDefinition compDef = ComponentDefinition::Create<T>();
+                T* compPtr = static_cast<T*>(AddComponent(inOutHandle, compDef));
+                if (!compPtr)
+                {
+                    return nullptr;
+                }
+                *compPtr = defaultValue;
+                return compPtr;
             }
 
             template <class T, class ...TArgs>
-            T* EmplaceComponent(const TEntityHandle& handle, const TArgs&...args)
+            T* EmplaceComponent(TEntityHandle& inOutHandle, const TArgs&...args)
             {
-                // TODO (jfarris): implement
-                return nullptr;
+                ComponentDefinition compDef = ComponentDefinition::Create<T>();
+                T* compPtr = static_cast<T*>(AddComponent(inOutHandle, compDef));
+                if (!compPtr)
+                {
+                    return nullptr;
+                }
+                new (compPtr) T(args...);
+                return compPtr;
             }
 
-            bool RemoveComponent(const TEntityHandle& handle, const FName& componentId)
+            bool RemoveComponent(TEntityHandle& inOutHandle, const FName& componentId)
             {
-                // TODO (jfarris): implement
-                return false;
+                TArchetypeDefinition currArchDef;
+
+                const TArchetypeList* currList = FindOwningArchetypeList(inOutHandle);
+                if (!currList)
+                {
+                    return false;
+                }
+
+                TArchetypeDefinition newArchDef;
+                if (!TArchetypeDefinition::RemoveComponent(currArchDef, componentId, newArchDef))
+                {
+                    // Failed to remove the component from the archetype.
+                    // The current archetype definition must not have the component.
+                    return false;
+                }
+
+                TArchetypeDefinition* archDef = ArchetypeDefinitions.FindOrAdd(newArchDef.GetId(), newArchDef);
+                if (!archDef)
+                {
+                    // Failed to add the new archetype, probably out of space.
+                    return false;
+                }
+
+                inOutHandle = SetArchetype(inOutHandle, archDef->GetId());
+                
+                return true;
             }
 
             template <class T>
-            bool RemoveComponent(const TEntityHandle& handle)
+            bool RemoveComponent(TEntityHandle& inOutHandle)
             {
-                // TODO (jfarris): implement
-                return false;
+                return RemoveComponent(inOutHandle, T::StaticTypeName);
             }
 
-            uint32 RemoveAllComponents(const TEntityHandle& handle)
+            bool RemoveAllComponents(TEntityHandle& inOutHandle)
             {
-                // TODO (jfarris): implement
-                return 0;
+                TArchetypeList* currList = FindOwningArchetypeList(inOutHandle);
+                return currList && currList->Release(inOutHandle);
             }
 
-            void* GetComponentPtr(const TEntityHandle& handle, const FName& componentId)
+            void* GetComponent(const TEntityHandle& handle, const FName& componentId)
             {
                 TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
@@ -163,7 +317,7 @@ namespace Phoenix
                 return list->GetComponent(handle, componentId);
             }
 
-            const void* GetComponentPtr(const TEntityHandle& handle, const FName& componentId) const
+            const void* GetComponent(const TEntityHandle& handle, const FName& componentId) const
             {
                 const TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
@@ -175,7 +329,7 @@ namespace Phoenix
             }
 
             template <class T>
-            T* GetComponentPtr(const TEntityHandle& handle)
+            T* GetComponent(const TEntityHandle& handle)
             {
                 TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
@@ -187,7 +341,7 @@ namespace Phoenix
             }
 
             template <class T>
-            const T* GetComponentPtr(const TEntityHandle& handle) const
+            const T* GetComponent(const TEntityHandle& handle) const
             {
                 const TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
@@ -200,15 +354,12 @@ namespace Phoenix
 
             TArchetypeList* FindFirstArchetypeList(const FName& archetypeId, bool includeFullLists = false)
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    if ((FName)(ChunkAllocator.Chunks[i].UserData) == archetypeId)
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    if (list && list->GetDefinition().GetId() == archetypeId && (includeFullLists || !list->IsFull()))
                     {
-                        TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
-                        if (list && (includeFullLists || !list->IsFull()))
-                        {
-                            return list;
-                        }
+                        return list;
                     }
                 }
                 return nullptr;
@@ -216,21 +367,21 @@ namespace Phoenix
 
             TArchetypeList* FindOwningArchetypeList(const TEntityHandle& handle)
             {
-                TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle { handle.GetOwnerId() });
+                TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
                 return list && list->IsValid(handle) ? list : nullptr;
             }
 
             const TArchetypeList* FindOwningArchetypeList(const TEntityHandle& handle) const
             {
-                const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle { handle.GetOwnerId() });
+                const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(TBlockHandle { handle.GetOwnerId() });
                 return list && list->IsValid(handle) ? list : nullptr;
             }
 
             void ForEachArchetypeList(const TFunction<void(TArchetypeList&)>& func)
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list)
                     {
                         func(*list);
@@ -240,9 +391,9 @@ namespace Phoenix
 
             void ForEachArchetypeList(const TFunction<void(const TArchetypeList&)>& func) const
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    const TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    const TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list)
                     {
                         func(*list);
@@ -252,16 +403,12 @@ namespace Phoenix
 
             void ForEachArchetypeList(const FName& archetypeId, const TFunction<void(TArchetypeList&)>& func)
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    FName archetypeListId = ChunkAllocator.Chunks[i].UserData;
-                    if (archetypeListId == archetypeId)
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    if (list && list->GetDefinition()->GetId() == archetypeId)
                     {
-                        TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
-                        if (list)
-                        {
-                            func(*list);
-                        }
+                        func(*list);
                     }
                 }
             }
@@ -269,9 +416,9 @@ namespace Phoenix
             template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         list->template ForEachEntity<TComponents...>([&](EntityId entityId, TComponents ...components)
@@ -285,9 +432,9 @@ namespace Phoenix
             template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         func(EntityComponentSpan<TComponents...>::FromList(*list));
@@ -334,9 +481,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -350,9 +497,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -366,9 +513,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -382,9 +529,9 @@ namespace Phoenix
             {
                 PHX_ASSERT(!Queries.IsFull());
 
-                for (uint32 i = 0; i < ChunkAllocator.NumChunks; ++i)
+                for (const TBlockHandle& handle : BlockAllocator)
                 {
-                    TArchetypeList* list = ChunkAllocator.template GetPtr<TArchetypeList>(TChunkHandle{i});
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
@@ -403,7 +550,22 @@ namespace Phoenix
                 Queries.Reset();
             }
 
-        //private:
+            void Compact()
+            {
+                // Free any archetype lists with no active instances.
+                for (const TBlockHandle& handle : BlockAllocator)
+                {
+                    TArchetypeList* list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
+                    if (list && list->GetNumActiveInstances() == 0)
+                    {
+                        BlockAllocator.Deallocate(handle);
+                    }
+                }
+
+                BlockAllocator.Compact();
+            }
+
+        private:
 
             TArchetypeList* FindOrAddArchetypeList(const FName& archetypeId)
             {
@@ -419,16 +581,17 @@ namespace Phoenix
                     return nullptr;
                 }
                 
-                TChunkHandle handle = ChunkAllocator.template Allocate<TArchetypeList>((uint32)archetypeId, *archetypeDef);
-                list = ChunkAllocator.template GetPtr<TArchetypeList>(handle);
+                TBlockHandle handle = BlockAllocator.template Allocate<TArchetypeList>((uint32)archetypeId, *archetypeDef);
+                list = BlockAllocator.template GetPtr<TArchetypeList>(handle);
                 list->SetId(handle.Id);
 
                 return list;
             }
 
-            TFixedMap<FName, TArchetypeDefinition, MaxNumArchetypes> ArchetypeDefinitions;
+            TComponentDefMap ComponentDefinitions;
+            TArchetypeDefMap ArchetypeDefinitions;
             TFixedArena<1024> Queries; 
-            TChunkAllocator ChunkAllocator;
+            TChunkAllocator BlockAllocator;
         };
     }
 }

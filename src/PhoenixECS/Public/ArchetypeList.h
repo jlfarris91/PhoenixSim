@@ -224,7 +224,7 @@ namespace Phoenix
             template <class T>
             constexpr const T* GetComponent(const Handle& handle) const
             {
-                const void* dataPtr = GetComponentPtr(handle, T::StaticTypeName);
+                const void* dataPtr = GetComponent(handle, T::StaticTypeName);
                 return static_cast<const T*>(dataPtr);
             }
 
