@@ -5,10 +5,10 @@
 
 namespace Phoenix
 {
-    template <size_t N>
+    template <uint32 N>
     struct TFixedArena
     {
-        static constexpr size_t Capacity = N;
+        static constexpr uint32 Capacity = N;
 
         struct Handle { uint16 Id; };
 
@@ -17,7 +17,9 @@ namespace Phoenix
         struct Arena
         {
             uint16 Id = 0;
-            Arena* Next;
+            uint32 Size = 0;
+            Arena* Next = nullptr;
+            void (*Destructor)(void*) = nullptr;
         };
 
         constexpr bool IsEmpty() const
@@ -30,19 +32,33 @@ namespace Phoenix
             return Size == N;
         }
 
-        constexpr size_t GetSize() const
+        constexpr uint32 GetSize() const
         {
             return Size;
         }
 
         void Reset()
         {
+            Arena* arena = GetFirstArena();
+            while (arena)
+            {
+                if (arena->Destructor)
+                {
+                    arena->Destructor(GetArenaData(arena));
+                }
+                else
+                {
+                    memset(GetArenaData(arena), 0, arena->Size);
+                }
+                arena = arena->Next;
+            }
+
             TailArena = nullptr;
             ArenaIdCounter = 0;
             Size = 0;
         }
 
-        Handle Allocate(size_t size)
+        Handle Allocate(uint32 size)
         {
             Arena* arena = AllocateArena(size);
             if (arena == nullptr)
@@ -61,8 +77,10 @@ namespace Phoenix
                 return InvalidHandle;
             }
 
+            arena->Destructor = &TTypeHelper<T>::Destruct;
+
             void* data = GetArenaData(arena);
-            new (data) Underlying_T<T>(value);
+            Underlying_T<T>* ptr = new (data) Underlying_T<T>(value);
 
             return { arena->Id };
         }
@@ -75,6 +93,8 @@ namespace Phoenix
             {
                 return InvalidHandle;
             }
+
+            arena->Destructor = &TTypeHelper<T>::Destruct;
 
             void* data = GetArenaData(arena);
             new (data) Underlying_T<T>(std::move(value));
@@ -90,6 +110,8 @@ namespace Phoenix
             {
                 return InvalidHandle;
             }
+
+            arena->Destructor = &TTypeHelper<T>::Destruct;
 
             void* data = GetArenaData(arena);
             new (data) Underlying_T<T>(args...);
@@ -280,12 +302,12 @@ namespace Phoenix
             return reinterpret_cast<uint8*>(arena) + sizeof(Arena);
         }
 
-        static void* GetArenaData(const Arena* arena)
+        static const void* GetArenaData(const Arena* arena)
         {
             return reinterpret_cast<const uint8*>(arena) + sizeof(Arena);
         }
 
-        Arena* AllocateArena(size_t size)
+        Arena* AllocateArena(uint32 size)
         {
             if (Size + sizeof(Arena) + size >= N)
             {
@@ -293,9 +315,11 @@ namespace Phoenix
             }
 
             void* block = Data + Size;
-            Arena* arena = static_cast<Arena*>(block);
+            Arena* arena = new (block) Arena();
             arena->Id = ++ArenaIdCounter;
+            arena->Size = size;
             arena->Next = nullptr;
+            arena->Destructor = nullptr;
 
             void* data = GetArenaData(arena);
             memset(data, 0, size);
@@ -313,7 +337,7 @@ namespace Phoenix
         }
 
         uint8 Data[N] = {};
-        size_t Size = 0;
+        uint32 Size = 0;
         uint16 ArenaIdCounter = 0;
         Arena* TailArena = nullptr;
     };

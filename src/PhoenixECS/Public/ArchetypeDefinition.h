@@ -5,9 +5,12 @@
 
 #include "Platform.h"
 #include "Name.h"
-#include "Optional.h"
 #include "Reflection.h"
 #include "Containers/FixedArray.h"
+
+#ifndef PHX_ECS_ARCHETYPE_MAX_COMPS
+#define PHX_ECS_ARCHETYPE_MAX_COMPS 8
+#endif
 
 namespace Phoenix
 {
@@ -28,7 +31,7 @@ namespace Phoenix
             }
         };
 
-        template <uint8 MaxComponents>
+        template <uint8 MaxComponents = PHX_ECS_ARCHETYPE_MAX_COMPS>
         struct TArchetypeDefinition
         {
             TArchetypeDefinition() = default;
@@ -227,5 +230,7 @@ namespace Phoenix
             TFixedArray<ComponentDefinition, MaxComponents> Components;
             uint16 TotalSize = 0;
         };
+
+        using ArchetypeDefinition = TArchetypeDefinition<>;
     }
 }

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Reflection.h"
+#include "DLLExport.h"
 
 namespace Phoenix
 {

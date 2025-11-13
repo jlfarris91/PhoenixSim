@@ -9,7 +9,7 @@
 
 namespace Phoenix
 {
-    constexpr uint32 MortonCodeGridBits = Distance::B >> 2;
+    constexpr uint32 MortonCodeGridBits = Distance::B >> 3;
     using TMortonCodeRangeArray = TArray<TTuple<uint64, uint64>>;
 
     // Expand a 32-bit integer into 64 bits by inserting 0s between the bits
@@ -164,6 +164,7 @@ namespace Phoenix
         const TMortonCodeRangeArray& ranges,
         const TPred& predicate)
     {
+        bool wantsExit = false;
         for (auto && [min, max] : ranges)
         {
             auto itrLo = std::lower_bound(sorted.begin(), sorted.end(), min, [](auto const& a, auto v)
@@ -179,12 +180,19 @@ namespace Phoenix
                 if constexpr(std::is_same_v<decltype(predicate(std::declval<decltype(*sorted.begin())>())), bool>)
                 {
                     if (predicate(*itr))
+                    {
+                        wantsExit = true;
                         break;
+                    }
                 }
                 else
                 {
                     predicate(*itr);
                 }
+            }
+            if (wantsExit)
+            {
+                break;
             }
         }
     }

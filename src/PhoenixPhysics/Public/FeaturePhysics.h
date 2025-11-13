@@ -9,6 +9,14 @@
 #include "FixedPoint/FixedVector.h"
 #include "FixedPoint/FixedLine.h"
 
+#ifndef PHX_PHS_MAX_CONTACTS_PER_ENTITY
+#define PHX_PHS_MAX_CONTACTS_PER_ENTITY 8
+#endif
+
+#ifndef PHX_PHS_MAX_CONTACTS
+#define PHX_PHS_MAX_CONTACTS (PHX_ECS_MAX_ENTITIES * PHX_PHS_MAX_CONTACTS_PER_ENTITY)
+#endif
+
 namespace Phoenix
 {
     namespace Physics
@@ -28,16 +36,37 @@ namespace Phoenix
             uint64 ZCode;
         };
 
-        struct Contact
+        struct ContactPair
         {
+            uint64 Key;
             ECS::TransformComponent* TransformA;
             BodyComponent* BodyA;
             ECS::TransformComponent* TransformB;
             BodyComponent* BodyB;
+        };
+
+        struct Contact
+        {
+            uint32 ContactPair;
             Vec2 Normal;
             Value EffMass;
             Value Bias;
             Value Impulse;
+        };
+
+        struct ContactPairHasher
+        {
+            uint64 operator()(uint64 v) const
+            {
+                // Murmur hash
+                uint64_t h = v;
+                h ^= h >> 33;
+                h *= 0xff51afd7ed558ccduLL;
+                h ^= h >> 33;
+                h *= 0xc4ceb9fe1a85ec53uLL;
+                h ^= h >> 33;
+                return h;
+            }
         };
 
         struct PHOENIXSIM_API FeaturePhysicsDynamicBlock : BufferBlockBase
@@ -51,13 +80,13 @@ namespace Phoenix
         {
             PHX_DECLARE_BLOCK_SCRATCH(FeaturePhysicsScratchBlock)
 
-            uint64 NumIterations = 0;
-            uint64 NumCollisions = 0;
-            uint64 MaxQueryBodyCount = 0;
-
             TFixedArray<EntityBody, PHX_ECS_MAX_ENTITIES> SortedEntities;
-            TFixedArray<Contact, PHX_ECS_MAX_ENTITIES> Contacts;
-            TFixedSet<uint64, PHX_ECS_MAX_ENTITIES> ContactSet;
+            TAtomic<uint32> SortedEntityCount = 0;
+
+            TFixedArray<ContactPair, PHX_PHS_MAX_CONTACTS> ContactPairs;
+            TAtomic<uint32> ContactPairsCount = 0;
+
+            TFixedArray<Contact, PHX_PHS_MAX_CONTACTS> Contacts;
             TFixedArray<CollisionLine, 1000> CollisionLines;
         };
 

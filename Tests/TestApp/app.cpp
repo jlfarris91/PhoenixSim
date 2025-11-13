@@ -91,13 +91,13 @@ void InitSession()
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
-    TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
+    // TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
     
     SessionCtorArgs sessionArgs;
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
-    sessionArgs.FeatureSetArgs.Features.push_back(luaFeature);
+    // sessionArgs.FeatureSetArgs.Features.push_back(luaFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 
     GSession = new Session(sessionArgs);
@@ -162,6 +162,12 @@ void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 {
     SetProfiler(&GTracyProfiler);
 
+    unsigned int numThreads = std::min(std::thread::hardware_concurrency(), 8u);
+    if (numThreads > 1)
+    {
+        SetThreadPool("SimThreadPool", numThreads - 1, 1024);
+    }
+
     InitSession();
 
     GWindow = window;
@@ -220,36 +226,39 @@ void OnAppRenderWorld()
 
             GEntityBodies.clear();
 
-            FeatureECS::Entities(*GCurrWorldView)
-                .ForEachEntity(TFunction([](const EntityComponentSpan<const TransformComponent&, const BodyComponent&>& span)
+            EntityQueryBuilder builder;
+            builder.RequireAllComponents<const TransformComponent&, const BodyComponent&>();
+            auto query = builder.GetQuery();
+
+            FeatureECS::ForEachEntity(*GCurrWorldView, query, TFunction([](const EntityComponentSpan<const TransformComponent&, const BodyComponent&>& span)
+            {
+                for (auto && [entity, index, transformComp, bodyComp] : span)
                 {
-                    for (auto && [entity, transformComp, bodyComp] : span)
+                    EntityBodyShape entityBodyShape;
+                    entityBodyShape.Transform = transformComp.Transform;
+                    entityBodyShape.Radius = bodyComp.Radius;
+                    entityBodyShape.Color = SDL_Color(0, 255, 0);
+                    entityBodyShape.ZCode = transformComp.ZCode;
+                    entityBodyShape.VelLen = bodyComp.LinearVelocity.Length();
+
+                    if (!HasAnyFlags(bodyComp.Flags, EBodyFlags::Awake))
                     {
-                        EntityBodyShape entityBodyShape;
-                        entityBodyShape.Transform = transformComp.Transform;
-                        entityBodyShape.Radius = bodyComp.Radius;
-                        entityBodyShape.Color = SDL_Color(0, 255, 0);
-                        entityBodyShape.ZCode = transformComp.ZCode;
-                        entityBodyShape.VelLen = bodyComp.LinearVelocity.Length();
-
-                        if (!HasAnyFlags(bodyComp.Flags, EBodyFlags::Awake))
-                        {
-                            entityBodyShape.Color = SDL_Color(0, 128, 0);
-                        }
-
-                        if (bodyComp.Movement == EBodyMovement::Attached &&
-                            transformComp.AttachParent != EntityId::Invalid)
-                        {
-                            if (TransformComponent* parentTransformComp = FeatureECS::GetComponent<TransformComponent>(*GCurrWorldView, transformComp.AttachParent))
-                            {
-                                entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
-                                entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
-                            }
-                        }
-
-                        GEntityBodies.push_back(entityBodyShape);
+                        entityBodyShape.Color = SDL_Color(0, 128, 0);
                     }
-                }));
+
+                    if (bodyComp.Movement == EBodyMovement::Attached &&
+                        transformComp.AttachParent != EntityId::Invalid)
+                    {
+                        if (TransformComponent* parentTransformComp = FeatureECS::GetComponent<TransformComponent>(*GCurrWorldView, transformComp.AttachParent))
+                        {
+                            entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
+                            entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
+                        }
+                    }
+
+                    GEntityBodies.push_back(entityBodyShape);
+                }
+            }));
         }
     }
 

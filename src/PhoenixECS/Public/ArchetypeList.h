@@ -2,9 +2,14 @@
 #pragma once
 
 #include "ArchetypeHandle.h"
+#include "ArchetypeDefinition.h"
 #include "EntityId.h"
 #include "Name.h"
 #include "Platform.h"
+
+#ifndef PHX_ECS_ARCHETYPE_LIST_SIZE
+#define PHX_ECS_ARCHETYPE_LIST_SIZE 16000
+#endif
 
 namespace Phoenix
 {
@@ -43,7 +48,7 @@ namespace Phoenix
 
         // Archetype data is tightly packed into the Data buffer.
         // Data: [Entity0][Comp0][Comp1][Entity1][Comp0][Comp1]...
-        template <class TArchetypeDefinition, uint32 N>
+        template <class TArchetypeDefinition = ArchetypeDefinition, uint32 N = PHX_ECS_ARCHETYPE_LIST_SIZE>
         class TArchetypeList
         {
         public:
@@ -545,26 +550,54 @@ namespace Phoenix
         struct EntityComponentSpan
         {
             template <class TArchetypeList>
-            static EntityComponentSpan FromList(TArchetypeList& list)
+            static EntityComponentSpan FromList(TArchetypeList& list, uint32 startingIndex)
             {
                 EntityComponentSpan span;
                 span.RawData = list.GetData();
-                span.Num = list.GetNumInstances();
+                span.StartingIndex = startingIndex;
+                span.InstanceCount = list.GetNumActiveInstances();
                 span.Step = list.GetEntityTotalSize();
 
                 uint32 offsets[sizeof...(TComponents)] = { list.GetComponentLocalOffset(Underlying_T<TComponents>::StaticTypeName)... };
                 memcpy(span.Offsets, offsets, sizeof...(TComponents) * sizeof(uint32));
 
+                span.CheckRawData();
+
                 return span;
             }
 
-            TTuple<EntityId, TComponents...> operator[](uint32 index) const
+            uint32 GetStartIndex() const
             {
+                CheckRawData();
+                return StartingIndex;
+            }
+
+            uint32 GetInstanceCount() const
+            {
+                CheckRawData();
+                return InstanceCount;
+            }
+
+            uint32 GetStep() const
+            {
+                CheckRawData();
+                return Step;
+            }
+
+            uint32 GetGlobalIndex(uint32 localIndex) const
+            {
+                CheckRawData();
+                return StartingIndex + localIndex;
+            }
+
+            TTuple<EntityId, uint32, TComponents...> operator[](uint32 index) const
+            {
+                CheckRawData();
                 uint32 entityOffset = index * Step;
                 uint8* dataPtr = static_cast<uint8*>(RawData) + entityOffset;
-                const ArchetypeInstance& instance = *reinterpret_cast<ArchetypeInstance*>(dataPtr);
+                const ArchetypeInstance* instance = reinterpret_cast<const ArchetypeInstance*>(dataPtr);
                 dataPtr += sizeof(ArchetypeInstance);
-                return MakeTuple(instance.EntityId, dataPtr, std::make_index_sequence<sizeof...(TComponents)>{});
+                return MakeTuple(instance->EntityId, index, dataPtr, std::make_index_sequence<sizeof...(TComponents)>{});
             }
 
             struct ConstIter
@@ -572,22 +605,26 @@ namespace Phoenix
                 ConstIter(const EntityComponentSpan* span, uint32 index)
                     : Span(span)
                 {
+                    Span->CheckRawData();
                     Index = Span->FindNextActiveEntity(index);
                 }
 
-                TTuple<EntityId, TComponents...> operator*() const
+                TTuple<EntityId, uint32, TComponents...> operator*() const
                 {
+                    Span->CheckRawData();
                     return Span->operator[](Index);
                 }
 
                 ConstIter& operator++()
                 {
+                    Span->CheckRawData();
                     Index = Span->FindNextActiveEntity(Index + 1);
                     return *this;
                 }
 
                 bool operator==(const ConstIter& other) const
                 {
+                    Span->CheckRawData();
                     return Span == other.Span && Index == other.Index;
                 }
 
@@ -595,14 +632,25 @@ namespace Phoenix
                 const EntityComponentSpan* Span;
             };
 
+            void CheckRawData() const
+            {
+                uint64 d = reinterpret_cast<uint64>(RawData);
+                if ((d & 0x000000FF00000000) == d)
+                {
+                    __debugbreak();
+                }
+            }
+
             ConstIter begin() const
             {
+                CheckRawData();
                 return ConstIter(this, 0);
             }
 
             ConstIter end() const
             {
-                return ConstIter(this, Num);
+                CheckRawData();
+                return ConstIter(this, InstanceCount);
             }
 
         private:
@@ -610,24 +658,27 @@ namespace Phoenix
             template <uint8 I, class T>
             T GetComponentRef(void* data) const
             {
+                CheckRawData();
                 auto ptr = reinterpret_cast<Underlying_T<T>*>(static_cast<uint8*>(data) + Offsets[I]);
                 return ComponentAccessor<T>::GetComponentRef(ptr);
             }
 
             template <std::size_t ...Is>
-            std::tuple<EntityId, TComponents...> MakeTuple(EntityId entityId, void* data, std::index_sequence<Is...>) const
+            std::tuple<EntityId, uint32, TComponents...> MakeTuple(EntityId entityId, uint32 index, void* data, std::index_sequence<Is...>) const
             {
-                return { entityId, GetComponentRef<Is, TComponents>(data)... };
+                CheckRawData();
+                return { entityId, index, GetComponentRef<Is, TComponents>(data)... };
             }
 
             uint32 FindNextActiveEntity(uint32 index) const
             {
-                while (index < Num)
+                CheckRawData();
+                while (index < InstanceCount)
                 {
                     uint32 entityOffset = index * Step;
-                    uint8* dataPtr = static_cast<uint8*>(RawData) + entityOffset;
-                    const ArchetypeInstance& instance = *reinterpret_cast<ArchetypeInstance*>(dataPtr);
-                    if (instance.EntityId != EntityId::Invalid)
+                    const uint8* dataPtr = static_cast<uint8*>(RawData) + entityOffset;
+                    const ArchetypeInstance* instance = reinterpret_cast<const ArchetypeInstance*>(dataPtr);
+                    if (instance->EntityId != EntityId::Invalid)
                     {
                         break;
                     }
@@ -636,10 +687,15 @@ namespace Phoenix
                 return index;
             }
 
-            uint32 Num = 0;
+        public:
+
+            uint32 StartingIndex = 0;
+            uint32 InstanceCount = 0;
             uint32 Step = 0;
             uint32 Offsets[sizeof...(TComponents)] = {};
             void* RawData = nullptr;
         };
+
+        using ArchetypeList = TArchetypeList<>;
     }
 }

@@ -5,7 +5,7 @@ local ext = _MAIN_SCRIPT_DIR .. "/ext"
 
 workspace "Phoenix"
     platforms { "x64" }
-    configurations { "Debug", "Release" }
+    configurations { "Debug", "Release", "ReleaseWithSymbols" }
     startproject "TestApp"
     warnings "default"
     language "C++"
@@ -38,6 +38,30 @@ project "lua"
         ext .. "/lua/lua-5.4.8/src/**"
     }
 
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
 project "sol2"
     kind "StaticLib"
     location (projects)
@@ -46,6 +70,30 @@ project "sol2"
 
     files { 
         ext .. "/sol/**"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
     }
 
 project "PhoenixCore"
@@ -67,6 +115,12 @@ project "PhoenixCore"
         defines { "NDEBUG" }
         runtime "Release"
         symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
         optimize "speed"
         
     filter {}
@@ -108,6 +162,12 @@ project "PhoenixSim"
         defines { "NDEBUG" }
         runtime "Release"
         symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
         optimize "speed"
         
     filter {}
@@ -151,6 +211,12 @@ project "PhoenixECS"
         defines { "NDEBUG" }
         runtime "Release"
         symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
         optimize "speed"
         
     filter {}
@@ -196,6 +262,12 @@ project "PhoenixPhysics"
         defines { "NDEBUG" }
         runtime "Release"
         symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
         optimize "speed"
         
     filter {}
@@ -251,6 +323,12 @@ project "PhoenixLua"
         defines { "NDEBUG" }
         runtime "Release"
         symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
         optimize "speed"
         
     filter {}
@@ -314,10 +392,6 @@ project "TestApp"
         "SDL3"
     }
 
-    postbuildcommands {
-        "xcopy /s /y \"" .. ext .. "\\SDL3\\x64\\%{cfg.buildcfg}\\*.*\" \"$(TargetDir)\""
-    }
-
     filter "configurations:Debug"
         defines { "DEBUG" }
         runtime "Debug"
@@ -328,6 +402,12 @@ project "TestApp"
         runtime "Release"
         symbols "Off"
         optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
         
     filter {}
 
@@ -335,3 +415,15 @@ project "TestApp"
     disablewarnings {
         "4251", "4275"
     }
+    
+    filter "not configurations:ReleaseWithSymbols"
+        postbuildcommands {
+            "xcopy /s /y \"" .. ext .. "\\SDL3\\x64\\%{cfg.buildcfg}\\*.*\" \"$(TargetDir)\""
+        }
+
+    filter "configurations:ReleaseWithSymbols"
+        postbuildcommands {
+            "xcopy /s /y \"" .. ext .. "\\SDL3\\x64\\Release\\*.*\" \"$(TargetDir)\""
+        }
+
+    filter {}

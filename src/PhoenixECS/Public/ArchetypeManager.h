@@ -7,21 +7,39 @@
 #include "Platform.h"
 #include "Containers/FixedMap.h"
 #include "Name.h"
+#include "Profiling.h"
 #include "Session.h"
 #include "Containers/FixedBlockAllocator.h"
 #include "Utils.h"
-#include "Containers/FixedArena.h"
+
+#ifndef PHX_ECS_ARCHETYPE_MGR_MAX_COMPONENT_DEFS
+#define PHX_ECS_ARCHETYPE_MGR_MAX_COMPONENT_DEFS 128
+#endif
+
+#ifndef PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_DEFS
+#define PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_DEFS 32
+#endif
+
+#ifndef PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_LISTS
+#define PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_LISTS 1024
+#endif
 
 namespace Phoenix
 {
     namespace ECS
     {
+        template <class ...TComponents>
+        using TEntityQueryFunc = TFunction<void(EntityId, TComponents...)>;
+
+        template <class ...TComponents>
+        using TEntityQueryBufferFunc = TFunction<void(const EntityComponentSpan<TComponents...>&)>;
+
         template <
-            class TArchetypeDefinition = TArchetypeDefinition<8>,
-            uint16 MaxNumComponents = 128,
-            uint16 MaxNumArchetypes = 32,
-            uint16 MaxNumArchetypeLists = 1024,
-            uint32 ArchetypeListSize = 16000
+            class TArchetypeDefinition = ArchetypeDefinition,
+            uint16 MaxNumComponents = PHX_ECS_ARCHETYPE_MGR_MAX_COMPONENT_DEFS,
+            uint16 MaxNumArchetypes = PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_DEFS,
+            uint16 MaxNumArchetypeLists = PHX_ECS_ARCHETYPE_MGR_MAX_ARCHETYPE_LISTS,
+            uint32 ArchetypeListSize = PHX_ECS_ARCHETYPE_LIST_SIZE
         >
         class TArchetypeManager
         {
@@ -343,6 +361,8 @@ namespace Phoenix
 
             void* GetComponent(const TEntityHandle& handle, const FName& componentId)
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
                 {
@@ -354,6 +374,8 @@ namespace Phoenix
 
             const void* GetComponent(const TEntityHandle& handle, const FName& componentId) const
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 const TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
                 {
@@ -366,6 +388,8 @@ namespace Phoenix
             template <class T>
             T* GetComponent(const TEntityHandle& handle)
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
                 {
@@ -378,6 +402,8 @@ namespace Phoenix
             template <class T>
             const T* GetComponent(const TEntityHandle& handle) const
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 const TArchetypeList* list = FindOwningArchetypeList(handle);
                 if (!list || !list->IsValid(handle))
                 {
@@ -416,7 +442,7 @@ namespace Phoenix
             {
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
-                    const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
+                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list)
                     {
                         func(*list);
@@ -467,12 +493,14 @@ namespace Phoenix
             template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
+                uint32 startingIndex = 0;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
-                        func(EntityComponentSpan<TComponents...>::FromList(*list));
+                        func(EntityComponentSpan<TComponents...>::FromList(*list, startingIndex));
+                        startingIndex += list->GetNumActiveInstances();
                     }
                 }
             }
@@ -499,90 +527,6 @@ namespace Phoenix
                 }
 
                 list->ForEachComponent(handle, callback);
-            }
-
-            EntityQueryBuilder<TArchetypeManager> Entities()
-            {
-                return EntityQueryBuilder<TArchetypeManager>(this);
-            }
-
-            EntityQueryBuilder<TArchetypeManager> Entities() const
-            {
-                return EntityQueryBuilder<TArchetypeManager>(const_cast<TArchetypeManager*>(this));
-            }
-
-            template <class ...TComponents>
-            void Schedule(const EntityQuery& query, const TEntityQueryJobFunc<TComponents...>& func)
-            {
-                PHX_ASSERT(!Queries.IsFull());
-
-                for (const TBlockHandle& handle : ArchetypeLists)
-                {
-                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
-                    if (list && query.PassesFilter(list->GetDefinition()))
-                    {
-                        TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
-                        Queries.Allocate(worker);
-                    }
-                }
-            }
-
-            template <class ...TComponents>
-            void Schedule(const EntityQuery& query, const TEntityQueryBufferJobFunc<TComponents...>& func)
-            {
-                PHX_ASSERT(!Queries.IsFull());
-
-                for (const TBlockHandle& handle : ArchetypeLists)
-                {
-                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
-                    if (list && query.PassesFilter(list->GetDefinition()))
-                    {
-                        TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
-                        Queries.Allocate(worker);
-                    }
-                }
-            }
-
-            template <class ...TComponents>
-            void ScheduleParallel(const EntityQuery& query, const TEntityQueryJobFunc<TComponents...>& func)
-            {
-                PHX_ASSERT(!Queries.IsFull());
-
-                for (const TBlockHandle& handle : ArchetypeLists)
-                {
-                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
-                    if (list && query.PassesFilter(list->GetDefinition()))
-                    {
-                        TEntityQueryWorker<TArchetypeManager, TComponents...> worker(list, func);
-                        Queries.Allocate(worker);
-                    }
-                }
-            }
-
-            template <class ...TComponents>
-            void ScheduleParallel(const EntityQuery& query, const TEntityQueryBufferJobFunc<TComponents...>& func)
-            {
-                PHX_ASSERT(!Queries.IsFull());
-
-                for (const TBlockHandle& handle : ArchetypeLists)
-                {
-                    TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
-                    if (list && query.PassesFilter(list->GetDefinition()))
-                    {
-                        TEntityQueryBufferWorker<TArchetypeManager, TComponents...> worker(list, func);
-                        Queries.Allocate(worker);
-                    }
-                }
-            }
-
-            void ProcessQueries(WorldRef world)
-            {
-                for (auto && [handle, data] : Queries)
-                {
-                    auto worker = static_cast<IEntityQueryWorker<TArchetypeManager>*>(data);
-                    worker->Execute(world, *this);
-                }
-                Queries.Reset();
             }
 
             void Compact()
@@ -630,8 +574,8 @@ namespace Phoenix
             TArchetypeDefMap ArchetypeDefinitions;
 
             TArchetypeLists ArchetypeLists;
-
-            TFixedArena<1024> Queries;
         };
+
+        using ArchetypeManager = TArchetypeManager<>;
     }
 }

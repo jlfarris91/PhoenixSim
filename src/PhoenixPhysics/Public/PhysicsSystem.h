@@ -1,8 +1,11 @@
 ﻿
 #pragma once
 
+#include "BodyComponent.h"
 #include "DLLExport.h"
 #include "System.h"
+#include "SystemJob.h"
+#include "TransformComponent.h"
 
 namespace Phoenix
 {

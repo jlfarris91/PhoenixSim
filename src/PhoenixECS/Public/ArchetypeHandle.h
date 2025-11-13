@@ -8,12 +8,12 @@ namespace Phoenix
 {
     namespace ECS
     {
-        template <class TArchetypeDefinition, uint32 N>
+        template <typename TArchetypeDefinition, uint32 N>
         class TArchetypeList;
 
         struct PHOENIXECS_API ArchetypeHandle
         {
-            template <class TArchetypeDefinition, uint32 N>
+            template <typename TArchetypeDefinition, uint32 N>
             friend class TArchetypeList;
 
             ArchetypeHandle() = default;

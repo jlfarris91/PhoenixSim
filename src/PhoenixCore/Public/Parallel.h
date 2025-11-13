@@ -12,60 +12,160 @@
 
 namespace Phoenix
 {
-    class PHOENIXCORE_API ThreadPool
+    struct PHOENIXCORE_API TaskHandle
+    {
+        bool IsCompleted() const;
+        bool WaitForCompleted(clock_t maxWaitTime = 0) const;
+        void OnCompleted(const std::function<void()>& fn);
+
+    private:
+        friend class Task;
+        std::function<void()> OnCompletedFunc;
+        std::atomic<bool> bIsCompleted;
+    };
+    
+    class PHOENIXCORE_API Task
     {
     public:
-        using TTask = std::function<void()>;
 
-        ThreadPool(const std::string& id, size_t numWorkers, size_t queueCapacity = 1024);
-        ~ThreadPool();
+        Task();
+        Task(const std::function<void()>& work);
 
-        size_t GetNumWorkers() const;
+        void operator()() const;
 
-        void Shutdown();
-
-        void Submit(const TTask& task);
-        bool TrySubmit(const TTask& task);
-
-        bool IsEmpty() const;
-        void WaitIdle();
+        static bool WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
+        static bool WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
 
     private:
 
-        void Worker(size_t workerId);
+        friend class ThreadPool;
+
+        std::function<void()> WorkFunc;
+        TSharedPtr<TaskHandle> Handle;
+    };
+
+    PHOENIXCORE_API bool HasThreadPool();
+    PHOENIXCORE_API ThreadPool* GetThreadPool();
+    PHOENIXCORE_API void SetThreadPool(const std::string& id, uint32 numWorkers, uint32 queueCapacity = 1024);
+    PHOENIXCORE_API void DestroyThreadPool();
+
+    class PHOENIXCORE_API ThreadPool
+    {
+    public:
+        ThreadPool(std::string id, uint32 numWorkers, uint32 queueCapacity = 1024);
+        ~ThreadPool();
+
+        uint32 GetNumWorkers() const;
+
+        void Shutdown();
+
+        TSharedPtr<TaskHandle> Submit(const Task& task);
+        TSharedPtr<TaskHandle> Submit(const std::function<void()>& work);
+
+        bool IsEmpty() const;
+        bool WaitIdle(clock_t maxWaitTime = 0) const;
+
+    private:
+
+        void Worker(uint32 workerId);
 
         std::string Id;
         std::vector<std::thread> Threads;
-        TMPMCQueue<TTask> TaskQueue;
+        TMPMCQueue<Task> TaskQueue;
         std::atomic<bool> Done = false;
         std::atomic<uint32_t> ActiveWorkerCount;
         std::atomic<uint32_t> SpinningWorkerCount;
-        size_t NumWorkers;
+        uint32 NumWorkers;
+    };
+
+    class PHOENIXCORE_API TaskQueue
+    {
+    public:
+
+        TaskQueue(uint32 id);
+
+        static TSharedPtr<TaskQueue> CreateTaskQueue(uint32 id);
+        static TSharedPtr<TaskQueue> GetTaskQueue(uint32 id);
+        static bool ReleaseTaskQueue(uint32 id);
+
+        void Enqueue(const Task& task);
+        void Enqueue(const std::function<void()>& work);
+
+        void Enqueue(const std::vector<Task>& tasks);
+
+        void Flush();
+
+    private:
+
+        void Complete();
+
+        uint32 Id = 0;
+        std::vector<std::vector<Task>> Tasks;
+        std::atomic<uint32> CurrTaskIndex;
+        std::atomic<bool> bIsCompleted = false;
     };
 
     template <class TThreadPool, class TJob>
-    void ParallelForEach(TThreadPool& pool, size_t num, const TJob& job)
+    void ParallelForEach(TThreadPool& pool, uint32 num, const TJob& job)
     {
-        for (size_t i = 0; i < num; ++i)
+        for (uint32 i = 0; i < num; ++i)
         {
             pool.Submit([=] { job(i); });
         }
         pool.WaitIdle();
     }
 
-    template <class TThreadPool, class TJob>
-    void ParallelRange(TThreadPool& pool, size_t total, size_t minRange, const TJob& job)
+    template <class TJob>
+    void ParallelForEach(uint32 num, const TJob& job)
     {
-        size_t desiredRange = total / pool.GetNumWorkers();
-        size_t actualRange = desiredRange < minRange ? minRange : desiredRange;
-        size_t start = 0;
+        if (ThreadPool* threadPool = GetThreadPool())
+        {
+            ParallelForEach(*threadPool, num, job);
+            return;
+        }
+
+        // No thread pool? Just run synchronously.
+        for (uint32 i = 0; i < num; ++i)
+        {
+            job(i);
+        }
+    }
+
+    template <class TThreadPool, class TJob>
+    void ParallelRange(TThreadPool& pool, uint32 total, uint32 minRange, const TJob& job)
+    {
+        uint32 desiredRange = total / pool.GetNumWorkers();
+        uint32 actualRange = desiredRange < minRange ? minRange : desiredRange;
+        uint32 start = 0;
         while (start != total)
         {
-            size_t len = actualRange;
+            uint32 len = actualRange;
             len = len > (total - start) ? (total - start) : len;
             pool.Submit([=] { job(start, len); });
             start += len;
         }
         pool.WaitIdle();
+    }
+
+    template <class TJob>
+    void ParallelRange(uint32 total, uint32 minRange, const TJob& job)
+    {
+        if (ThreadPool* threadPool = GetThreadPool())
+        {
+            ParallelRange(*threadPool, total, minRange, job);
+            return;
+        }
+
+        // No thread pool? Just run synchronously.
+        uint32 desiredRange = total;
+        uint32 actualRange = desiredRange < minRange ? minRange : desiredRange;
+        uint32 start = 0;
+        while (start != total)
+        {
+            uint32 len = actualRange;
+            len = len > (total - start) ? (total - start) : len;
+            job(start, len);
+            start += len;
+        }
     }
 }

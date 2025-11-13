@@ -7,6 +7,8 @@
 #include "FixedTagList.h"
 #include "ArchetypeManager.h"
 #include "FixedEntityList.h"
+#include "Parallel.h"
+#include "SystemJob.h"
 #include "TransformComponent.h"
 
 #ifndef PHX_ECS_MAX_ENTITIES
@@ -22,10 +24,7 @@ namespace Phoenix
     namespace ECS
     {
         class ISystem;
-
-        using ArchetypeDefinition = TArchetypeDefinition<8>;
-        using ArchetypeList = TArchetypeList<ArchetypeDefinition, 16000>;
-        using ArchetypeManager = TArchetypeManager<ArchetypeDefinition, 128, 32, 1024, 16000>;
+        struct EntityQuery;
 
         struct PHOENIXECS_API FeatureECSDynamicBlock : BufferBlockBase
         {
@@ -42,6 +41,7 @@ namespace Phoenix
             PHX_DECLARE_BLOCK_SCRATCH(FeatureECSScratchBlock)
 
             TFixedArray<EntityTransform, PHX_ECS_MAX_ENTITIES> SortedEntities;
+            TAtomic<uint32> SortedEntityCount = 0;
         };
 
         struct PHOENIXSIM_API FeatureECSCtorArgs
@@ -54,6 +54,8 @@ namespace Phoenix
             PHX_FEATURE_BEGIN(FeatureECS)
                 FEATURE_WORLD_BLOCK(FeatureECSDynamicBlock)
                 FEATURE_WORLD_BLOCK(FeatureECSScratchBlock)
+                FEATURE_CHANNEL(FeatureChannels::WorldInitialize)
+                FEATURE_CHANNEL(FeatureChannels::WorldShutdown)
                 FEATURE_CHANNEL(FeatureChannels::PreWorldUpdate)
                 FEATURE_CHANNEL(FeatureChannels::WorldUpdate)
                 FEATURE_CHANNEL(FeatureChannels::PostWorldUpdate)
@@ -80,7 +82,7 @@ namespace Phoenix
 
             void OnWorldInitialize(WorldRef world) override;
             void OnWorldShutdown(WorldRef world) override;
-            
+
             void OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
             void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
@@ -118,10 +120,6 @@ namespace Phoenix
 
             static bool SetEntityKind(WorldRef world, EntityId entityId, const FName& kind);
 
-            static EntityQueryBuilder<ArchetypeManager> Entities(WorldRef world);
-
-            static EntityQueryBuilder<ArchetypeManager> Entities(WorldConstRef world);
-
             template <class ...TComponents>
             static void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
             {
@@ -135,7 +133,7 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
-            void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
+            static void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
                 FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
                 if (!block)
@@ -326,7 +324,67 @@ namespace Phoenix
                 return block->Tags.ForEachTag(*entity, callback);
             }
 
+            //
+            // Jobs
+            //
+
+            template <class TJob>
+            static void Schedule(WorldRef world, const TJob& job)
+            {
+                TSharedPtr<TaskQueue> taskQueue = TaskQueue::GetTaskQueue((uint32)world.GetName());
+
+                FeatureECSDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureECSDynamicBlock>();
+                WorldPtr worldPtr = &world;
+
+                uint32 startIndex = 0;
+                dynamicBlock.ArchetypeManager.ForEachArchetypeList([&](auto& list)
+                {
+                    if (job.GetQuery().PassesFilter(list.GetDefinition()))
+                    {
+                        taskQueue->Enqueue([=, listPtr = &list]
+                        {
+                            job.Execute(*worldPtr, *listPtr, startIndex);
+                        });
+
+                        startIndex += list.GetNumActiveInstances();
+                    }
+                });
+            }
+
+            template <class TJob>
+            static void ScheduleParallel(WorldRef world, const TJob& job)
+            {
+                TSharedPtr<TaskQueue> taskQueue = TaskQueue::GetTaskQueue((uint32)world.GetName());
+
+                FeatureECSDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureECSDynamicBlock>();
+                WorldPtr worldPtr = &world;
+
+                std::vector<Task> taskGroup;
+
+                uint32 startIndex = 0;
+                dynamicBlock.ArchetypeManager.ForEachArchetypeList([&](ArchetypeList& list)
+                {
+                    if (job.GetQuery().PassesFilter(list.GetDefinition()))
+                    {
+                        taskGroup.emplace_back([job, worldPtr, listPtr = &list, startIndex]
+                        {
+                            TJob copy = job;
+                            static_cast<IEntityJobBase*>(&copy)->Execute(*worldPtr, *listPtr, startIndex);
+                        });
+
+                        startIndex += list.GetNumActiveInstances();
+                    }
+                });
+
+                if (!taskGroup.empty())
+                {
+                    taskQueue->Enqueue(taskGroup);
+                }
+            }
+
             static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
+
+            static void ExecutePendingJobs(WorldRef world);
 
             bool bDebugDrawMortonCodeBoundaries = false;
             bool bDebugDrawEntityZCodes = false;
@@ -338,6 +396,7 @@ namespace Phoenix
             static void CompactWorldBuffer(WorldRef world);
 
             TArray<TSharedPtr<ISystem>> Systems;
+            TSharedPtr<ThreadPool> JobThreadPool;
         };
     }
 }

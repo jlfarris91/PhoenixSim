@@ -1,9 +1,12 @@
 ﻿
 #include "FeatureECS.h"
 
+#include <execution>
+
 #include "MortonCode.h"
 #include "Profiling.h"
 #include "System.h"
+#include "SystemJob.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -122,6 +125,8 @@ bool FeatureECS::OnPostHandleAction(const FeatureActionArgs& action)
 void FeatureECS::OnWorldInitialize(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
+    
+    TaskQueue::CreateTaskQueue((uint32)world.GetName());
 
     for (const TSharedPtr<ISystem>& system : Systems)
     {
@@ -137,6 +142,8 @@ void FeatureECS::OnWorldShutdown(WorldRef world)
     {
         system->OnWorldShutdown(world);
     }
+    
+    TaskQueue::ReleaseTaskQueue((uint32)world.GetName());
 }
 
 void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
@@ -153,6 +160,8 @@ void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
     {
         system->OnPreWorldUpdate(world, systemUpdateArgs);
     }
+
+    ExecutePendingJobs(world);
 }
 
 void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
@@ -167,6 +176,8 @@ void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
     {
         system->OnWorldUpdate(world, systemUpdateArgs);
     }
+
+    ExecutePendingJobs(world);
 }
 
 void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
@@ -181,6 +192,8 @@ void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args
     {
         system->OnPostWorldUpdate(world, systemUpdateArgs);
     }
+
+    ExecutePendingJobs(world);
 
     CompactWorldBuffer(world);
 }
@@ -271,30 +284,40 @@ bool FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
 
 Entity* FeatureECS::GetEntityPtr(WorldRef world, EntityId entityId)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.Entities.GetEntityPtr(entityId);
 }
 
 const Entity* FeatureECS::GetEntityPtr(WorldConstRef world, EntityId entityId)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.Entities.GetEntityPtr(entityId);
 }
 
 Entity& FeatureECS::GetEntityRef(WorldRef world, EntityId entityId)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.Entities.GetEntityRef(entityId);
 }
 
 const Entity& FeatureECS::GetEntityRef(WorldConstRef world, EntityId entityId)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
     return block.Entities.GetEntityRef(entityId);
 }
 
 EntityId FeatureECS::AcquireEntity(WorldRef world, const FName& kind)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
 
     EntityId entityId = block.Entities.Acquire(kind);
@@ -363,18 +386,6 @@ bool FeatureECS::SetEntityKind(WorldRef world, EntityId entityId, const FName& k
     return true;
 }
 
-EntityQueryBuilder<ArchetypeManager> FeatureECS::Entities(WorldRef world)
-{
-    FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    return block.ArchetypeManager.Entities();
-}
-
-EntityQueryBuilder<ArchetypeManager> FeatureECS::Entities(WorldConstRef world)
-{
-    const FeatureECSDynamicBlock& block = world.GetBlockRef<FeatureECSDynamicBlock>();
-    return block.ArchetypeManager.Entities();
-}
-
 bool FeatureECS::RegisterArchetypeDefinition(WorldRef world, const ArchetypeDefinition& definition)
 {
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
@@ -413,6 +424,8 @@ IComponent* FeatureECS::GetComponent(
     EntityId entityId,
     const FName& componentType)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
     {
@@ -433,6 +446,8 @@ const IComponent* FeatureECS::GetComponent(
     EntityId entityId,
     const FName& componentType)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     const FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
     if (!block)
     {
@@ -614,31 +629,80 @@ void FeatureECS::QueryEntitiesInRange(
         });
 }
 
+void FeatureECS::ExecutePendingJobs(WorldRef world)
+{
+    PHX_PROFILE_ZONE_SCOPED;
+
+    TSharedPtr<TaskQueue> taskQueue = TaskQueue::GetTaskQueue((uint32)world.GetName());
+
+    // Submit any pending jobs and pause the thread until they finish.
+    taskQueue->Flush();
+}
+
+struct CalculateZCodesJob : IBufferJob<TransformComponent&>
+{
+    void Execute(const EntityComponentSpan<TransformComponent&>& span) override
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("SortEntitiesByZCodeTask");
+
+        FeatureECSScratchBlock& scratchBlock = World->GetBlockRef<FeatureECSScratchBlock>();
+
+        for (auto && [entityId, index, transformComp] : span)
+        {
+            transformComp.ZCode = ToMortonCode(transformComp.Transform.Position);
+            scratchBlock.SortedEntities[span.GetGlobalIndex(index)] = EntityTransform(entityId, &transformComp, transformComp.ZCode);
+        }
+
+        using iter = decltype(scratchBlock.SortedEntities)::Iter;
+        iter startIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex);
+        iter endIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex + span.InstanceCount);
+
+        std::sort(
+            startIter,
+            endIter,
+            [](const EntityTransform& a, const EntityTransform& b)
+            {
+                return a.ZCode < b.ZCode;
+            });
+
+        scratchBlock.SortedEntityCount += span.InstanceCount;
+    }
+};
+
 void FeatureECS::SortEntitiesByZCode(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
     
     FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
     
-    // Calculate z-codes and sort entities
     scratchBlock.SortedEntities.Reset();
-    Entities(world)
-        .ForEachEntity(TFunction([&](const EntityComponentSpan<TransformComponent&>& span)
-        {
-            for (auto && [entityId, transformComp] : span)
-            {
-                transformComp.ZCode = ToMortonCode(transformComp.Transform.Position);
-                scratchBlock.SortedEntities.EmplaceBack(entityId, &transformComp, transformComp.ZCode);
-            }
-        }));
+    scratchBlock.SortedEntityCount = 0;
+    
+    // Calculate z-codes in parallel
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("ScheduleJob");
+        CalculateZCodesJob job;
+        ScheduleParallel(world, job);        
+    }
+
+    // Execute the jobs in parallel
+    ExecutePendingJobs(world);
+
+    scratchBlock.SortedEntities.SetSize(scratchBlock.SortedEntityCount);
 
     // Sort entities by their zcodes
-    std::ranges::sort(
-        scratchBlock.SortedEntities,
-        [](const EntityTransform& a, const EntityTransform& b)
-        {
-            return a.ZCode < b.ZCode;
-        });
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("SortEntitiesByZCode_Sort");
+
+        std::sort(
+            std::execution::par,
+            scratchBlock.SortedEntities.begin(),
+            scratchBlock.SortedEntities.end(),
+            [](const EntityTransform& a, const EntityTransform& b)
+            {
+                return a.ZCode < b.ZCode;
+            });
+    }
 }
 
 void FeatureECS::CompactWorldBuffer(WorldRef world)
