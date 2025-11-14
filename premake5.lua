@@ -12,7 +12,7 @@ workspace "Phoenix"
     cppdialect "C++20"
     staticruntime "off"
     debugdir (_MAIN_SCRIPT_DIR)
-    location (projects)
+    location (_MAIN_SCRIPT_DIR)
 
     group "External"
         project "lua"
@@ -105,6 +105,7 @@ project "PhoenixCore"
 
     -- defines { "PHOENIX_DLL" }
     -- defines { "PHOENIXCORE_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
 
     filter "configurations:Debug"
         defines { "DEBUG" }

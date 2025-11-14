@@ -27,9 +27,9 @@ bool TaskHandle::WaitForCompleted(clock_t maxWaitTime) const
     return true;
 }
 
-void TaskHandle::OnCompleted(const std::function<void()>& fn)
+void TaskHandle::OnCompleted(std::function<void()>&& fn)
 {
-    OnCompletedFunc = fn;
+    OnCompletedFunc = std::move(fn);
     if (IsCompleted())
     {
         OnCompletedFunc();
@@ -38,8 +38,13 @@ void TaskHandle::OnCompleted(const std::function<void()>& fn)
 
 Task::Task() = default;
 
-Task::Task(const std::function<void()>& work)
-    : WorkFunc(work)
+Task::Task(Task&& other)
+    : WorkFunc(std::move(other.WorkFunc))
+{
+}
+
+Task::Task(TTaskFunc&& work)
+    : WorkFunc(std::move(work))
 {
 }
 
@@ -145,13 +150,13 @@ void ThreadPool::Shutdown()
 
 TSharedPtr<TaskHandle> ThreadPool::Submit(const Task& task)
 {
-    auto handle = MakeShared<TaskHandle>();
+    TSharedPtr<TaskHandle> handle = MakeShared<TaskHandle>();
 
-    Task taskWithHandle = task;
-    taskWithHandle.Handle = handle;
+    Task taskCopy = task;
+    taskCopy.Handle = handle;
 
     uint32 attempts = 0;
-    while (!TaskQueue.TryEnqueue(taskWithHandle))
+    while (!TaskQueue.TryEnqueue(taskCopy))
     {
         ++attempts;
         if (attempts < 16)
@@ -170,9 +175,9 @@ TSharedPtr<TaskHandle> ThreadPool::Submit(const Task& task)
     return handle;
 }
 
-TSharedPtr<TaskHandle> ThreadPool::Submit(const std::function<void()>& work)
+TSharedPtr<TaskHandle> ThreadPool::Submit(TTaskFunc&& work)
 {
-    return Submit(Task(work));
+    return Submit(Task(std::move(work)));
 }
 
 bool ThreadPool::IsEmpty() const
@@ -251,17 +256,16 @@ void ThreadPool::Worker(uint32 workerId)
 TMap<uint32, TSharedPtr<TaskQueue>> gTaskQueues;
 std::mutex gTaskQueueMutex;
 
-TaskQueue::TaskQueue(uint32 id)
+TaskQueue::TaskQueue(uint32 id, Phoenix::ThreadPool* threadPool)
     : Id (id)
+    , ThreadPool(threadPool)
 {
+    Tasks.reserve(32);
 }
 
 TSharedPtr<TaskQueue> TaskQueue::CreateTaskQueue(uint32 id)
 {
     std::scoped_lock lock(gTaskQueueMutex);
-
-    auto iter = gTaskQueues.find(id);
-    PHX_ASSERT(iter == gTaskQueues.end());
 
     TSharedPtr<TaskQueue> taskQueue = MakeShared<TaskQueue>(id);
     gTaskQueues[id] = taskQueue;
@@ -270,6 +274,8 @@ TSharedPtr<TaskQueue> TaskQueue::CreateTaskQueue(uint32 id)
 
 TSharedPtr<TaskQueue> TaskQueue::GetTaskQueue(uint32 id)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     std::scoped_lock lock(gTaskQueueMutex);
 
     auto iter = gTaskQueues.find(id);
@@ -294,26 +300,59 @@ bool TaskQueue::ReleaseTaskQueue(uint32 id)
     return false;
 }
 
-void TaskQueue::Enqueue(const Task& task)
+uint32 TaskQueue::GetId() const
 {
-    Tasks.push_back({ task });
+    return Id;
 }
 
-void TaskQueue::Enqueue(const std::function<void()>& work)
+ThreadPool* TaskQueue::GetThreadPool() const
 {
-    Enqueue(Task(work));
+    return ThreadPool;
 }
 
-void TaskQueue::Enqueue(const std::vector<Task>& tasks)
+uint32 TaskQueue::GetNumWorkers() const
 {
-    Tasks.push_back(tasks);
+    return ThreadPool ? ThreadPool->GetNumWorkers() : 0;
+}
+
+void TaskQueue::Enqueue(Task&& task)
+{
+    PHX_PROFILE_ZONE_SCOPED;
+
+    if (Tasks.empty())
+    {
+        Tasks.emplace_back();
+    }
+
+    Tasks.back().push_back(std::move(task));
+}
+
+void TaskQueue::Enqueue(TTaskFunc&& work)
+{
+    Enqueue(Task(std::move(work)));
+}
+
+void TaskQueue::Enqueue(std::vector<Task>&& tasks)
+{
+    Tasks.push_back(std::move(tasks));
+}
+
+std::vector<Task>& TaskQueue::BeginGroup(uint32 size)
+{
+    Tasks.emplace_back().reserve(size);
+    return Tasks.back();
+}
+
+void TaskQueue::EndGroup()
+{
+    Tasks.emplace_back();
 }
 
 void TaskQueue::Flush()
 {
-    bIsCompleted.store(false, std::memory_order_release);
+    PHX_PROFILE_ZONE_SCOPED;
 
-    ThreadPool* threadPool = GetThreadPool();
+    bIsCompleted.store(false, std::memory_order_release);
 
     for (const std::vector<Task>& tasks : Tasks)
     {
@@ -322,7 +361,7 @@ void TaskQueue::Flush()
         
         for (const Task& task : tasks)
         {
-            handles.push_back(threadPool->Submit(task));
+            handles.push_back(ThreadPool->Submit(task));
         }
 
         Task::WaitAll(handles);

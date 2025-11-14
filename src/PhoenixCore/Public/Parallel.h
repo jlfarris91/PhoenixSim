@@ -16,22 +16,29 @@ namespace Phoenix
     {
         bool IsCompleted() const;
         bool WaitForCompleted(clock_t maxWaitTime = 0) const;
-        void OnCompleted(const std::function<void()>& fn);
+        void OnCompleted(std::function<void()>&& fn);
 
     private:
         friend class Task;
         std::function<void()> OnCompletedFunc;
         std::atomic<bool> bIsCompleted;
     };
+
+    using TTaskFunc = std::function<void()>;
     
     class PHOENIXCORE_API Task
     {
     public:
 
         Task();
-        Task(const std::function<void()>& work);
+        Task(const Task& other) = default;
+        Task(Task&& other);
+        Task(TTaskFunc&& work);
 
         void operator()() const;
+
+        Task& operator=(const Task& other) = default;
+        Task& operator=(Task&& other) = default;
 
         static bool WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
         static bool WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
@@ -40,7 +47,7 @@ namespace Phoenix
 
         friend class ThreadPool;
 
-        std::function<void()> WorkFunc;
+        TTaskFunc WorkFunc;
         TSharedPtr<TaskHandle> Handle;
     };
 
@@ -60,7 +67,7 @@ namespace Phoenix
         void Shutdown();
 
         TSharedPtr<TaskHandle> Submit(const Task& task);
-        TSharedPtr<TaskHandle> Submit(const std::function<void()>& work);
+        TSharedPtr<TaskHandle> Submit(TTaskFunc&& work);
 
         bool IsEmpty() const;
         bool WaitIdle(clock_t maxWaitTime = 0) const;
@@ -82,16 +89,22 @@ namespace Phoenix
     {
     public:
 
-        TaskQueue(uint32 id);
+        TaskQueue(uint32 id, ThreadPool* threadPool = Phoenix::GetThreadPool());
 
         static TSharedPtr<TaskQueue> CreateTaskQueue(uint32 id);
         static TSharedPtr<TaskQueue> GetTaskQueue(uint32 id);
         static bool ReleaseTaskQueue(uint32 id);
 
-        void Enqueue(const Task& task);
-        void Enqueue(const std::function<void()>& work);
+        uint32 GetId() const;
+        ThreadPool* GetThreadPool() const;
+        uint32 GetNumWorkers() const;
 
-        void Enqueue(const std::vector<Task>& tasks);
+        void Enqueue(Task&& task);
+        void Enqueue(TTaskFunc&& work);
+        void Enqueue(std::vector<Task>&& tasks);
+
+        std::vector<Task>& BeginGroup(uint32 size = 0);
+        void EndGroup();
 
         void Flush();
 
@@ -103,6 +116,7 @@ namespace Phoenix
         std::vector<std::vector<Task>> Tasks;
         std::atomic<uint32> CurrTaskIndex;
         std::atomic<bool> bIsCompleted = false;
+        ThreadPool* ThreadPool;
     };
 
     template <class TThreadPool, class TJob>

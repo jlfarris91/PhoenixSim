@@ -10,6 +10,7 @@
 #include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
+#include "WorldTaskQueue.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -17,208 +18,136 @@ using namespace Phoenix::Physics;
 
 constexpr uint8 SLEEP_TIMER = 1;
 
-struct SortEntitiesByZCodeJob : IBufferJob<TransformComponent&, BodyComponent&>
+namespace PhysicsSystemDetail
 {
-    void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
+    struct PopulateSortedEntitiesJob : IBufferJob<TransformComponent&, BodyComponent&>
     {
-        PHX_PROFILE_ZONE_SCOPED_N("SortBodiesByZCodeTask");
-
-        FeaturePhysicsScratchBlock& scratchBlock = World->GetBlockRef<FeaturePhysicsScratchBlock>();
-
-        for (auto && [entityId, index, transformComp, bodyComp] : span)
+        void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
         {
-            scratchBlock.SortedEntities[span.GetGlobalIndex(index)] = EntityBody{entityId, &transformComp, &bodyComp, transformComp.ZCode};
+            PHX_PROFILE_ZONE_SCOPED_N("PopulateSortedEntitiesJob");
+
+            FeaturePhysicsScratchBlock& scratchBlock = World->GetBlockRef<FeaturePhysicsScratchBlock>();
+
+            for (auto && [entityId, index, transformComp, bodyComp] : span)
+            {
+                uint32 sortedEntityIndex = scratchBlock.SortedEntityCount.fetch_add(1);
+                scratchBlock.SortedEntities[sortedEntityIndex] = EntityBody{entityId, &transformComp, &bodyComp, transformComp.ZCode};
+            }
         }
+    };
 
-        using iter = decltype(scratchBlock.SortedEntities)::Iter;
-        iter startIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex);
-        iter endIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex + span.InstanceCount);
+    void SortEntitiesByZCodeTask(WorldRef world)
+    {
+        PHX_PROFILE_ZONE_SCOPED;
 
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+        // Calculated from PopulateSortedEntitiesJob
+        scratchBlock.SortedEntities.SetSize(scratchBlock.SortedEntityCount);
+
+        // Sort entities by their zcodes
         std::sort(
-            startIter,
-            endIter,
+            std::execution::par,
+            scratchBlock.SortedEntities.begin(),
+            scratchBlock.SortedEntities.end(),
             [](const EntityBody& a, const EntityBody& b)
             {
                 return a.ZCode < b.ZCode;
             });
-
-        scratchBlock.SortedEntityCount += span.InstanceCount;
     }
-};
 
-struct CalculateContactPairsJob : IBufferJob<TransformComponent&, BodyComponent&>
-{
-    DeltaTime DeltaTime;
-
-    void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
+    struct CalculateContactPairsJob : IBufferJob<TransformComponent&, BodyComponent&>
     {
-        PHX_PROFILE_ZONE_SCOPED_N("CalculateContactPairsJob");
+        DeltaTime DeltaTime;
 
-        FeaturePhysicsScratchBlock& scratchBlock = World->GetBlockRef<FeaturePhysicsScratchBlock>();
-                
-        TMortonCodeRangeArray ranges;
-
-        const EntityBody* overlappingBodies[PHX_PHS_MAX_CONTACTS_PER_ENTITY * 4];
-        uint32 overlappingBodiesCount = 0;
-
-        for (auto && [entityIdA, index, transformCompA, bodyCompA] : span)
+        void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
         {
-            if (!HasAnyFlags(bodyCompA.Flags, EBodyFlags::Awake))
+            PHX_PROFILE_ZONE_SCOPED_N("CalculateContactPairsJob");
+
+            FeaturePhysicsScratchBlock& scratchBlock = World->GetBlockRef<FeaturePhysicsScratchBlock>();
+                
+            TMortonCodeRangeArray ranges;
+
+            const EntityBody* overlappingBodies[PHX_PHS_MAX_CONTACTS_PER_ENTITY * 4];
+            uint32 overlappingBodiesCount = 0;
+
+            for (auto && [entityIdA, index, transformCompA, bodyCompA] : span)
             {
-                continue;
-            }
-
-            // Query for overlapping morton ranges
-            {
-                PHX_PROFILE_ZONE_SCOPED_N("OverlapQuery");
-
-                Vec2 projectedPos = transformCompA.Transform.Position + bodyCompA.LinearVelocity * DeltaTime;
-
-                MortonCodeAABB aabb = ToMortonCodeAABB(projectedPos, bodyCompA.Radius);
-        
-                ranges.clear();
-                MortonCodeQuery(aabb, ranges);
-
-                overlappingBodiesCount = 0;
-                ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
-                    scratchBlock.SortedEntities,
-                    ranges,
-                    [&](const EntityBody& eb)
-                    {
-                        if (eb.EntityId == entityIdA)
-                        {
-                            return false;
-                        }
-
-                        if ((bodyCompA.CollisionMask & eb.BodyComponent->CollisionMask) == 0)
-                        {
-                            return false;
-                        }
-
-                        overlappingBodies[overlappingBodiesCount++] = &eb;
-                        return overlappingBodiesCount == _countof(overlappingBodies);
-                    });
-            }
-
-            for (uint32 i = 0; i < overlappingBodiesCount; ++i)
-            {
-                const EntityBody* entityBodyB = overlappingBodies[i];
-                TransformComponent& transformCompB = *entityBodyB->TransformComponent;
-                BodyComponent& bodyCompB = *entityBodyB->BodyComponent;
-
-                Vec2 v = transformCompB.Transform.Position - transformCompA.Transform.Position;            
-                Distance vLen = v.Length();
-                Distance rr = bodyCompA.Radius + bodyCompB.Radius;
-                if (vLen > rr)
+                if (!HasAnyFlags(bodyCompA.Flags, EBodyFlags::Awake))
                 {
                     continue;
                 }
 
-                entityid_t loId = Min(entityIdA, entityBodyB->EntityId);
-                entityid_t hiId = Max(entityIdA, entityBodyB->EntityId);
-                uint64 key = hiId; key = key << 32 | loId;
-
-                uint32 contactIndex = scratchBlock.ContactPairsCount.fetch_add(1);
-                if (contactIndex >= scratchBlock.ContactPairs.Capacity)
-                    break;
-
-                ContactPair& pair = scratchBlock.ContactPairs[contactIndex];
-                pair.Key = key;
-                pair.TransformA = &transformCompA;
-                pair.BodyA = &bodyCompA;
-                pair.TransformB = &transformCompB;
-                pair.BodyB = &bodyCompB;
-            }
-        }
-    }
-};
-
-struct IntegrateJob : IBufferJob<TransformComponent&, BodyComponent&>
-{
-    DeltaTime DeltaTime;
-
-    void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("IntegrateJob");
-
-        FeaturePhysicsDynamicBlock& dynamicBlock = World->GetBlockRef<FeaturePhysicsDynamicBlock>();
-
-        for (auto && [entityIdA, index, transformComp, bodyComp] : span)
-        {
-            if (bodyComp.Movement == EBodyMovement::Attached)
-            {
-                transformComp.Transform.Rotation += 10.0f;
-            }
-            else 
-            {
-                if (dynamicBlock.bAllowSleep)
+                // Query for overlapping morton ranges
                 {
-                    bool isMoving = bodyComp.LinearVelocity.Length() > Distance(1E-1);
-                    if (isMoving)
-                    {
-                        bodyComp.SleepTimer = SLEEP_TIMER;
-                        SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, true);
-                    }
-                    else if (bodyComp.SleepTimer > 0)
-                    {
-                        --bodyComp.SleepTimer;
-                        SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, true);
-                    }
-                    else
-                    {
-                        SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, false);
-                    }
+                    PHX_PROFILE_ZONE_SCOPED_N("OverlapQuery");
+
+                    Vec2 projectedPos = transformCompA.Transform.Position + bodyCompA.LinearVelocity * DeltaTime;
+
+                    MortonCodeAABB aabb = ToMortonCodeAABB(projectedPos, bodyCompA.Radius);
+        
+                    ranges.clear();
+                    MortonCodeQuery(aabb, ranges);
+
+                    overlappingBodiesCount = 0;
+                    ForEachInMortonCodeRanges<EntityBody, &EntityBody::ZCode>(
+                        scratchBlock.SortedEntities,
+                        ranges,
+                        [&](const EntityBody& eb)
+                        {
+                            if (eb.EntityId == entityIdA)
+                            {
+                                return false;
+                            }
+
+                            if ((bodyCompA.CollisionMask & eb.BodyComponent->CollisionMask) == 0)
+                            {
+                                return false;
+                            }
+
+                            overlappingBodies[overlappingBodiesCount++] = &eb;
+                            return overlappingBodiesCount == _countof(overlappingBodies);
+                        });
                 }
-                
-                transformComp.Transform.Position += bodyComp.LinearVelocity * DeltaTime;
 
-                bodyComp.LinearVelocity *= (1.0f - bodyComp.LinearDamping * DeltaTime);
+                for (uint32 i = 0; i < overlappingBodiesCount; ++i)
+                {
+                    const EntityBody* entityBodyB = overlappingBodies[i];
+                    TransformComponent& transformCompB = *entityBodyB->TransformComponent;
+                    BodyComponent& bodyCompB = *entityBodyB->BodyComponent;
+
+                    Vec2 v = transformCompB.Transform.Position - transformCompA.Transform.Position;            
+                    Distance vLen = v.Length();
+                    Distance rr = bodyCompA.Radius + bodyCompB.Radius;
+                    if (vLen > rr)
+                    {
+                        continue;
+                    }
+
+                    entityid_t loId = Min(entityIdA, entityBodyB->EntityId);
+                    entityid_t hiId = Max(entityIdA, entityBodyB->EntityId);
+                    uint64 key = hiId; key = key << 32 | loId;
+
+                    uint32 contactIndex = scratchBlock.ContactPairsCount.fetch_add(1);
+                    if (contactIndex >= scratchBlock.ContactPairs.Capacity)
+                        break;
+
+                    ContactPair& pair = scratchBlock.ContactPairs[contactIndex];
+                    pair.Key = key;
+                    pair.TransformA = &transformCompA;
+                    pair.BodyA = &bodyCompA;
+                    pair.TransformB = &transformCompB;
+                    pair.BodyB = &bodyCompB;
+                }
             }
         }
-    }    
-};
+    };
 
-void PhysicsSystem::OnPreWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
-{
-    PHX_PROFILE_ZONE_SCOPED;
-
-    FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
-
-    // Sort entity bodies by z-code (calculated by FeatureECS)
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("SortBodiesByZCode");
-
-        scratchBlock.SortedEntities.Reset();
-        scratchBlock.SortedEntityCount = 0;
-
-        SortEntitiesByZCodeJob job;
-        FeatureECS::ScheduleParallel(world, job);
-
-        FeatureECS::ExecutePendingJobs(world);
-
-        scratchBlock.SortedEntities.SetSize(scratchBlock.SortedEntityCount);
-
-        // Sort entities by their zcodes
-        {
-            PHX_PROFILE_ZONE_SCOPED_N("SortBodiesByZCode_Sort");
-
-            std::sort(
-                std::execution::par,
-                scratchBlock.SortedEntities.begin(),
-                scratchBlock.SortedEntities.end(),
-                [](const EntityBody& a, const EntityBody& b)
-                {
-                    return a.ZCode < b.ZCode;
-                });
-        }
-    }
-}
-
-namespace detail
-{
-    void CalculateContactsTask(FeaturePhysicsScratchBlock& scratchBlock, DeltaTime dt, uint32 startIndex, uint32 count)
+    void CalculateContactsTask(WorldRef world, uint32 startIndex, uint32 count, DeltaTime dt)
     {
         PHX_PROFILE_ZONE_SCOPED;
+    
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
         for (uint32 i = 0; i < count; ++i)
         {
@@ -239,7 +168,7 @@ namespace detail
             }
 
             v = transformCompB.Transform.Position - transformCompA.Transform.Position;
-                
+            
             Distance vLen = v.Length();
             Distance rr = bodyCompA.Radius + bodyCompB.Radius;
 
@@ -258,128 +187,11 @@ namespace detail
         }
     }
 
-    void PGSTask(FeaturePhysicsScratchBlock& scratchBlock, uint32 startIndex, uint32 count)
+    void ResolveContactPairsTask(WorldRef world)
     {
         PHX_PROFILE_ZONE_SCOPED;
 
-        for (uint32 i = 0; i < count; ++i)
-        {
-            Contact& contact = scratchBlock.Contacts[startIndex + i];
-            ContactPair& contactPair = scratchBlock.ContactPairs[contact.ContactPair];
-            
-            // Relative velocity at contact
-            Vec2 velA = Vec2::Zero;
-            if (contactPair.BodyA)
-            {
-                velA = contactPair.BodyA->LinearVelocity;
-            }
-
-            Vec2 velB = Vec2::Zero;
-            if (contactPair.BodyB)
-            {
-                velB = contactPair.BodyB->LinearVelocity;
-            }
-
-            Value relVel = Vec2::Dot(contact.Normal, velB - velA);
-    
-            // Compute corrective impulse
-            Value lambda = -(relVel + contact.Bias) * contact.EffMass;
-    
-            // Accumulate and project (no negative normal impulses)
-            Value oldImpulse = contact.Impulse;
-            contact.Impulse = Max(oldImpulse + lambda, 0.0f);
-            Value change = contact.Impulse - oldImpulse;
-    
-            // Apply impulse
-            Vec2 p = contact.Normal * change;
-            if (contactPair.BodyA && !HasAnyFlags(contactPair.BodyA->Flags, EBodyFlags::Static))
-            {
-                contactPair.BodyA->LinearVelocity -= p * contactPair.BodyA->InvMass;
-            }
-            if (contactPair.BodyB && !HasAnyFlags(contactPair.BodyB->Flags, EBodyFlags::Static))
-            {
-                contactPair.BodyB->LinearVelocity += p * contactPair.BodyB->InvMass;
-            }
-        }
-    }
-
-    void OverlapSeparationTask(FeaturePhysicsScratchBlock& scratchBlock, uint32 startIndex, uint32 count)
-    {
-        PHX_PROFILE_ZONE_SCOPED;
-
-        for (uint32 i = 0; i < count; ++i)
-        {
-            EntityBody& entityBody = scratchBlock.SortedEntities[startIndex + i];
-            auto bodyCompA = entityBody.BodyComponent;
-            auto transformCompA = entityBody.TransformComponent;
-
-            // Collide with lines
-            {
-                for (const CollisionLine& line : scratchBlock.CollisionLines)
-                {
-                    Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
-                    Distance vLen = v.Length();
-                    if (vLen != 0.0f && vLen < bodyCompA->Radius)
-                    {
-                        Vec2 n = -(v / vLen);
-                        Vec2 d = n * (bodyCompA->Radius - vLen);
-                        transformCompA->Transform.Position += d;
-                        if (Vec2::Dot(bodyCompA->LinearVelocity, n) < 0)
-                        {
-                            bodyCompA->LinearVelocity = Vec2::Reflect(line.Line.GetDirection(), bodyCompA->LinearVelocity);
-                        }
-                        SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
-                    }
-                }
-            }
-        }
-    }
-
-    void OverlapSeparationTask2(FeaturePhysicsScratchBlock& scratchBlock, uint32 startIndex, uint32 count)
-    {
-        PHX_PROFILE_ZONE_SCOPED;
-
-        for (uint32 i = 0; i < count; ++i)
-        {
-            Contact& contact = scratchBlock.Contacts[startIndex + i];
-            ContactPair& contactPair = scratchBlock.ContactPairs[contact.ContactPair];
-        
-            Vec2 v = contactPair.TransformB->Transform.Position - contactPair.TransformA->Transform.Position;
-            Distance d = v.Length();
-            Distance rr = contactPair.BodyA->Radius + contactPair.BodyB->Radius;
-            Distance pen = rr - d;
-            if (pen > 0.01)
-            {
-                Value correction = 0.01f * pen;
-                contactPair.TransformA->Transform.Position -= contact.Normal * correction * contactPair.BodyA->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
-                contactPair.TransformB->Transform.Position += contact.Normal * correction * contactPair.BodyB->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
-            }
-        }
-    }
-}
-
-void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
-{
-    PHX_PROFILE_ZONE_SCOPED;
-
-    DeltaTime dt = args.DeltaTime;
-
-    FeaturePhysicsDynamicBlock& dynamicBlock = world.GetBlockRef<FeaturePhysicsDynamicBlock>();
-    FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
-    
-    // Determine contacts
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("CalculateContacts");
-
-        CalculateContactPairsJob job;
-        job.DeltaTime = dt;
-
-        scratchBlock.ContactPairs.Reset();
-        scratchBlock.ContactPairsCount = 0;
-
-        FeatureECS::ScheduleParallel(world, job);
-
-        FeatureECS::ExecutePendingJobs(world);
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
 
         scratchBlock.ContactPairs.SetSize(scratchBlock.ContactPairsCount);
 
@@ -424,64 +236,214 @@ void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
 
             scratchBlock.Contacts.SetSize(contacts);
         }
+    }
 
-        ParallelRange(scratchBlock.Contacts.Num(), 128, [&](uint32 start, uint32 len)
+    void PGSTask(WorldRef world, uint32 startIndex, uint32 count, uint32 iter)
+    {
+        PHX_PROFILE_ZONE_SCOPED;
+        PHX_PROFILE_ZONE_VALUE(iter);
+    
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+        for (uint32 i = 0; i < count; ++i)
         {
-            detail::CalculateContactsTask(scratchBlock, dt, start, len);
-        });
+            Contact& contact = scratchBlock.Contacts[startIndex + i];
+            ContactPair& contactPair = scratchBlock.ContactPairs[contact.ContactPair];
+        
+            // Relative velocity at contact
+            Vec2 velA = Vec2::Zero;
+            if (contactPair.BodyA)
+            {
+                velA = contactPair.BodyA->LinearVelocity;
+            }
+
+            Vec2 velB = Vec2::Zero;
+            if (contactPair.BodyB)
+            {
+                velB = contactPair.BodyB->LinearVelocity;
+            }
+
+            Value relVel = Vec2::Dot(contact.Normal, velB - velA);
+
+            // Compute corrective impulse
+            Value lambda = -(relVel + contact.Bias) * contact.EffMass;
+
+            // Accumulate and project (no negative normal impulses)
+            Value oldImpulse = contact.Impulse;
+            contact.Impulse = Max(oldImpulse + lambda, 0.0f);
+            Value change = contact.Impulse - oldImpulse;
+
+            // Apply impulse
+            Vec2 p = contact.Normal * change;
+            if (contactPair.BodyA && !HasAnyFlags(contactPair.BodyA->Flags, EBodyFlags::Static))
+            {
+                contactPair.BodyA->LinearVelocity -= p * contactPair.BodyA->InvMass;
+            }
+            if (contactPair.BodyB && !HasAnyFlags(contactPair.BodyB->Flags, EBodyFlags::Static))
+            {
+                contactPair.BodyB->LinearVelocity += p * contactPair.BodyB->InvMass;
+            }
+        }
+    }
+
+    struct IntegrateJob : IBufferJob<TransformComponent&, BodyComponent&>
+    {
+        DeltaTime DeltaTime;
+
+        void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
+        {
+            PHX_PROFILE_ZONE_SCOPED_N("IntegrateJob");
+
+            FeaturePhysicsDynamicBlock& dynamicBlock = World->GetBlockRef<FeaturePhysicsDynamicBlock>();
+
+            for (auto && [entityIdA, index, transformComp, bodyComp] : span)
+            {
+                if (bodyComp.Movement == EBodyMovement::Attached)
+                {
+                    transformComp.Transform.Rotation += 10.0f;
+                }
+                else 
+                {
+                    if (dynamicBlock.bAllowSleep)
+                    {
+                        bool isMoving = bodyComp.LinearVelocity.Length() > Distance(1E-1);
+                        if (isMoving)
+                        {
+                            bodyComp.SleepTimer = SLEEP_TIMER;
+                            SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, true);
+                        }
+                        else if (bodyComp.SleepTimer > 0)
+                        {
+                            --bodyComp.SleepTimer;
+                            SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, true);
+                        }
+                        else
+                        {
+                            SetFlagRef(bodyComp.Flags, EBodyFlags::Awake, false);
+                        }
+                    }
+                
+                    transformComp.Transform.Position += bodyComp.LinearVelocity * DeltaTime;
+
+                    bodyComp.LinearVelocity *= (1.0f - bodyComp.LinearDamping * DeltaTime);
+                }
+            }
+        }    
+    };
+
+    void OverlapSeparationTask(WorldRef world, uint32 startIndex, uint32 count)
+    {
+        PHX_PROFILE_ZONE_SCOPED;
+    
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();;
+
+        for (uint32 i = 0; i < count; ++i)
+        {
+            EntityBody& entityBody = scratchBlock.SortedEntities[startIndex + i];
+            auto bodyCompA = entityBody.BodyComponent;
+            auto transformCompA = entityBody.TransformComponent;
+
+            // Collide with lines
+            {
+                for (const CollisionLine& line : scratchBlock.CollisionLines)
+                {
+                    Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
+                    Distance vLen = v.Length();
+                    if (vLen != 0.0f && vLen < bodyCompA->Radius)
+                    {
+                        Vec2 n = -(v / vLen);
+                        Vec2 d = n * (bodyCompA->Radius - vLen);
+                        transformCompA->Transform.Position += d;
+                        if (Vec2::Dot(bodyCompA->LinearVelocity, n) < 0)
+                        {
+                            bodyCompA->LinearVelocity = Vec2::Reflect(line.Line.GetDirection(), bodyCompA->LinearVelocity);
+                        }
+                        SetFlagRef(bodyCompA->Flags, EBodyFlags::Awake, true);
+                    }
+                }
+            }
+        }
+    }
+
+    void OverlapSeparationTask2(WorldRef world, uint32 startIndex, uint32 count)
+    {
+        PHX_PROFILE_ZONE_SCOPED;
+
+        FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+        for (uint32 i = 0; i < count; ++i)
+        {
+            Contact& contact = scratchBlock.Contacts[startIndex + i];
+            ContactPair& contactPair = scratchBlock.ContactPairs[contact.ContactPair];
+    
+            Vec2 v = contactPair.TransformB->Transform.Position - contactPair.TransformA->Transform.Position;
+            Distance d = v.Length();
+            Distance rr = contactPair.BodyA->Radius + contactPair.BodyB->Radius;
+            Distance pen = rr - d;
+            if (pen > 0.01)
+            {
+                Value correction = 0.01f * pen;
+                contactPair.TransformA->Transform.Position -= contact.Normal * correction * contactPair.BodyA->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
+                contactPair.TransformB->Transform.Position += contact.Normal * correction * contactPair.BodyB->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
+            }
+        }
+    }
+}
+
+void PhysicsSystem::OnPreWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
+{
+    PHX_PROFILE_ZONE_SCOPED;
+
+    FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+
+    scratchBlock.SortedEntities.Reset();
+    scratchBlock.SortedEntityCount = 0;
+    scratchBlock.ContactPairs.Reset();
+    scratchBlock.ContactPairsCount = 0;
+
+    PhysicsSystemDetail::PopulateSortedEntitiesJob job;
+    FeatureECS::ScheduleParallel(world, job);
+
+    WorldTaskQueue::Schedule(world, &PhysicsSystemDetail::SortEntitiesByZCodeTask);
+}
+
+void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
+{
+    PHX_PROFILE_ZONE_SCOPED;
+
+    DeltaTime dt = args.DeltaTime;
+
+    FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
+    
+    // Determine contacts
+    {
+        PhysicsSystemDetail::CalculateContactPairsJob job;
+        job.DeltaTime = dt;
+        FeatureECS::ScheduleParallel(world, job);
+
+        WorldTaskQueue::Schedule(world, &PhysicsSystemDetail::ResolveContactPairsTask);
+
+        // CalculateContactsTask depends on scratchBlock.Contacts.Num() to be calculated by ResolveContactPairs
+        // TODO (jfarris): can we have tasks depend on the result of other tasks?
+        WorldTaskQueue::Flush(world);
+
+        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::CalculateContactsTask, dt);
     }
 
     // Multi-pass solver
-    if (1)
+    for (uint32 i = 0; i < 4; ++i)
     {
-        PHX_PROFILE_ZONE_SCOPED_N("PGS");
-
-        for (uint32 i = 0; i < 4; ++i)
-        {
-            PHX_PROFILE_ZONE_SCOPED_N("PGSIter");
-            PHX_PROFILE_ZONE_VALUE(i);
-
-            ParallelRange(scratchBlock.Contacts.Num(), 128, [&](uint32 start, uint32 len)
-            {
-                detail::PGSTask(scratchBlock, start, len);
-            });
-        }
+        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::PGSTask, i);
     }
 
     // Integrate velocities
-    if (1)
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("Integrate");
-
-        IntegrateJob job;
-        job.DeltaTime = dt;
-
-        FeatureECS::ScheduleParallel(world, job);
-
-        FeatureECS::ExecutePendingJobs(world);
-    }
+    PhysicsSystemDetail::IntegrateJob job;
+    job.DeltaTime = dt;
+    FeatureECS::ScheduleParallel(world, job);
 
     // Multi-pass overlap separation
-    if (1)
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("MultiPassOverlapSeparation");
-
-        for (uint32 i = 0; i < 4; ++i)
-        {
-            PHX_PROFILE_ZONE_SCOPED_N("MPOSIter");
-            PHX_PROFILE_ZONE_VALUE(i);
-
-            ParallelRange(scratchBlock.SortedEntities.Num(), 128, [&](uint32 start, uint32 len)
-            {
-                detail::OverlapSeparationTask(scratchBlock, start, len);
-            });
-
-            ParallelRange(scratchBlock.Contacts.Num(), 128, [&](uint32 start, uint32 len)
-            {
-                detail::OverlapSeparationTask2(scratchBlock, start, len);
-            });
-        }
-    }
+    WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.SortedEntities.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask);
+    WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask2);
 }
 
 void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)

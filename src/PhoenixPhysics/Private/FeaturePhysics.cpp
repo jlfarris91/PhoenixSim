@@ -53,26 +53,6 @@ bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
         return true;
     }
 
-    if (action.Action.Verb == "release_entities_in_range"_n)
-    {
-        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
-        Distance range = action.Action.Data[2].Distance;
-
-        TArray<EntityBody> outEntities;
-        QueryEntitiesInRange(world, pos, range, outEntities);
-
-        for (const EntityBody& entityBody : outEntities)
-        {
-            const Vec2& entityPos = entityBody.TransformComponent->Transform.Position;
-            if (Vec2::Distance(pos, entityPos) < range)
-            {
-                FeatureECS::ReleaseEntity(world, entityBody.EntityId);
-            }
-        }
-
-        return true;
-    }
-
     if (action.Action.Verb == "push_entities_in_range"_n)
     {
         Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };

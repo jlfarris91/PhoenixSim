@@ -128,11 +128,7 @@ namespace Phoenix
 
         void Reset()
         {
-            if (Size > 0)
-            {
-                memset(Data, 0, Size * sizeof(T));
-                Size = 0;
-            }
+            SetNum(0);
         }
 
         void SetNum(size_t newSize, const T& value = {})

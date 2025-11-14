@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cstring>
 
+#include "Profiling.h"
+
 using namespace Phoenix;
 
 BlockBuffer::Block::Block(const BlockDefinition& definition)
@@ -12,8 +14,7 @@ BlockBuffer::Block::Block(const BlockDefinition& definition)
 }
 
 BlockBuffer::BlockBuffer()
-{
-}
+= default;
 
 BlockBuffer::BlockBuffer(const CtorArgs& args)
 {
@@ -66,6 +67,8 @@ BlockBuffer::BlockBuffer(BlockBuffer&& other) noexcept
 
 BlockBuffer& BlockBuffer::operator=(const BlockBuffer& other)
 {
+    PHX_PROFILE_ZONE_SCOPED_N("BlockBufferCopy");
+
     if (&other == this)
         return *this;
 
@@ -110,6 +113,8 @@ const TArray<BlockBuffer::Block>& BlockBuffer::GetBlocks() const
 
 const BlockBuffer::BlockDefinition* BlockBuffer::GetBlockDefinition(const FName& name) const
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     for (const Block& block : Blocks)
     {
         if (block.Definition.Name == name)
@@ -122,6 +127,8 @@ const BlockBuffer::BlockDefinition* BlockBuffer::GetBlockDefinition(const FName&
 
 uint8* BlockBuffer::GetBlock(const FName& name)
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     for (const Block& block : Blocks)
     {
         if (block.Definition.Name == name)
@@ -134,6 +141,8 @@ uint8* BlockBuffer::GetBlock(const FName& name)
 
 const uint8* BlockBuffer::GetBlock(const FName& name) const
 {
+    PHX_PROFILE_ZONE_SCOPED;
+
     for (const Block& block : Blocks)
     {
         if (block.Definition.Name == name)

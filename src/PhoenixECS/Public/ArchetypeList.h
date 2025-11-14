@@ -555,7 +555,7 @@ namespace Phoenix
                 EntityComponentSpan span;
                 span.RawData = list.GetData();
                 span.StartingIndex = startingIndex;
-                span.InstanceCount = list.GetNumActiveInstances();
+                span.InstanceCount = list.GetNumInstances();
                 span.Step = list.GetEntityTotalSize();
 
                 uint32 offsets[sizeof...(TComponents)] = { list.GetComponentLocalOffset(Underlying_T<TComponents>::StaticTypeName)... };

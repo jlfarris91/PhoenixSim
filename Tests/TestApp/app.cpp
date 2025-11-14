@@ -174,6 +174,8 @@ void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
     GRenderer = renderer;
 
     GCamera = new SDLCamera();
+    GCamera->Zoom = 20.0f;
+
     GViewport = new SDLViewport(window, GCamera);
 
     GDebugState = new SDLDebugState(GViewport);
@@ -315,9 +317,25 @@ void OnAppRenderUI()
 
     if (ImGui::Begin("Debug"))
     {
-        ImGui::Text("Sim FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
-        ImGui::Text("SDL FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
-        ImGui::Text("ImGui FPS:"); ImGui::SameLine(100); ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        if (ImGui::BeginTable("FPS", 2, ImGuiTableFlags_SizingFixedFit))
+        {
+            ImGui::TableNextColumn();
+            ImGui::Text("Sim FPS:");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
+
+            ImGui::TableNextColumn();
+            ImGui::Text("SDL FPS:");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
+
+            ImGui::TableNextColumn();
+            ImGui::Text("ImGui FPS:");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            
+            ImGui::EndTable();
+        }
 
         if (ImGui::CollapsingHeader("Features"))
         {
@@ -355,7 +373,7 @@ void OnAppRenderUI()
         {
             const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
 
-            if (ImGui::BeginTable("Props", 2))
+            if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableNextColumn();
                 ImGui::Text("Num Entities:");
@@ -384,7 +402,7 @@ void OnAppRenderUI()
             {
                 const auto& archetypeManager = ecsDynamicBlock.ArchetypeManager;
 
-                if (ImGui::BeginTable("Props", 2))
+                if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
                 {
                     ImGui::TableNextColumn();
                     ImGui::Text("Num Active:");
@@ -409,7 +427,7 @@ void OnAppRenderUI()
 
                         if (ImGui::TreeNode(treeNodeId))
                         {
-                            if (ImGui::BeginTable("Props", 2))
+                            if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
                             {
                                 ImGui::TableNextColumn();
                                 ImGui::Text("Num Comps:");
@@ -433,7 +451,7 @@ void OnAppRenderUI()
                                     
                                     if (ImGui::TreeNode(compDef.TypeDescriptor->CName))
                                     {
-                                        if (ImGui::BeginTable("Props", 2))
+                                        if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
                                         {                                
                                             ImGui::EndTable();
                                         }
@@ -465,7 +483,7 @@ void OnAppRenderUI()
 
                         if (ImGui::TreeNode(treeNodeId))
                         {
-                            if (ImGui::BeginTable("Props", 2))
+                            if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
                             {
                                 ImGui::TableNextColumn();
                                 ImGui::Text("Instances:");

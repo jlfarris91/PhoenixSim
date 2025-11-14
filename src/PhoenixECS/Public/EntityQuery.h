@@ -8,6 +8,7 @@
 #include "ArchetypeDefinition.h"
 #include "Name.h"
 #include "Optional.h"
+#include "Profiling.h"
 
 namespace Phoenix
 {
@@ -69,6 +70,8 @@ namespace Phoenix
             template <class TArchetypeDefinition = ArchetypeDefinition>
             bool PassesFilter(const TArchetypeDefinition& definition) const
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 // None
                 if (!ComponentsNone.Items.empty())
                 {

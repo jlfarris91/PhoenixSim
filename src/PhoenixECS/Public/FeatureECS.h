@@ -341,12 +341,16 @@ namespace Phoenix
                 {
                     if (job.GetQuery().PassesFilter(list.GetDefinition()))
                     {
-                        taskQueue->Enqueue([=, listPtr = &list]
+                        TJob jobInstance = job;
+                        auto listPtr = &list;
+                        auto wrapper = [=]() mutable
                         {
-                            job.Execute(*worldPtr, *listPtr, startIndex);
-                        });
+                            static_cast<IEntityJobBase*>(&jobInstance)->Execute(*worldPtr, *listPtr, startIndex);
+                        };
 
-                        startIndex += list.GetNumActiveInstances();
+                        taskQueue->Enqueue(std::move(wrapper));
+
+                        startIndex += list.GetNumInstances();
                     }
                 });
             }
@@ -354,37 +358,40 @@ namespace Phoenix
             template <class TJob>
             static void ScheduleParallel(WorldRef world, const TJob& job)
             {
+                PHX_PROFILE_ZONE_SCOPED;
+
                 TSharedPtr<TaskQueue> taskQueue = TaskQueue::GetTaskQueue((uint32)world.GetName());
 
                 FeatureECSDynamicBlock& dynamicBlock = world.GetBlockRef<FeatureECSDynamicBlock>();
                 WorldPtr worldPtr = &world;
 
-                std::vector<Task> taskGroup;
+                uint32 numArchetypeLists = dynamicBlock.ArchetypeManager.GetNumArchetypeLists();
+                std::vector<Task>& taskGroup = taskQueue->BeginGroup(numArchetypeLists);
 
                 uint32 startIndex = 0;
                 dynamicBlock.ArchetypeManager.ForEachArchetypeList([&](ArchetypeList& list)
                 {
                     if (job.GetQuery().PassesFilter(list.GetDefinition()))
                     {
-                        taskGroup.emplace_back([job, worldPtr, listPtr = &list, startIndex]
-                        {
-                            TJob copy = job;
-                            static_cast<IEntityJobBase*>(&copy)->Execute(*worldPtr, *listPtr, startIndex);
-                        });
+                        PHX_PROFILE_ZONE_SCOPED_N("PushTaskToTaskGroup");
 
-                        startIndex += list.GetNumActiveInstances();
+                        TJob jobInstance = job;
+                        auto listPtr = &list;
+                        auto wrapper = [=]() mutable
+                        {
+                            static_cast<IEntityJobBase*>(&jobInstance)->Execute(*worldPtr, *listPtr, startIndex);
+                        };
+
+                        taskGroup.emplace_back(std::move(wrapper));
+
+                        startIndex += list.GetNumInstances();
                     }
                 });
 
-                if (!taskGroup.empty())
-                {
-                    taskQueue->Enqueue(taskGroup);
-                }
+                taskQueue->EndGroup();
             }
 
             static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
-
-            static void ExecutePendingJobs(WorldRef world);
 
             bool bDebugDrawMortonCodeBoundaries = false;
             bool bDebugDrawEntityZCodes = false;

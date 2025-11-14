@@ -58,9 +58,9 @@ namespace Phoenix
                 return list && list->IsValid(handle);
             }
 
-            size_t GetNumActiveArchetypes() const
+            uint32 GetNumActiveArchetypes() const
             {
-                size_t total = 0;
+                uint32 total = 0;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     if (const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle))
@@ -71,7 +71,7 @@ namespace Phoenix
                 return total;
             }
 
-            size_t GetNumArchetypeLists() const
+            uint32 GetNumArchetypeLists() const
             {
                 return ArchetypeLists.GetNumOccupiedBlocks();
             }
@@ -440,6 +440,7 @@ namespace Phoenix
 
             void ForEachArchetypeList(const TFunction<void(TArchetypeList&)>& func)
             {
+                PHX_PROFILE_ZONE_SCOPED;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
@@ -452,6 +453,7 @@ namespace Phoenix
 
             void ForEachArchetypeList(const TFunction<void(const TArchetypeList&)>& func) const
             {
+                PHX_PROFILE_ZONE_SCOPED;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
@@ -464,6 +466,7 @@ namespace Phoenix
 
             void ForEachArchetypeList(const FName& archetypeIdOrHash, const TFunction<void(TArchetypeList&)>& func)
             {
+                PHX_PROFILE_ZONE_SCOPED;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
@@ -500,7 +503,7 @@ namespace Phoenix
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         func(EntityComponentSpan<TComponents...>::FromList(*list, startingIndex));
-                        startingIndex += list->GetNumActiveInstances();
+                        startingIndex += list->GetNumInstances();
                     }
                 }
             }

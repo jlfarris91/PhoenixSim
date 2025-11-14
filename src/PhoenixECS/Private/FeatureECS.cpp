@@ -7,9 +7,50 @@
 #include "Profiling.h"
 #include "System.h"
 #include "SystemJob.h"
+#include "WorldTaskQueue.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
+
+namespace FeatureECSDetail
+{
+    struct PopulateSortedEntitiesJob : IBufferJob<TransformComponent&>
+    {
+        void Execute(const EntityComponentSpan<TransformComponent&>& span) override
+        {
+            PHX_PROFILE_ZONE_SCOPED_N("PopulateSortedEntitiesJob");
+
+            FeatureECSScratchBlock& scratchBlock = World->GetBlockRef<FeatureECSScratchBlock>();
+
+            for (auto && [entityId, index, transformComp] : span)
+            {
+                transformComp.ZCode = ToMortonCode(transformComp.Transform.Position);
+
+                uint32 sortedEntityIndex = scratchBlock.SortedEntityCount.fetch_add(1);
+                scratchBlock.SortedEntities[sortedEntityIndex] = EntityTransform(entityId, &transformComp, transformComp.ZCode);
+            }
+        }
+    };
+
+    void SortEntitiesByZCodeTask(WorldRef world)
+    {    
+        PHX_PROFILE_ZONE_SCOPED;
+
+        FeatureECSScratchBlock& scratchBlock = world.GetBlockRef<FeatureECSScratchBlock>();
+
+        // Calculated from PopulateSortedEntitiesJob
+        scratchBlock.SortedEntities.SetSize(scratchBlock.SortedEntityCount);
+
+        std::sort(
+            std::execution::par,
+            scratchBlock.SortedEntities.begin(),
+            scratchBlock.SortedEntities.end(),
+            [](const EntityTransform& a, const EntityTransform& b)
+            {
+                return a.ZCode < b.ZCode;
+            });
+    }
+}
 
 FeatureECS::FeatureECS()
 {
@@ -161,7 +202,7 @@ void FeatureECS::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
         system->OnPreWorldUpdate(world, systemUpdateArgs);
     }
 
-    ExecutePendingJobs(world);
+    WorldTaskQueue::Flush(world);
 }
 
 void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
@@ -177,7 +218,7 @@ void FeatureECS::OnWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
         system->OnWorldUpdate(world, systemUpdateArgs);
     }
 
-    ExecutePendingJobs(world);
+    WorldTaskQueue::Flush(world);
 }
 
 void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
@@ -193,7 +234,7 @@ void FeatureECS::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args
         system->OnPostWorldUpdate(world, systemUpdateArgs);
     }
 
-    ExecutePendingJobs(world);
+    WorldTaskQueue::Flush(world);
 
     CompactWorldBuffer(world);
 }
@@ -220,6 +261,26 @@ bool FeatureECS::OnPreHandleWorldAction(WorldRef world, const FeatureActionArgs&
 bool FeatureECS::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
     PHX_PROFILE_ZONE_SCOPED;
+
+    if (action.Action.Verb == "release_entities_in_range"_n)
+    {
+        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
+        Distance range = action.Action.Data[2].Distance;
+
+        TArray<EntityTransform> outEntities;
+        QueryEntitiesInRange(world, pos, range, outEntities);
+
+        for (const EntityTransform& entity : outEntities)
+        {
+            const Vec2& entityPos = entity.TransformComponent->Transform.Position;
+            if (Vec2::Distance(pos, entityPos) < range)
+            {
+                ReleaseEntity(world, entity.EntityId);
+            }
+        }
+
+        return true;
+    }
 
     SystemActionArgs systemActionArgs;
     systemActionArgs.SimTime = action.SimTime;
@@ -629,46 +690,6 @@ void FeatureECS::QueryEntitiesInRange(
         });
 }
 
-void FeatureECS::ExecutePendingJobs(WorldRef world)
-{
-    PHX_PROFILE_ZONE_SCOPED;
-
-    TSharedPtr<TaskQueue> taskQueue = TaskQueue::GetTaskQueue((uint32)world.GetName());
-
-    // Submit any pending jobs and pause the thread until they finish.
-    taskQueue->Flush();
-}
-
-struct CalculateZCodesJob : IBufferJob<TransformComponent&>
-{
-    void Execute(const EntityComponentSpan<TransformComponent&>& span) override
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("SortEntitiesByZCodeTask");
-
-        FeatureECSScratchBlock& scratchBlock = World->GetBlockRef<FeatureECSScratchBlock>();
-
-        for (auto && [entityId, index, transformComp] : span)
-        {
-            transformComp.ZCode = ToMortonCode(transformComp.Transform.Position);
-            scratchBlock.SortedEntities[span.GetGlobalIndex(index)] = EntityTransform(entityId, &transformComp, transformComp.ZCode);
-        }
-
-        using iter = decltype(scratchBlock.SortedEntities)::Iter;
-        iter startIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex);
-        iter endIter = iter(&scratchBlock.SortedEntities[0] + span.StartingIndex + span.InstanceCount);
-
-        std::sort(
-            startIter,
-            endIter,
-            [](const EntityTransform& a, const EntityTransform& b)
-            {
-                return a.ZCode < b.ZCode;
-            });
-
-        scratchBlock.SortedEntityCount += span.InstanceCount;
-    }
-};
-
 void FeatureECS::SortEntitiesByZCode(WorldRef world)
 {
     PHX_PROFILE_ZONE_SCOPED;
@@ -679,30 +700,10 @@ void FeatureECS::SortEntitiesByZCode(WorldRef world)
     scratchBlock.SortedEntityCount = 0;
     
     // Calculate z-codes in parallel
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("ScheduleJob");
-        CalculateZCodesJob job;
-        ScheduleParallel(world, job);        
-    }
+    FeatureECSDetail::PopulateSortedEntitiesJob job;
+    ScheduleParallel(world, job);
 
-    // Execute the jobs in parallel
-    ExecutePendingJobs(world);
-
-    scratchBlock.SortedEntities.SetSize(scratchBlock.SortedEntityCount);
-
-    // Sort entities by their zcodes
-    {
-        PHX_PROFILE_ZONE_SCOPED_N("SortEntitiesByZCode_Sort");
-
-        std::sort(
-            std::execution::par,
-            scratchBlock.SortedEntities.begin(),
-            scratchBlock.SortedEntities.end(),
-            [](const EntityTransform& a, const EntityTransform& b)
-            {
-                return a.ZCode < b.ZCode;
-            });
-    }
+    WorldTaskQueue::Schedule(world, &FeatureECSDetail::SortEntitiesByZCodeTask);
 }
 
 void FeatureECS::CompactWorldBuffer(WorldRef world)

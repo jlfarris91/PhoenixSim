@@ -38,7 +38,7 @@ namespace Phoenix
                 {
                     if (EnqueuePos.compare_exchange_weak(pos, pos + 1, std::memory_order_relaxed))
                     {
-                        cell.Data = item;
+                        cell.Data = std::move(item);
                         cell.sequence.store(pos + 1, std::memory_order_release);
                         return true;
                     }
