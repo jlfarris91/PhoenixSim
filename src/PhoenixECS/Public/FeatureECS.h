@@ -44,14 +44,14 @@ namespace Phoenix
             TAtomic<uint32> SortedEntityCount = 0;
         };
 
-        struct PHOENIXSIM_API FeatureECSCtorArgs
+        struct PHOENIXECS_API FeatureECSCtorArgs
         {
             TArray<TSharedPtr<ISystem>> Systems;
         };
 
         class PHOENIXECS_API FeatureECS final : public IFeature
         {
-            PHX_FEATURE_BEGIN(FeatureECS)
+        PHX_FEATURE_BEGIN(FeatureECS)
                 FEATURE_WORLD_BLOCK(FeatureECSDynamicBlock)
                 FEATURE_WORLD_BLOCK(FeatureECSScratchBlock)
                 FEATURE_CHANNEL(FeatureChannels::WorldInitialize)

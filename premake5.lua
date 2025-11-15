@@ -21,6 +21,7 @@ workspace "Phoenix"
     group "Phoenix"
         project "PhoenixCore"
         project "PhoenixSim"
+        project "PhoenixBlackboard"
         project "PhoenixECS"
         project "PhoenixPhysics"
         project "PhoenixLua"
@@ -178,11 +179,60 @@ project "PhoenixSim"
         "4251", "4275"
     }
 
-project "PhoenixECS"
+project "PhoenixBlackboard"
     kind "StaticLib"
     location (projects)
 
     dependson { "PhoenixCore", "PhoenixSim" }
+
+    -- defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_BLACKBOARD_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
+
+    files { 
+        "src/PhoenixBlackboard/**"
+    }
+
+    includedirs {
+        "src/PhoenixBlackboard/Public",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+    }
+
+    links {
+        "PhoenixCore",
+        "PhoenixSim"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
+project "PhoenixECS"
+    kind "StaticLib"
+    location (projects)
+
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixBlackboard" }
 
     -- defines { "PHOENIX_DLL" }
     -- defines { "PHOENIXECS_DLL_EXPORTS" }
@@ -196,11 +246,13 @@ project "PhoenixECS"
         "src/PhoenixECS/Public",
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixBlackboard/Public"
     }
 
     links {
         "PhoenixCore",
-        "PhoenixSim"
+        "PhoenixSim",
+        "PhoenixBlackboard"
     }
 
     filter "configurations:Debug"
