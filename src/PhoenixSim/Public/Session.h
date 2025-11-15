@@ -20,8 +20,7 @@ namespace Phoenix
 
     struct PHOENIXSIM_API SessionStepArgs
     {
-        clock_t DeltaTime = 0;
-        clock_t StepHz = 1000 / 60;
+        uint32 StepHz = 60;
 
         // Optionally only step this world.
         FName WorldName = FName::None;
@@ -45,11 +44,11 @@ namespace Phoenix
         BlockBuffer* GetBuffer();
         const BlockBuffer* GetBuffer() const;
 
-        clock_t GetCurrTime() const;
-        clock_t GetStartTime() const;
-        clock_t GetLastStepTime() const;
+        sys_clock_t GetCurrTime() const;
+        sys_clock_t GetStartTime() const;
+        sys_clock_t GetLastStepTime() const;
         simtime_t GetSimTime() const;
-        double GetFramerate() const;
+        const FPSCalc& GetFPSCalc() const;
 
         FeatureSet* GetFeatureSet() const;
         WorldManager* GetWorldManager() const;
@@ -58,7 +57,7 @@ namespace Phoenix
 
         void ProcessActions(simtime_t time);
 
-        void UpdateSession(simtime_t time, clock_t stepHz) const;
+        void UpdateSession(simtime_t time, uint32 stepHz) const;
 
         TSharedPtr<FeatureSet> FeatureSet;
         TSharedPtr<WorldManager> WorldManager;
@@ -66,10 +65,10 @@ namespace Phoenix
         TArray<TTuple<simtime_t, Action>> ActionQueue;
         std::shared_mutex ActionQueueMutex;
 
-        clock_t StartTime = 0;
-        clock_t CurrTickTime = 0;
-        int64 AccTickTime = 0;
-        clock_t LastStepTime = 0;
+        sys_clock_t StartTime;
+        sys_clock_t CurrTickTime;
+        sys_clock_dur_t AccTickTime = sys_clock_dur_t(0);
+        sys_clock_t LastStepTime;
         simtime_t SimTime = 0;
 
         // Steps per second

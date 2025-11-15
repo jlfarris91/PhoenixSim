@@ -13,13 +13,13 @@ bool TaskHandle::IsCompleted() const
     return bIsCompleted.load(std::memory_order_acquire);
 }
 
-bool TaskHandle::WaitForCompleted(clock_t maxWaitTime) const
+bool TaskHandle::WaitForCompleted(std::chrono::milliseconds maxWaitTime) const
 {
-    clock_t startTime = PHX_CLOCK();
+    auto startTime = PHX_SYS_CLOCK_NOW();
     while (!IsCompleted())
     {
         std::this_thread::yield();
-        if (maxWaitTime && (PHX_CLOCK() - startTime) > maxWaitTime)
+        if (maxWaitTime.count() > 0 && (PHX_SYS_CLOCK_NOW() - startTime) > maxWaitTime)
         {
             return false;
         }
@@ -59,9 +59,9 @@ void Task::operator()() const
     }
 }
 
-bool Task::WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime)
+bool Task::WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, std::chrono::milliseconds maxWaitTime)
 {
-    clock_t startTime = PHX_CLOCK();
+    auto startTime = PHX_SYS_CLOCK_NOW();
    
     for (;;)
     {
@@ -80,7 +80,7 @@ bool Task::WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t m
             return true;
         }
 
-        if (maxWaitTime && (PHX_CLOCK() - startTime) > maxWaitTime)
+        if (maxWaitTime.count() > 0 && (PHX_SYS_CLOCK_NOW() - startTime) > maxWaitTime)
         {
             return false;
         }
@@ -89,9 +89,9 @@ bool Task::WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t m
     }
 }
 
-bool Task::WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime)
+bool Task::WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, std::chrono::milliseconds maxWaitTime)
 {
-    clock_t startTime = PHX_CLOCK();
+    auto startTime = PHX_SYS_CLOCK_NOW();
 
     for (;;)
     {
@@ -103,7 +103,7 @@ bool Task::WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t m
             }
         }
 
-        if (maxWaitTime && (PHX_CLOCK() - startTime) > maxWaitTime)
+        if (maxWaitTime.count() > 0 && (PHX_SYS_CLOCK_NOW() - startTime) > maxWaitTime)
         {
             return false;
         }
@@ -185,13 +185,13 @@ bool ThreadPool::IsEmpty() const
     return TaskQueue.IsEmpty();
 }
 
-bool ThreadPool::WaitIdle(clock_t maxWaitTime) const
+bool ThreadPool::WaitIdle(std::chrono::milliseconds maxWaitTime) const
 {
-    clock_t startTime = PHX_CLOCK();
+    auto startTime = PHX_SYS_CLOCK_NOW();
     while (!IsEmpty() || ActiveWorkerCount.load(std::memory_order_acquire) != 0)
     {
         std::this_thread::yield();
-        if (maxWaitTime && (PHX_CLOCK() - startTime) > maxWaitTime)
+        if (maxWaitTime.count() > 0 && (PHX_SYS_CLOCK_NOW() - startTime) > maxWaitTime)
         {
             return false;
         }

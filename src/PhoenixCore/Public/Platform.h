@@ -13,6 +13,7 @@
 #include <cassert>
 #include <functional>
 #include <unordered_set>
+#include <chrono>
 
 #pragma warning( disable : 4251 )
 
@@ -35,16 +36,16 @@
     #define PHOENIXCORE_API
 #endif
 
+#define PHX_SYS_CLOCK_NOW() std::chrono::system_clock::now()
+
 #ifdef _WIN32
     #define PHX_FORCEINLINE __forceinline
     #define PHX_THREAD_PAUSE() _mm_pause()
-    #define PHX_CLOCK() clock()
 #else
     // Linux/GCC
     #define PHX_FORCEINLINE inline __attribute__((always_inline))
     #define _countof(arr) (sizeof(arr) / sizeof((arr)[0]))
     #define PHX_THREAD_PAUSE() { do {} while(0); }
-    #define PHX_CLOCK() std::chrono::system_clock::now().time_since_epoch().count()
 #endif
 
 #define PHX_ASSERT(...) assert(__VA_ARGS__)
@@ -156,6 +157,9 @@ namespace Phoenix
     template <class T>
     using Underlying_T = typename Underlying<T>::type;
 
+    typedef decltype(PHX_SYS_CLOCK_NOW()) sys_clock_t;
+    typedef std::chrono::duration<sys_clock_t::rep, sys_clock_t::period> sys_clock_dur_t;
+    
     typedef int64 dt_t;
     typedef uint64 simtime_t;
 

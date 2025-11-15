@@ -48,9 +48,7 @@ using namespace Phoenix::Pathfinding;
 SDL_Window* GWindow;
 SDL_Renderer* GRenderer;
 
-uint32 GRendererFPSCounter = 0;
-uint64 GRendererFPSTimer = 0;
-float GRendererFPS = 0.0f;
+FPSCalc GRendererFPS;
 
 Profiling::TracyProfiler GTracyProfiler;
 
@@ -59,7 +57,6 @@ bool GSessionThreadWantsExit = false;
 std::thread* GSessionThread = nullptr;
 World* GLatestWorldView = nullptr;
 std::mutex GWorldViewUpdateMutex;
-float GSessionFPS = 0;
 
 SDLDebugState* GDebugState;
 SDLDebugRenderer* GDebugRenderer;
@@ -117,26 +114,19 @@ void UpdateSessionWorker()
 {
     PHX_PROFILE_SET_THREAD_NAME("Sim", 0);
 
-    clock_t lastClockTime = 0;
     GSessionThreadWantsExit = false;
+
+    SessionStepArgs stepArgs;
+    stepArgs.StepHz = 30;
 
     while (!GSessionThreadWantsExit)
     {
         FrameMarkNamed("Sim");
 
-        clock_t currClockTime = PHX_CLOCK();
-        clock_t deltaClockTime = currClockTime - lastClockTime;
-        lastClockTime = currClockTime;
-
-        SessionStepArgs stepArgs;
-        stepArgs.DeltaTime = deltaClockTime;
-        stepArgs.StepHz = 60;
-
         GSession->Tick(stepArgs);
 
-        GSessionFPS = static_cast<float>(GSession->GetFramerate());
-
-        //Sleep(10);
+        // Sleep(10);
+        std::this_thread::yield();
     }
 }
 
@@ -199,16 +189,7 @@ void OnAppRenderWorld()
     float mx, my;
     SDL_GetMouseState(&mx, &my);
 
-    ++GRendererFPSCounter;
-    Uint64 currTicks = SDL_GetTicks();
-    unsigned long long tickDelta = currTicks - GRendererFPSTimer;
-    if (tickDelta > CLOCKS_PER_SEC)
-    {
-        GRendererFPSTimer = currTicks;
-        GRendererFPS = static_cast<float>(GRendererFPSCounter);
-        GRendererFPS += static_cast<float>(tickDelta) / CLOCKS_PER_SEC;
-        GRendererFPSCounter = 0;
-    }
+    GRendererFPS.Tick();
 
     GDebugRenderer->Reset();
 
@@ -221,7 +202,7 @@ void OnAppRenderWorld()
             {
                 GCurrWorldView = new World(*GLatestWorldView);
             }
-            else
+            else if (GCurrWorldView->GetSimTime() < GLatestWorldView->GetSimTime())
             {
                 *GCurrWorldView = *GLatestWorldView;
             }
@@ -322,12 +303,12 @@ void OnAppRenderUI()
             ImGui::TableNextColumn();
             ImGui::Text("Sim FPS:");
             ImGui::TableNextColumn();
-            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GSession->GetFramerate(), GSession->GetFramerate());
+            ImGui::Text("%.3f ms/frame (%.1f FPS)", GSession->GetFPSCalc().GetFPS(), GSession->GetFPSCalc().GetFramerate());
 
             ImGui::TableNextColumn();
             ImGui::Text("SDL FPS:");
             ImGui::TableNextColumn();
-            ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / GRendererFPS, GRendererFPS);
+            ImGui::Text("%.3f ms/frame (%.1f FPS)", GRendererFPS.GetFPS(), GRendererFPS.GetFramerate());
 
             ImGui::TableNextColumn();
             ImGui::Text("ImGui FPS:");

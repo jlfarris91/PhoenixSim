@@ -49,6 +49,8 @@ namespace Phoenix
         bool IsShutDown() const;
         bool IsActive() const;
 
+        simtime_t GetSimTime() const;
+
         World& operator=(const World& other);
         World& operator=(World&& other) noexcept;
 
@@ -122,7 +124,7 @@ namespace Phoenix
     struct PHOENIXSIM_API WorldStepArgs
     {
         simtime_t SimTime = 0;
-        clock_t StepHz = 0;
+        uint32 StepHz = 0;
         FName WorldName = FName::None;
     };
 

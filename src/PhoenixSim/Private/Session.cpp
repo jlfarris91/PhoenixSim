@@ -51,10 +51,10 @@ void Session::Initialize()
         feature->Initialize();
     }
 
-    StartTime = PHX_CLOCK();
+    StartTime = PHX_SYS_CLOCK_NOW();
     CurrTickTime = StartTime;
     LastStepTime = StartTime;
-    AccTickTime = 0;
+    AccTickTime = sys_clock_dur_t(0);
     FPSCalc.Reset();
 }
 
@@ -75,47 +75,37 @@ void Session::QueueAction(const Action& action)
 
 void Session::Tick(const SessionStepArgs& args)
 {
-    clock_t currTime = PHX_CLOCK();
-    clock_t dt = currTime - CurrTickTime;
+    using namespace std::chrono;
+
+    auto currTime = PHX_SYS_CLOCK_NOW();
+    auto dt = currTime - CurrTickTime;
     CurrTickTime = currTime;
 
     // Skip frames during debug break
-    if (dt > CLOCKS_PER_SEC * 3)
+    if (dt > 3s)
     {
         return;
     }
 
-    clock_t hz = CLOCKS_PER_SEC / args.StepHz;
-
-    FPSCalc.Tick();
+    sys_clock_dur_t hz = sys_clock_dur_t(1s) / args.StepHz;
 
     AccTickTime += dt;
     while (AccTickTime >= hz)
     {
-        clock_t startStepTime = PHX_CLOCK();
+        auto startStepTime = PHX_SYS_CLOCK_NOW();
 
         Step(args);
 
-        clock_t endStepTime = PHX_CLOCK();
-        clock_t stepElapsed = endStepTime - startStepTime;
+        sys_clock_t endStepTime = PHX_SYS_CLOCK_NOW();
+        auto stepElapsed = endStepTime - startStepTime;
 
-        if (stepElapsed > CLOCKS_PER_SEC * 3)
+        if (stepElapsed > 3s)
         {
             break;
         }
 
-        AccTickTime -= std::max(hz, stepElapsed);
-        CurrTickTime = PHX_CLOCK();
-    }
-
-    if (AccTickTime > 0)
-    {
-#ifdef _WIN32
-        Sleep(static_cast<clock_t>(AccTickTime));
-#else
-        // usleep takes microseconds; CLOCKS_PER_SEC is typically 1000000 on Linux
-        usleep(static_cast<unsigned int>((AccTickTime * 1000000) / CLOCKS_PER_SEC));
-#endif
+        AccTickTime -= hz;
+        CurrTickTime = PHX_SYS_CLOCK_NOW();
     }
 }
 
@@ -123,8 +113,10 @@ void Session::Step(const SessionStepArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
-    LastStepTime = PHX_CLOCK();
+    LastStepTime = PHX_SYS_CLOCK_NOW();
     SimTime += 1;
+
+    FPSCalc.Tick();
 
     // Process actions
     ProcessActions(SimTime);
@@ -149,17 +141,17 @@ const BlockBuffer* Session::GetBuffer() const
     return SessionBuffer.get();
 }
 
-clock_t Session::GetCurrTime() const
+sys_clock_t Session::GetCurrTime() const
 {
     return CurrTickTime;
 }
 
-clock_t Session::GetStartTime() const
+sys_clock_t Session::GetStartTime() const
 {
     return StartTime;
 }
 
-clock_t Session::GetLastStepTime() const
+sys_clock_t Session::GetLastStepTime() const
 {
     return LastStepTime;
 }
@@ -169,9 +161,9 @@ simtime_t Session::GetSimTime() const
     return SimTime;
 }
 
-double Session::GetFramerate() const
+const FPSCalc& Session::GetFPSCalc() const
 {
-    return FPSCalc.Framerate;
+    return FPSCalc;
 }
 
 FeatureSet* Session::GetFeatureSet() const
@@ -230,7 +222,7 @@ void Session::ProcessActions(simtime_t time)
     }
 }
 
-void Session::UpdateSession(simtime_t time, clock_t stepHz) const
+void Session::UpdateSession(simtime_t time, uint32 stepHz) const
 {
     FeatureUpdateArgs updateArgs;
     updateArgs.SimTime = time;

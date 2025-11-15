@@ -15,7 +15,7 @@ namespace Phoenix
     struct PHOENIXCORE_API TaskHandle
     {
         bool IsCompleted() const;
-        bool WaitForCompleted(clock_t maxWaitTime = 0) const;
+        bool WaitForCompleted(std::chrono::milliseconds maxWaitTime = std::chrono::milliseconds(0)) const;
         void OnCompleted(std::function<void()>&& fn);
 
     private:
@@ -40,8 +40,8 @@ namespace Phoenix
         Task& operator=(const Task& other) = default;
         Task& operator=(Task&& other) = default;
 
-        static bool WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
-        static bool WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, clock_t maxWaitTime = 0);
+        static bool WaitAll(const std::vector<TSharedPtr<TaskHandle>>& handles, std::chrono::milliseconds maxWaitTime = std::chrono::milliseconds(0));
+        static bool WaitAny(const std::vector<TSharedPtr<TaskHandle>>& handles, std::chrono::milliseconds maxWaitTime = std::chrono::milliseconds(0));
 
     private:
 
@@ -70,7 +70,7 @@ namespace Phoenix
         TSharedPtr<TaskHandle> Submit(TTaskFunc&& work);
 
         bool IsEmpty() const;
-        bool WaitIdle(clock_t maxWaitTime = 0) const;
+        bool WaitIdle(std::chrono::milliseconds maxWaitTime = std::chrono::milliseconds(0)) const;
 
     private:
 

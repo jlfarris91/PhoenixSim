@@ -2,7 +2,6 @@
 #pragma once
 
 #include <algorithm>
-#include <ctime>
 #include <limits>
 
 #include "Platform.h"
@@ -14,7 +13,7 @@ namespace Phoenix
         static constexpr uint32 NumFrames = 60;
 
         uint64 TotalTicks = 0;
-        clock_t Time = 0;
+        sys_clock_t Time;
 
         double SecPerFrameAccum = 0.0;
         double SecPerFrame[NumFrames] = { 0.0 };
@@ -28,10 +27,20 @@ namespace Phoenix
             Reset();
         }
 
+        double GetFramerate() const
+        {
+            return Framerate;
+        }
+
+        double GetFPS() const
+        {
+            return 1000.0f / Framerate;
+        }
+
         void Reset()
         {
             TotalTicks = 0;
-            Time = PHX_CLOCK();
+            Time = PHX_SYS_CLOCK_NOW();
             SecPerFrameAccum = 0.0;
             memset(&SecPerFrame[0], 0, NumFrames * sizeof(double));
             SecPerFrameIdx = 0;
@@ -43,11 +52,10 @@ namespace Phoenix
         {
             ++TotalTicks;
 
-            clock_t currTime = PHX_CLOCK();
-            clock_t deltaTime = currTime - Time;
+            sys_clock_t currTime = PHX_SYS_CLOCK_NOW();
+            auto deltaTime = currTime - Time;
             Time = currTime;
-
-            double dt = (double)deltaTime / (double)CLOCKS_PER_SEC;
+            double dt = std::chrono::duration<double>(deltaTime).count();
 
             SecPerFrameAccum += dt - SecPerFrame[SecPerFrameIdx];
             SecPerFrame[SecPerFrameIdx] = dt;

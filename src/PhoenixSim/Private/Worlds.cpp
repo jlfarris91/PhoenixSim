@@ -49,6 +49,11 @@ bool World::IsActive() const
     return HasNoneFlags(Flags, EWorldFlags::Initialized, EWorldFlags::ShutDown);
 }
 
+simtime_t World::GetSimTime() const
+{
+    return GetBlockRef<WorldDynamicBlock>().SimTime;
+}
+
 World& World::operator=(const World& other)
 {
     Buffer = other.Buffer;
@@ -214,6 +219,8 @@ void WorldManager::ShutdownWorld(WorldRef world) const
 void WorldManager::UpdateWorld(WorldRef world, simtime_t time, clock_t stepHz) const
 {
     PHX_PROFILE_ZONE_SCOPED;
+
+    world.GetBlockRef<WorldDynamicBlock>().SimTime = time;
 
     FeatureUpdateArgs updateArgs;
     updateArgs.SimTime = time;
