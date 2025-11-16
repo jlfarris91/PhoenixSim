@@ -3,6 +3,7 @@
 
 #include <execution>
 
+#include "FeatureBlackboard.h"
 #include "MortonCode.h"
 #include "Profiling.h"
 #include "System.h"
@@ -11,6 +12,7 @@
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
+using namespace Phoenix::Blackboard;
 
 namespace FeatureECSDetail
 {
@@ -415,6 +417,11 @@ bool FeatureECS::ReleaseEntity(WorldRef world, EntityId entityId)
     // Remove all associated tags
     RemoveAllTags(world, entityId);
 
+    // Remove all blackboard keys associated with the entity
+    BlackboardKeyQuery query(IgnoreKey, entityId, IgnoreType);
+    uint32 removed = FeatureBlackboard::GetBlackboard(world).RemoveAll(query);
+    PHX_ASSERT(removed == 3);
+
     block.Entities.Release(entityId);
 
     return true;
@@ -663,6 +670,49 @@ uint32 FeatureECS::RemoveAllTags(WorldRef world, EntityId entityId)
     }
 
     return block->Tags.RemoveAllTags(*entity);
+}
+
+blackboard_key_t FeatureECS::CreateBlackboardKey(
+    const EntityId& id,
+    const FName& key,
+    blackboard_type_t type)
+{
+    return BlackboardKey::Create(static_cast<uint32>(key), id, type);
+}
+
+bool FeatureECS::HasBlackboardValue(
+    WorldConstRef world,
+    const EntityId& id,
+    const FName& key,
+    blackboard_type_t type)
+{
+    const WorldBlackboard& blackboard = FeatureBlackboard::GetBlackboard(world);
+    blackboard_key_t fullKey = CreateBlackboardKey(id, key);
+    return blackboard.HasValue(BlackboardKeyQuery(fullKey, type));
+}
+
+bool FeatureECS::SetBlackboardValue(
+    WorldRef world,
+    const EntityId& id,
+    const FName& key,
+    blackboard_value_t value,
+    blackboard_type_t type)
+{
+    WorldBlackboard& blackboard = FeatureBlackboard::GetBlackboard(world);
+    blackboard_key_t fullKey = CreateBlackboardKey(id, key, type);
+    return blackboard.SetValue(fullKey, value);
+}
+
+bool FeatureECS::GetBlackboardValue(
+    WorldConstRef world,
+    const EntityId& id,
+    const FName& key,
+    blackboard_value_t& outValue,
+    blackboard_type_t expectedType)
+{
+    const WorldBlackboard& blackboard = FeatureBlackboard::GetBlackboard(world);
+    blackboard_key_t fullKey = CreateBlackboardKey(id, key);
+    return blackboard.GetValue(BlackboardKeyQuery(fullKey, expectedType), outValue);
 }
 
 void FeatureECS::QueryEntitiesInRange(

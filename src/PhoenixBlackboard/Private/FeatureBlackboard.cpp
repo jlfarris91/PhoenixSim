@@ -6,65 +6,42 @@
 using namespace Phoenix;
 using namespace Phoenix::Blackboard;
 
-const SessionBlackboardSet& FeatureBlackboard::GetGlobalBlackboard(SessionConstRef session)
+void FeatureBlackboard::OnPostUpdate(const FeatureUpdateArgs& args)
+{
+    IFeature::OnPostUpdate(args);
+    
+    FeatureBlackboardDynamicSessionBlock& block = Session->GetBuffer()->GetBlockRef<FeatureBlackboardDynamicSessionBlock>();
+    block.Blackboard.SortAndCompact();
+}
+
+void FeatureBlackboard::OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+{
+    IFeature::OnPostWorldUpdate(world, args);
+
+    FeatureBlackboardDynamicWorldBlock& block = world.GetBlockRef<FeatureBlackboardDynamicWorldBlock>();
+    block.Blackboard.SortAndCompact();
+}
+
+SessionBlackboard& FeatureBlackboard::GetGlobalBlackboard(SessionRef session)
+{
+    FeatureBlackboardDynamicSessionBlock& block = session.GetBuffer()->GetBlockRef<FeatureBlackboardDynamicSessionBlock>();
+    return block.Blackboard;
+}
+
+const SessionBlackboard& FeatureBlackboard::GetGlobalBlackboard(SessionConstRef session)
 {
     const FeatureBlackboardDynamicSessionBlock& block = session.GetBuffer()->GetBlockRef<FeatureBlackboardDynamicSessionBlock>();
-    return block.BlackboardSet;
+    return block.Blackboard;
 }
 
-bool FeatureBlackboard::HasGlobalValue(SessionConstRef session, blackboard_key_t key)
+WorldBlackboard& FeatureBlackboard::GetBlackboard(WorldRef world)
 {
-    const FeatureBlackboardDynamicSessionBlock* block = session.GetBuffer()->GetBlock<FeatureBlackboardDynamicSessionBlock>();
-    return block && block->BlackboardSet.HasKey(key);
+    FeatureBlackboardDynamicWorldBlock& block = world.GetBlockRef<FeatureBlackboardDynamicWorldBlock>();
+    return block.Blackboard;
 }
 
-bool FeatureBlackboard::SetGlobalValue(SessionRef session, blackboard_key_t key, blackboard_value_t value)
-{
-    FeatureBlackboardDynamicSessionBlock* block = session.GetBuffer()->GetBlock<FeatureBlackboardDynamicSessionBlock>();
-    return block && block->BlackboardSet.Set(key, value);
-}
-
-blackboard_value_t FeatureBlackboard::GetGlobalValue(SessionConstRef session, blackboard_key_t key)
-{
-    const FeatureBlackboardDynamicSessionBlock* block = session.GetBuffer()->GetBlock<FeatureBlackboardDynamicSessionBlock>();
-    return block ? block->BlackboardSet.Get(key) : blackboard_value_t{};
-}
-
-bool FeatureBlackboard::TryGetGlobalValue(SessionConstRef session, blackboard_key_t key, blackboard_value_t& outValue)
-{
-    const FeatureBlackboardDynamicSessionBlock* block = session.GetBuffer()->GetBlock<FeatureBlackboardDynamicSessionBlock>();
-    return block && block->BlackboardSet.TryGet(key, outValue);
-}
-
-const WorldBlackboardSet& FeatureBlackboard::GetBlackboardSet(WorldConstRef world)
+const WorldBlackboard& FeatureBlackboard::GetBlackboard(WorldConstRef world)
 {
     const FeatureBlackboardDynamicWorldBlock& block = world.GetBlockRef<FeatureBlackboardDynamicWorldBlock>();
-    return block.BlackboardSet;
-}
-
-bool FeatureBlackboard::HasValue(WorldConstRef world, blackboard_key_t key)
-{
-    const FeatureBlackboardDynamicWorldBlock* block = world.GetBlock<FeatureBlackboardDynamicWorldBlock>();
-    return block && block->BlackboardSet.HasKey(key);
-}
-
-bool FeatureBlackboard::SetValue(WorldRef world, blackboard_key_t key, blackboard_value_t value)
-{
-    FeatureBlackboardDynamicWorldBlock* block = world.GetBlock<FeatureBlackboardDynamicWorldBlock>();
-    return block && block->BlackboardSet.Set(key, value);
-}
-
-blackboard_value_t FeatureBlackboard::GetValue(WorldConstRef world, blackboard_key_t key)
-{
-    const FeatureBlackboardDynamicWorldBlock* block = world.GetBlock<FeatureBlackboardDynamicWorldBlock>();
-    return block ? block->BlackboardSet.Get(key) : blackboard_value_t{};
-}
-
-bool FeatureBlackboard::TryGetValue(
-    WorldConstRef world,
-    blackboard_key_t key,
-    blackboard_value_t& outValue)
-{
-    const FeatureBlackboardDynamicWorldBlock* block = world.GetBlock<FeatureBlackboardDynamicWorldBlock>();
-    return block && block->BlackboardSet.TryGet(key, outValue);
+    return block.Blackboard;
 }

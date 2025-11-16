@@ -6,6 +6,8 @@
 #include "Features.h"
 #include "FixedTagList.h"
 #include "ArchetypeManager.h"
+#include "FeatureBlackboard.h"
+#include "FixedBlackboard.h"
 #include "FixedEntityList.h"
 #include "Parallel.h"
 #include "SystemJob.h"
@@ -322,6 +324,77 @@ namespace Phoenix
                 }
 
                 return block->Tags.ForEachTag(*entity, callback);
+            }
+
+            //
+            // Blackboard helpers
+            //
+
+            static Blackboard::blackboard_key_t CreateBlackboardKey(
+                const EntityId& id,
+                const FName& key,
+                Blackboard::blackboard_type_t type = Blackboard::UnknownType);
+
+            static bool HasBlackboardValue(
+                WorldConstRef world,
+                const EntityId& id,
+                const FName& key,
+                Blackboard::blackboard_type_t type = Blackboard::UnknownType);
+
+            template <class T>
+            static bool HasBlackboardValue(WorldConstRef world, const EntityId& id, const FName& key)
+            {
+                return HasBlackboardValue(world, id, key, Blackboard::BlackboardValueType<T>::Type);
+            }
+
+            static bool SetBlackboardValue(
+                WorldRef world,
+                const EntityId& id,
+                const FName& key,
+                Blackboard::blackboard_value_t value,
+                Blackboard::blackboard_type_t type = Blackboard::UnknownType);
+
+            template <class T>
+            static bool SetBlackboardValue(
+                WorldRef world,
+                const EntityId& id,
+                const FName& key,
+                const T& value)
+            {
+                Blackboard::WorldBlackboard& blackboard = Blackboard::FeatureBlackboard::GetBlackboard(world);
+                Blackboard::blackboard_key_t fullKey = CreateBlackboardKey(id, key);
+                return blackboard.SetValue<T>(fullKey, value);
+            }
+
+            static bool GetBlackboardValue(
+                WorldConstRef world,
+                const EntityId& id,
+                const FName& key,
+                Blackboard::blackboard_value_t& outValue,
+                Blackboard::blackboard_type_t expectedType = Blackboard::IgnoreType);
+
+            template <class T>
+            static bool GetBlackboardValue(
+                WorldConstRef world,
+                const EntityId& id,
+                const FName& key,
+                T& outValue)
+            {
+                const Blackboard::WorldBlackboard& blackboard = Blackboard::FeatureBlackboard::GetBlackboard(world);
+                Blackboard::blackboard_key_t fullKey = CreateBlackboardKey(id, key);
+                return blackboard.GetValue<T>(fullKey, outValue);
+            }
+
+            template <class T = Blackboard::blackboard_value_t>
+            static bool RemoveBlackboardValue(
+                WorldRef world,
+                const EntityId& id,
+                const FName& key,
+                bool checkType = true)
+            {
+                Blackboard::WorldBlackboard& blackboard = Blackboard::FeatureBlackboard::GetBlackboard(world);
+                Blackboard::blackboard_key_t fullKey = CreateBlackboardKey(id, key);
+                return blackboard.RemoveValue<T>(fullKey, checkType);
             }
 
             //

@@ -1,122 +1,61 @@
 
 #pragma once
 
-#include "FixedBlackboardSet.h"
+#include "FixedBlackboard.h"
 #include "DLLExport.h"
 #include "Features.h"
 #include "Session.h"
 
 #ifndef PHX_BLACKBOARD_MAX_GLOBAL_SIZE
-#define PHX_BLACKBOARD_MAX_GLOBAL_SIZE 1024
+#define PHX_BLACKBOARD_MAX_GLOBAL_SIZE 8192
 #endif
 
 #ifndef PHX_BLACKBOARD_MAX_WORLD_SIZE
-#define PHX_BLACKBOARD_MAX_WORLD_SIZE 16384
+#define PHX_BLACKBOARD_MAX_WORLD_SIZE (16384 * 8)
 #endif
 
-namespace Phoenix
+namespace Phoenix::Blackboard
 {
-    namespace Blackboard
+    using SessionBlackboard = TFixedBlackboard<PHX_BLACKBOARD_MAX_GLOBAL_SIZE>;
+    using WorldBlackboard = TFixedBlackboard<PHX_BLACKBOARD_MAX_WORLD_SIZE>;
+    
+    struct FeatureBlackboardDynamicSessionBlock : BufferBlockBase
     {
-        using SessionBlackboardSet = TFixedBlackboardSet<PHX_BLACKBOARD_MAX_GLOBAL_SIZE>;
-        using WorldBlackboardSet = TFixedBlackboardSet<PHX_BLACKBOARD_MAX_WORLD_SIZE>;
-        
-        struct FeatureBlackboardDynamicSessionBlock : BufferBlockBase
-        {
-            PHX_DECLARE_BLOCK_DYNAMIC(FeatureBlackboardDynamicSessionBlock)
-            SessionBlackboardSet BlackboardSet;
-        };
+        PHX_DECLARE_BLOCK_DYNAMIC(FeatureBlackboardDynamicSessionBlock)
+        SessionBlackboard Blackboard;
+    };
 
-        struct FeatureBlackboardDynamicWorldBlock : BufferBlockBase
-        {
-            PHX_DECLARE_BLOCK_DYNAMIC(FeatureBlackboardDynamicWorldBlock)
-            WorldBlackboardSet BlackboardSet;
-        };
-        
-        class PHOENIX_BLACKBOARD_API FeatureBlackboard final : public IFeature
-        {
-            PHX_FEATURE_BEGIN(FeatureBlackboard)
-                FEATURE_SESSION_BLOCK(FeatureBlackboardDynamicSessionBlock)
-                FEATURE_WORLD_BLOCK(FeatureBlackboardDynamicWorldBlock)
-            PHX_FEATURE_END()
+    struct FeatureBlackboardDynamicWorldBlock : BufferBlockBase
+    {
+        PHX_DECLARE_BLOCK_DYNAMIC(FeatureBlackboardDynamicWorldBlock)
+        WorldBlackboard Blackboard;
+    };
+    
+    class PHOENIX_BLACKBOARD_API FeatureBlackboard final : public IFeature
+    {
+        PHX_FEATURE_BEGIN(FeatureBlackboard)
+            FEATURE_SESSION_BLOCK(FeatureBlackboardDynamicSessionBlock)
+            FEATURE_WORLD_BLOCK(FeatureBlackboardDynamicWorldBlock)
+            FEATURE_CHANNEL(FeatureChannels::PostWorldUpdate)
+        PHX_FEATURE_END()
 
-        public:
+    public:
 
-            //
-            // Session-level blackboard
-            //
+        void OnPostUpdate(const FeatureUpdateArgs& args) override;
+        void OnPostWorldUpdate(WorldRef world, const FeatureUpdateArgs& args) override;
 
-            static const SessionBlackboardSet& GetGlobalBlackboard(SessionConstRef session);
+        //
+        // Session-level blackboard
+        //
 
-            static bool HasGlobalValue(SessionConstRef session, blackboard_key_t key);
+        static SessionBlackboard& GetGlobalBlackboard(SessionRef session);
+        static const SessionBlackboard& GetGlobalBlackboard(SessionConstRef session);
 
-            static bool SetGlobalValue(SessionRef session, blackboard_key_t key, blackboard_value_t value);
+        //
+        // World-level blackboard
+        //
 
-            template <class T>
-            bool SetGlobalValue(SessionRef session, blackboard_key_t key, blackboard_value_t value)
-            {
-                return SetGlobalValue(session, key, BlackboardKeyConverter<T>::ConvertTo(value));
-            }
-
-            static blackboard_value_t GetGlobalValue(SessionConstRef session, blackboard_key_t key);
-
-            template <class T>
-            static T GetGlobalValue(SessionConstRef session, blackboard_key_t key)
-            {
-                return BlackboardKeyConverter<T>::ConvertFrom(GetGlobalValue(session, key));
-            }
-
-            static bool TryGetGlobalValue(SessionConstRef session, blackboard_key_t key, blackboard_value_t& outValue);
-
-            template <class T>
-            static bool TryGetGlobalValue(SessionConstRef session, blackboard_key_t key, T& outValue)
-            {
-                blackboard_value_t value;
-                if (!TryGetGlobalValue(session, key, value))
-                {
-                    return false;
-                }
-                outValue = BlackboardKeyConverter<T>::ConvertFrom(value);
-                return true;
-            }
-
-            //
-            // World-level blackboard
-            //
-
-            static const WorldBlackboardSet& GetBlackboardSet(WorldConstRef world);
-
-            static bool HasValue(WorldConstRef world, blackboard_key_t key);
-
-            static bool SetValue(WorldRef world, blackboard_key_t key, blackboard_value_t value);
-
-            template <class T>
-            bool SetValue(WorldRef world, blackboard_key_t key, blackboard_value_t value)
-            {
-                return SetValue(world, key, BlackboardKeyConverter<T>::ConvertTo(value));
-            }
-
-            static blackboard_value_t GetValue(WorldConstRef world, blackboard_key_t key);
-
-            template <class T>
-            static T GetValue(WorldConstRef world, blackboard_key_t key)
-            {
-                return BlackboardKeyConverter<T>::ConvertFrom(GetValue(world, key));
-            }
-
-            static bool TryGetValue(WorldConstRef world, blackboard_key_t key, blackboard_value_t& outValue);
-
-            template <class T>
-            static bool TryGetValue(WorldConstRef world, blackboard_key_t key, T& outValue)
-            {
-                blackboard_value_t value;
-                if (!TryGetValue(world, key, value))
-                {
-                    return false;
-                }
-                outValue = BlackboardKeyConverter<T>::ConvertFrom(value);
-                return true;
-            }
-        };
-    }
+        static WorldBlackboard& GetBlackboard(WorldRef world);
+        static const WorldBlackboard& GetBlackboard(WorldConstRef world);
+    };
 }

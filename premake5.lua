@@ -297,6 +297,7 @@ project "PhoenixPhysics"
         "src/PhoenixPhysics/Public",
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixBlackboard/Public",
         "src/PhoenixECS/Public"
     }
 
@@ -334,7 +335,15 @@ project "PhoenixLua"
     kind "StaticLib"
     location (projects)
 
-    dependson { "lua", "sol2", "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixPhysics" }
+    dependson {
+        "lua",
+        "sol2",
+        "PhoenixCore",
+        "PhoenixSim",
+        "PhoenixBlackboard",
+        "PhoenixECS",
+        "PhoenixPhysics"
+    }
 
     -- defines { "PHOENIX_DLL" }
     -- defines { "PHOENIXSIM_DLL_EXPORTS" }
@@ -349,6 +358,7 @@ project "PhoenixLua"
         "src/PhoenixLua/Private",
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixBlackboard/Public",
         "src/PhoenixECS/Public",
         "src/PhoenixPhysics/Public",
     }
@@ -363,6 +373,7 @@ project "PhoenixLua"
         "lua",
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixBlackboard",
         "PhoenixECS",
         "PhoenixPhysics",
     }
@@ -395,7 +406,14 @@ project "TestApp"
     kind "ConsoleApp"
     location (projects)
 
-    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS", "PhoenixPhysics", "PhoenixLua" }
+    dependson {
+        "PhoenixCore",
+        "PhoenixSim",
+        "PhoenixECS",
+        "PhoenixBlackboard",
+        "PhoenixPhysics",
+        "PhoenixLua"
+    }
 
     -- defines { "PHOENIX_DLL" }
     defines { "TRACY_ENABLE", "PHX_PROFILE_ENABLE" }
@@ -417,6 +435,7 @@ project "TestApp"
     includedirs {
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixBlackboard/Public",
         "src/PhoenixECS/Public",
         "src/PhoenixPhysics/Public",
         "src/PhoenixLua/Public"
@@ -439,6 +458,7 @@ project "TestApp"
         "lua",
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixBlackboard",
         "PhoenixECS",
         "PhoenixPhysics",
         "PhoenixLua",

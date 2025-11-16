@@ -21,6 +21,7 @@
 #include "MortonCode.h"
 
 // Phoenix features
+#include "FeatureBlackboard.h"
 #include "FeatureECS.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
@@ -41,6 +42,7 @@
 #include "Tools/NavMeshTool.h"
 
 using namespace Phoenix;
+using namespace Phoenix::Blackboard;
 using namespace Phoenix::ECS;
 using namespace Phoenix::Physics;
 using namespace Phoenix::Pathfinding;
@@ -85,12 +87,14 @@ void OnPostWorldUpdate(WorldConstRef world);
 
 void InitSession()
 {
+    TSharedPtr<FeatureBlackboard> blackboardFeature = std::make_shared<FeatureBlackboard>();
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     // TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
     
     SessionCtorArgs sessionArgs;
+    sessionArgs.FeatureSetArgs.Features.push_back(blackboardFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
@@ -193,6 +197,7 @@ void OnAppRenderWorld()
 
     GDebugRenderer->Reset();
 
+    // Copy world view
     {
         std::lock_guard lock(GWorldViewUpdateMutex);
 
@@ -206,49 +211,8 @@ void OnAppRenderWorld()
             {
                 *GCurrWorldView = *GLatestWorldView;
             }
-
-            GEntityBodies.clear();
-
-            EntityQueryBuilder builder;
-            builder.RequireAllComponents<const TransformComponent&, const BodyComponent&>();
-            auto query = builder.GetQuery();
-
-            FeatureECS::ForEachEntity(*GCurrWorldView, query, TFunction([](const EntityComponentSpan<const TransformComponent&, const BodyComponent&>& span)
-            {
-                for (auto && [entity, index, transformComp, bodyComp] : span)
-                {
-                    EntityBodyShape entityBodyShape;
-                    entityBodyShape.Transform = transformComp.Transform;
-                    entityBodyShape.Radius = bodyComp.Radius;
-                    entityBodyShape.Color = SDL_Color(0, 255, 0);
-                    entityBodyShape.ZCode = transformComp.ZCode;
-                    entityBodyShape.VelLen = bodyComp.LinearVelocity.Length();
-
-                    if (!HasAnyFlags(bodyComp.Flags, EBodyFlags::Awake))
-                    {
-                        entityBodyShape.Color = SDL_Color(0, 128, 0);
-                    }
-
-                    if (bodyComp.Movement == EBodyMovement::Attached &&
-                        transformComp.AttachParent != EntityId::Invalid)
-                    {
-                        if (TransformComponent* parentTransformComp = FeatureECS::GetComponent<TransformComponent>(*GCurrWorldView, transformComp.AttachParent))
-                        {
-                            entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
-                            entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
-                        }
-                    }
-
-                    GEntityBodies.push_back(entityBodyShape);
-                }
-            }));
         }
     }
-
-    if (!GCurrWorldView)
-        return;
-
-    DrawGrid();
 
     // Draw distance value bounds
     {
@@ -260,6 +224,69 @@ void OnAppRenderWorld()
         GDebugRenderer->DrawLine(br, tr, Color::Red);
         GDebugRenderer->DrawLine(tr, tl, Color::Red);
         GDebugRenderer->DrawLine(tl, bl, Color::Red);
+    }
+
+    DrawGrid();
+
+    // Realize the sim world
+    if (GCurrWorldView)
+    {
+        PHX_PROFILE_ZONE_SCOPED_N("RealizeWorld");
+
+        GEntityBodies.clear();
+
+        EntityQueryBuilder builder;
+        builder.RequireAllComponents<const TransformComponent&, const BodyComponent&>();
+        auto query = builder.GetQuery();
+
+        FeatureECS::ForEachEntity(*GCurrWorldView, query, TFunction([](const EntityComponentSpan<const TransformComponent&, const BodyComponent&>& span)
+        {
+            for (auto && [entity, index, transformComp, bodyComp] : span)
+            {
+                EntityBodyShape entityBodyShape;
+                entityBodyShape.Transform = transformComp.Transform;
+                entityBodyShape.Radius = bodyComp.Radius;
+                entityBodyShape.ZCode = transformComp.ZCode;
+                entityBodyShape.VelLen = bodyComp.LinearVelocity.Length();
+
+                Color color;
+                if (!FeatureECS::GetBlackboardValue(*GCurrWorldView, entity, "Color"_n, color))
+                {
+                    color = Color::Red;
+                }
+
+                entityBodyShape.Color = SDL_Color(color.R, color.G, color.B);
+
+                if (!HasAnyFlags(bodyComp.Flags, EBodyFlags::Awake))
+                {
+                    entityBodyShape.Color = SDL_Color(color.R / 2, color.G / 2, color.B / 2);
+                }
+
+                if (bodyComp.Movement == EBodyMovement::Attached &&
+                    transformComp.AttachParent != EntityId::Invalid)
+                {
+                    if (TransformComponent* parentTransformComp = FeatureECS::GetComponent<TransformComponent>(*GCurrWorldView, transformComp.AttachParent))
+                    {
+                        entityBodyShape.Transform.Position = parentTransformComp->Transform.Position + entityBodyShape.Transform.Position.Rotate(parentTransformComp->Transform.Rotation);
+                        entityBodyShape.Transform.Rotation += parentTransformComp->Transform.Rotation;
+                    }
+                }
+
+                GEntityBodies.push_back(entityBodyShape);
+            }
+        }));
+
+        // Let features draw to the renderer
+        TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(FeatureChannels::DebugRender);
+        for (const auto& feature : channelFeatures)
+        {
+            feature->OnDebugRender(*GCurrWorldView, *GDebugState, *GDebugRenderer);
+        }
+
+        for (const TSharedPtr<ISDLTool>& tool : ActiveTools)
+        {
+            tool->OnAppRenderWorld(*GCurrWorldView, *GDebugState, *GDebugRenderer);
+        }
     }
 
     for (const EntityBodyShape& entityBodyShape : GEntityBodies)
@@ -277,18 +304,6 @@ void OnAppRenderWorld()
 
         Color color(entityBodyShape.Color.r, entityBodyShape.Color.g, entityBodyShape.Color.b);
         GDebugRenderer->DrawLines(points, 4, color);
-    }
-
-    // Let features draw to the renderer
-    TArray<FeatureSharedPtr> channelFeatures = GSession->GetFeatureSet()->GetChannelRef(FeatureChannels::DebugRender);
-    for (const auto& feature : channelFeatures)
-    {
-        feature->OnDebugRender(*GCurrWorldView, *GDebugState, *GDebugRenderer);
-    }
-
-    for (const TSharedPtr<ISDLTool>& tool : ActiveTools)
-    {
-        tool->OnAppRenderWorld(*GCurrWorldView, *GDebugState, *GDebugRenderer);
     }
 }
 
@@ -354,7 +369,7 @@ void OnAppRenderUI()
         {
             const FeatureECSDynamicBlock& ecsDynamicBlock = GCurrWorldView->GetBlockRef<FeatureECSDynamicBlock>();
 
-            if (ImGui::BeginTable("Props", 2, ImGuiTableFlags_SizingFixedFit))
+            if (ImGui::BeginTable("Stats", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableNextColumn();
                 ImGui::Text("Num Entities:");
@@ -521,6 +536,31 @@ void OnAppRenderUI()
             
         }
     
+        ImGui::End();
+    }
+
+    if (ImGui::Begin("Blackboard"))
+    {
+        if (GCurrWorldView)
+        {
+            const FeatureBlackboardDynamicWorldBlock& blackboardWorldBlock = GCurrWorldView->GetBlockRef<FeatureBlackboardDynamicWorldBlock>();
+
+            if (ImGui::BeginTable("Stats", 2, ImGuiTableFlags_SizingFixedFit))
+            {
+                ImGui::TableNextColumn();
+                ImGui::Text("Num KVPs:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", blackboardWorldBlock.Blackboard.GetNumActive());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("KVP HWM:");
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", blackboardWorldBlock.Blackboard.GetSize());
+                                
+                ImGui::EndTable();
+            }
+        }
+
         ImGui::End();
     }
 }

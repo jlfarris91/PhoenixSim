@@ -2,6 +2,7 @@
 #include "FeaturePhysics.h"
 
 #include "BodyComponent.h"
+#include "Color.h"
 #include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
@@ -48,6 +49,12 @@ bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
             bodyComp->InvMass = OneDivBy<Value>(1.0f);
             bodyComp->LinearDamping = 5.f;
             SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
+
+            Color color;
+            color.R = rand() % 255;
+            color.G = rand() % 255;
+            color.B = rand() % 255;
+            FeatureECS::SetBlackboardValue(world, entityId, "Color"_n, color);
         }
 
         return true;
