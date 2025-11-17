@@ -715,6 +715,18 @@ bool FeatureECS::GetBlackboardValue(
     return blackboard.GetValue(BlackboardKeyQuery(fullKey, expectedType), outValue);
 }
 
+const Transform2D* FeatureECS::GetLocalTransformPtr(WorldConstRef world, EntityId entityId)
+{
+    const TransformComponent* comp = GetComponent<TransformComponent>(world, entityId);
+    return comp ? &comp->Transform : nullptr;
+}
+
+const Transform2D* FeatureECS::GetWorldTransformPtr(WorldConstRef world, EntityId entityId)
+{
+    const TransformComponent* comp = GetComponent<TransformComponent>(world, entityId);
+    return comp ? &comp->Transform : nullptr;
+}
+
 void FeatureECS::QueryEntitiesInRange(
     WorldConstRef world,
     const Vec2& pos,

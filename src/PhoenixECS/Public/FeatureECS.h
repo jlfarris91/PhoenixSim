@@ -464,7 +464,10 @@ namespace Phoenix
                 taskQueue->EndGroup();
             }
 
-            static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
+            static const Transform2D* GetLocalTransformPtr(WorldConstRef world, EntityId entityId);
+            static const Transform2D* GetWorldTransformPtr(WorldConstRef world, EntityId entityId);
+
+            static void QueryEntitiesInRange(WorldConstRef world, const Vec2& pos, Distance range, TArray<EntityTransform>& outEntities);
 
             bool bDebugDrawMortonCodeBoundaries = false;
             bool bDebugDrawEntityZCodes = false;

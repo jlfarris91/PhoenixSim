@@ -24,6 +24,7 @@ workspace "Phoenix"
         project "PhoenixBlackboard"
         project "PhoenixECS"
         project "PhoenixPhysics"
+        project "PhoenixSteering"
         project "PhoenixLua"
 
     group "Tests"
@@ -283,7 +284,7 @@ project "PhoenixPhysics"
     kind "StaticLib"
     location (projects)
 
-    dependson { "PhoenixCore", "PhoenixSim", "PhoenixECS" }
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixBlackboard", "PhoenixECS" }
 
     -- defines { "PHOENIX_DLL" }
     -- defines { "PHOENIX_PHYSICS_DLL_EXPORTS" }
@@ -304,6 +305,62 @@ project "PhoenixPhysics"
     links {
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixBlackboard",
+        "PhoenixECS"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
+project "PhoenixSteering"
+    kind "StaticLib"
+    location (projects)
+
+    dependson { "PhoenixCore", "PhoenixSim", "PhoenixBlackboard", "PhoenixECS", "PhoenixPhysics" }
+
+    -- defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_STEERING_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
+
+    files { 
+        "src/PhoenixSteering/**"
+    }
+
+    includedirs {
+        "src/PhoenixPhysics/Public",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+        "src/PhoenixBlackboard/Public",
+        "src/PhoenixECS/Public",
+        "src/PhoenixPhysics/Public",
+        "src/PhoenixSteering/Public",
+    }
+
+    links {
+        "PhoenixCore",
+        "PhoenixSim",
+        "PhoenixBlackboard",
         "PhoenixECS"
     }
 
@@ -438,6 +495,7 @@ project "TestApp"
         "src/PhoenixBlackboard/Public",
         "src/PhoenixECS/Public",
         "src/PhoenixPhysics/Public",
+        "src/PhoenixSteering/Public",
         "src/PhoenixLua/Public"
     }
 
@@ -461,6 +519,7 @@ project "TestApp"
         "PhoenixBlackboard",
         "PhoenixECS",
         "PhoenixPhysics",
+        "PhoenixSteering",
         "PhoenixLua",
         "SDL3"
     }

@@ -22,6 +22,7 @@ namespace Phoenix
         constexpr TVec2() = default;
         constexpr TVec2(T xy) : X(xy), Y(xy) {}
         constexpr TVec2(T x, T y) : X(x), Y(y) {}
+        constexpr TVec2(const Cordic::TCordicVec<T, T>& vec) : X(vec.X), Y(vec.Y) {}
 
         constexpr TVec2 operator+(const T& rhs) const
         {
@@ -172,8 +173,7 @@ namespace Phoenix
 
         constexpr TVec2 Rotate(Angle angle) const
         {
-            auto v = Cordic::Rotate(X, Y, angle);
-            return { v.X, v.Y };
+            return Cordic::Rotate(X, Y, angle);
         }
 
         constexpr static bool Equals(const TVec2& a, const TVec2& b, T threshold = T::Epsilon)
@@ -255,6 +255,11 @@ namespace Phoenix
         constexpr static TVec2 Midpoint(const TVec2& a, const TVec2& b)
         {
             return (a + b) / 2.0;
+        }
+
+        constexpr static TVec2 FromPolar(Angle a, T r)
+        {
+            return Cordic::Rotate<T>(r, 0, a);
         }
 
         T X = 0;

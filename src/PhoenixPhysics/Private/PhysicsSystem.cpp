@@ -431,7 +431,7 @@ void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
     }
 
     // Multi-pass solver
-    for (uint32 i = 0; i < 4; ++i)
+    for (uint32 i = 0; i < 6; ++i)
     {
         WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::PGSTask, i);
     }
@@ -442,8 +442,11 @@ void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
     FeatureECS::ScheduleParallel(world, job);
 
     // Multi-pass overlap separation
-    WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.SortedEntities.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask);
-    WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask2);
+    for (uint32 i = 0; i < 2; ++i)
+    {
+        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.SortedEntities.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask);
+        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask2);
+    }
 }
 
 void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)

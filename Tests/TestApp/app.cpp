@@ -25,6 +25,7 @@
 #include "FeatureECS.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
+#include "FeatureSteering.h"
 #include "FeatureLua.h"
 
 // SDL impl
@@ -46,6 +47,7 @@ using namespace Phoenix::Blackboard;
 using namespace Phoenix::ECS;
 using namespace Phoenix::Physics;
 using namespace Phoenix::Pathfinding;
+using namespace Phoenix::Steering;
 
 SDL_Window* GWindow;
 SDL_Renderer* GRenderer;
@@ -91,6 +93,7 @@ void InitSession()
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
     TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
+    TSharedPtr<FeatureSteering> steeringFeature = std::make_shared<FeatureSteering>();
     // TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
     
     SessionCtorArgs sessionArgs;
@@ -98,6 +101,7 @@ void InitSession()
     sessionArgs.FeatureSetArgs.Features.push_back(ecsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(navMeshFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
+    sessionArgs.FeatureSetArgs.Features.push_back(steeringFeature);
     // sessionArgs.FeatureSetArgs.Features.push_back(luaFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 

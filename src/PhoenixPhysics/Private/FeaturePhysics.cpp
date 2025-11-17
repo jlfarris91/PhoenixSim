@@ -7,6 +7,7 @@
 #include "MortonCode.h"
 #include "Profiling.h"
 #include "Session.h"
+#include "../../PhoenixSteering/Public/SteeringComponent.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -55,6 +56,22 @@ bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
             color.G = rand() % 255;
             color.B = rand() % 255;
             FeatureECS::SetBlackboardValue(world, entityId, "Color"_n, color);
+
+            if (entityId == 1)
+            {
+                Steering::WanderComponent* wanderComp = FeatureECS::AddComponent<Steering::WanderComponent>(world, entityId);
+                wanderComp->WanderAngle = ((rand() % RAND_MAX) / (double)RAND_MAX) * DEG_360;
+                wanderComp->WanderRadius = 10.0;
+                wanderComp->MaxSpeed = 5.0;
+            }
+            else
+            {
+                Steering::SeekComponent* seekComp = FeatureECS::AddComponent<Steering::SeekComponent>(world, entityId);
+                SetFlagRef(seekComp->Flags, Steering::ESeekFlags::Arrive, true); 
+                seekComp->TargetEntity = 1;
+                seekComp->SlowingDistance = 1;
+                seekComp->MaxSpeed = 5.0; 
+            }
         }
 
         return true;
