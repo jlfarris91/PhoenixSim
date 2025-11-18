@@ -5,7 +5,7 @@
 #include <SDL3/SDL_events.h>
 
 #include "Actions.h"
-#include "FeatureNavMesh.h"
+#include "FeatureNavigation.h"
 #include "FixedPoint/FixedVector.h"
 #include "Session.h"
 #include "../SDL/SDLDebugState.h"
@@ -24,8 +24,27 @@ void NavMeshTool::OnAppRenderWorld(WorldConstRef& world, SDLDebugState& state, S
 {
     Vec2 mouseWorldPos = state.GetWorldMousePos();
 
+    CursorPos = mouseWorldPos;
+
     if (const FeatureNavMeshDynamicBlock* dynamicBlock = world.GetBlock<FeatureNavMeshDynamicBlock>())
     {
+        // Cursor snapping
+        {
+            Distance dist;
+            auto closestEdgeIdx = dynamicBlock->DynamicNavMesh.FindClosestHalfEdge(mouseWorldPos, dist);
+            if (dist < SnapRadius && dynamicBlock->DynamicNavMesh.IsValidHalfEdge(closestEdgeIdx))
+            {
+                CursorPos = dynamicBlock->DynamicNavMesh.ProjectOntoHalfEdge(closestEdgeIdx, mouseWorldPos);
+            }
+
+            auto closestVertIdx = dynamicBlock->DynamicNavMesh.FindClosestVertex(mouseWorldPos, Distance(SnapRadius));
+            if (dynamicBlock->DynamicNavMesh.IsValidVert(closestVertIdx))
+            {
+                CursorPos = dynamicBlock->DynamicNavMesh.GetVertex(closestVertIdx);
+            }
+            
+        }
+        
         RenderMesh(state, renderer, dynamicBlock->DynamicNavMesh);
 
         for (const Vec2& vert : dynamicBlock->DynamicPoints)
@@ -39,39 +58,29 @@ void NavMeshTool::OnAppRenderWorld(WorldConstRef& world, SDLDebugState& state, S
         }
     }
 
-    if (state.KeyDown(SDLK_X))
+    renderer.DrawCircle(CursorPos, SnapRadius, Color::White);
+
+    if (state.KeyPressed(SDLK_E))
     {
-        renderer.DrawCircle(mouseWorldPos, BrushSize, Color::White);
+        LineStart = CursorPos;
+        LineEnd.Reset();
     }
-}
-
-void NavMeshTool::OnAppRenderUI(ImGuiIO& io)
-{
-}
-
-void NavMeshTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
-{
-    Vec2 mouseWorldPos = state.GetWorldMousePos();
 
     if (state.KeyDown(SDLK_E))
     {
-        LineEnd = mouseWorldPos;
+        LineEnd = CursorPos;
     }
 
     if (state.KeyDown(SDLK_X))
     {
         Action action;
         action.Verb = "delete_edges_and_points"_n;
-        action.Data[0].Distance = mouseWorldPos.X;
-        action.Data[1].Distance = mouseWorldPos.Y;
+        action.Data[0].Distance = CursorPos.X;
+        action.Data[1].Distance = CursorPos.Y;
         action.Data[2].Distance = BrushSize;
         Session->QueueAction(action);
-    }
 
-    if (state.KeyPressed(SDLK_E))
-    {
-        LineStart = mouseWorldPos;
-        LineEnd.Reset();
+        renderer.DrawCircle(CursorPos, BrushSize, Color::White);
     }
 
     if (state.KeyReleased(SDLK_E))
@@ -99,6 +108,25 @@ void NavMeshTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
         LineEnd.Reset();
     }
 
+    if (state.KeyDown(SDLK_SPACE) && LoadedVertIndex < LoadedVerts.size())
+    {
+        Action action;
+        action.Verb = "insert_point"_n;
+        action.Data[0].Distance = LoadedVerts[LoadedVertIndex].X;
+        action.Data[1].Distance = LoadedVerts[LoadedVertIndex].Y;
+        Session->QueueAction(action);
+        LoadedVertIndex++;
+    }
+}
+
+void NavMeshTool::OnAppRenderUI(ImGuiIO& io)
+{
+}
+
+void NavMeshTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
+{
+    auto mouseWorldPos = state.GetWorldMousePos();
+
     if (state.KeyPressed(SDLK_P))
     {
         if (PathStart.IsSet() && PathGoal.IsSet())
@@ -119,28 +147,16 @@ void NavMeshTool::OnAppEvent(SDLDebugState& state, SDL_Event* event)
             action.Verb = "find_path"_n;
             action.Data[0].Distance = PathStart->X;
             action.Data[1].Distance = PathStart->Y;
-            action.Data[2].Distance = PathGoal->Y;
+            action.Data[2].Distance = PathGoal->X;
             action.Data[3].Distance = PathGoal->Y;
             action.Data[4].Distance = AgentRadius;
             Session->QueueAction(action);
         }
     }
-
-    if (state.KeyDown(SDLK_SPACE) && LoadedVertIndex < LoadedVerts.size())
-    {
-        Action action;
-        action.Verb = "insert_point"_n;
-        action.Data[0].Distance = LoadedVerts[LoadedVertIndex].X;
-        action.Data[1].Distance = LoadedVerts[LoadedVertIndex].Y;
-        Session->QueueAction(action);
-        LoadedVertIndex++;
-    }
 }
 
 void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, const NavMesh& mesh)
 {
-    Vec2 mouseWorldPos = state.GetWorldMousePos();
-
     if (bDrawVertCircles)
     {
         for (const Vec2& vert : mesh.Vertices)
@@ -180,8 +196,8 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
     // Redraw the edges of the face the mouse is within so that they draw on top
     for (size_t i = 0; i < mesh.Faces.Num(); ++i)
     {
-        auto result = mesh.IsPointInFace(int16(i), mouseWorldPos);
-        if (result.Result == EPointInFaceResult::Inside)
+        auto result = mesh.IsPointInFace(int16(i), CursorPos);
+        if (result.Result != EPointInFaceResult::Outside)
         {
             Color color = renderer.GetColor(i);
 
@@ -191,6 +207,22 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
                 const Vec2& vertB = mesh.Vertices[halfEdge.VertB];
                 renderer.DrawLine(vertA, vertB, color);
             });
+
+            mesh.ForEachHalfEdgeIndexInFace(uint16(i), [&](uint16 halfEdgeIndex)
+            {
+                Vec2 center, normal;
+                mesh.GetEdgeCenterAndNormal(halfEdgeIndex, center, normal);
+                Vec2 pt = center + normal * 1.0;
+
+                char str[256] = { '\0' };
+                size_t len = sprintf_s(str, _countof(str), "%hu", halfEdgeIndex);
+                renderer.DrawDebugText(pt, str, len, color); 
+            });
+
+            Vec2 a, b, c;
+            mesh.GetFaceVerts(uint16(i), a, b, c);
+    
+            RenderCircumcircle(renderer, a, b, c, color);
         }
     }
 
@@ -202,23 +234,6 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
 
             char str[256];
             size_t len = sprintf_s(str, _countof(str), "%llu", i);
-            renderer.DrawDebugText(pt, str, len, Color::White);
-        }
-    }
-
-    if (bDrawHalfEdgeIds)
-    {
-        for (uint16 i = 0; i < mesh.HalfEdges.Num(); ++i)
-        {
-            if (!mesh.IsValidHalfEdge(i))
-                continue;
-
-            Vec2 center, normal;
-            mesh.GetEdgeCenterAndNormal(i, center, normal);
-            Vec2 pt = center + normal * 10.0;
-
-            char str[256] = { '\0' };
-            size_t len = sprintf_s(str, _countof(str), "%hu", i);
             renderer.DrawDebugText(pt, str, len, Color::White);
         }
     }
@@ -266,26 +281,7 @@ void NavMeshTool::RenderMesh(SDLDebugState& state, SDLDebugRenderer& renderer, c
             const Vec2& b = mesh.Vertices[e1.VertA];
             const Vec2& c = mesh.Vertices[e2.VertA];
     
-            auto aax = a.X * a.X;
-            auto aay = a.Y * a.Y;
-            auto a2 = a.X*a.X + a.Y*a.Y;
-            auto b2 = b.X*b.X + b.Y*b.Y;
-            auto c2 = c.X*c.X + c.Y*c.Y;
-    
-            auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
-            if (d == 0)
-                continue;
-    
-            auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;
-            auto uy = (a2 * (c.X - b.X) + b2 * (a.X - c.X) + c2 * (b.X - a.X)) / d;
-            auto r1 = (ux - a.X)*(ux - a.X) + (uy - a.Y)*(uy - a.Y);
-
-            if (r1 < 0)
-                continue;
-
-            auto r = Sqrt(r1);
-
-            renderer.DrawCircle({ ux, uy }, r, color);
+            RenderCircumcircle(renderer, a, b, c, color);
         }
     }
 
@@ -344,7 +340,7 @@ void NavMeshTool::RenderPath(
         
             Vec2 center, normal;
             mesh.GetEdgeCenterAndNormal(halfEdgeIndex, center, normal);
-            Vec2 f = center + normal * 10.0f;
+            Vec2 f = center + normal * 1.0f;
         
             renderer.DrawLine(center, f, Color::Green);
         }
@@ -379,6 +375,28 @@ void NavMeshTool::RenderPath(
             renderer.DrawLine(v0, v1, Color::Blue);
         }
     }
+}
+
+void NavMeshTool::RenderCircumcircle(SDLDebugRenderer& renderer, const Vec2& a, const Vec2& b, const Vec2& c, const Color& color)
+{
+    auto a2 = a.X*a.X + a.Y*a.Y;
+    auto b2 = b.X*b.X + b.Y*b.Y;
+    auto c2 = c.X*c.X + c.Y*c.Y;
+    
+    auto d = 2 * (a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y));
+    if (d == 0)
+        return;
+    
+    auto ux = (a2 * (b.Y - c.Y) + b2 * (c.Y - a.Y) + c2 * (a.Y - b.Y)) / d;
+    auto uy = (a2 * (c.X - b.X) + b2 * (a.X - c.X) + c2 * (b.X - a.X)) / d;
+    auto r1 = (ux - a.X)*(ux - a.X) + (uy - a.Y)*(uy - a.Y);
+
+    if (r1 < 0)
+        return;
+
+    auto r = Sqrt(r1);
+
+    renderer.DrawCircle({ ux, uy }, r, color, 128);
 }
 
 void NavMeshTool::LoadMeshFromFile()
@@ -444,4 +462,52 @@ void NavMeshTool::LoadMeshFromFile()
         action.Data[3].Distance = vertB.Y;
         Session->QueueAction(action);
     }
+}
+
+void NavMeshTool::Step()
+{
+    Action action;
+    action.Verb = "path_step"_n;
+    action.Data[0].Distance = AgentRadius;
+    action.Data[1].UInt32 = 1;
+    Session->QueueAction(action);
+}
+
+void NavMeshTool::Step10()
+{
+    Action action;
+    action.Verb = "path_step"_n;
+    action.Data[0].Distance = AgentRadius;
+    action.Data[1].UInt32 = 10;
+    Session->QueueAction(action);
+}
+
+bool NavMeshTool::GetIsStepping() const
+{
+    auto world = Session->GetWorldManager()->GetPrimaryWorld();
+    auto block = world->GetBlock<FeatureNavMeshDynamicBlock>();
+    return block ? block->bStepping : false;
+}
+
+void NavMeshTool::SetIsStepping(const bool& v)
+{
+    Action action;
+    action.Verb = "path_set_stepping"_n;
+    action.Data[0].Bool = v;
+    Session->QueueAction(action);
+}
+
+bool NavMeshTool::GetFixDelaunayTriangulation() const
+{
+    auto world = Session->GetWorldManager()->GetPrimaryWorld();
+    auto block = world->GetBlock<FeatureNavMeshDynamicBlock>();
+    return block ? block->bFixDelaunayTriangulation : false;
+}
+
+void NavMeshTool::SetFixDelaunayTriangulation(const bool& v)
+{
+    Action action;
+    action.Verb = "mesh_set_fix_delaunay_triangulations"_n;
+    action.Data[0].Bool = v;
+    Session->QueueAction(action);
 }

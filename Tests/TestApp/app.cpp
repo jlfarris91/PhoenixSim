@@ -23,7 +23,7 @@
 // Phoenix features
 #include "FeatureBlackboard.h"
 #include "FeatureECS.h"
-#include "FeatureNavMesh.h"
+#include "FeatureNavigation.h"
 #include "FeaturePhysics.h"
 #include "FeatureSteering.h"
 #include "FeatureLua.h"
@@ -91,7 +91,7 @@ void InitSession()
 {
     TSharedPtr<FeatureBlackboard> blackboardFeature = std::make_shared<FeatureBlackboard>();
     TSharedPtr<FeatureECS> ecsFeature = std::make_shared<FeatureECS>();
-    TSharedPtr<FeatureNavMesh> navMeshFeature = std::make_shared<FeatureNavMesh>();
+    TSharedPtr<FeatureNavigation> navMeshFeature = std::make_shared<FeatureNavigation>();
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     TSharedPtr<FeatureSteering> steeringFeature = std::make_shared<FeatureSteering>();
     // TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();

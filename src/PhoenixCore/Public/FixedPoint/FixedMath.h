@@ -8,6 +8,9 @@ namespace Phoenix
     template <class T>
     struct TVec2;
 
+    template <class T>
+    struct TLine;
+
     template <uint8 Tb, class T>
     constexpr TFixed<Tb, T> Sqrt(const TFixed<Tb, T>& value)
     {
@@ -137,9 +140,9 @@ namespace Phoenix
         TIdx OnEdgeIndex = 0;
     };
 
-    // > 0 : inside
+    // > 0 : outside
     // == 0 : co-circular
-    // < 0 : outside
+    // < 0 : inside
     template <class T = Distance>
     auto PointInCircle(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& c, const TVec2<T>& p)
     {
@@ -159,13 +162,18 @@ namespace Phoenix
 
         auto v = p - TVec2<T>(ux, uy);
         auto dot = TVec2<T>::Dot(v, v);
-        auto dist = r1 - dot;
+        auto dist = dot - r1;
 
         return dist;
     }
 
     template <class T = Distance, class TIdx = uint8>
-    PointInFaceResult<TIdx> PointInTriangle(const TVec2<T>& a, const TVec2<T>& b, const TVec2<T>& c, const TVec2<T>& p)
+    PointInFaceResult<TIdx> PointInTriangle(
+        const TVec2<T>& a,
+        const TVec2<T>& b,
+        const TVec2<T>& c,
+        const TVec2<T>& p,
+        T edgeThreshold = T::Epsilon)
     {
         auto acX = a.X - c.X;
         auto acY = a.Y - c.Y;
@@ -184,13 +192,125 @@ namespace Phoenix
         auto b0 = (caY * pc.X + acX * pc.Y) / d;
         auto c0 = 1 - a0 - b0;
 
-        if (0 <= a0 && a0 <= 1 &&
-            0 <= b0 && b0 <= 1 &&
-            0 <= c0 && c0 <= 1)
+        bool inside = 
+            (-edgeThreshold <= a0 && a0 <= 1 + edgeThreshold) &&
+            (-edgeThreshold <= b0 && b0 <= 1 + edgeThreshold) &&
+            (-edgeThreshold <= c0 && c0 <= 1 + edgeThreshold);
+
+        if (!inside)
         {
-            return { EPointInFaceResult::Inside };
+            return { EPointInFaceResult::Outside };
         }
 
-        return { EPointInFaceResult::Outside };
+        // Edge test: any barycentric coordinate near zero
+        if (Abs(a0) <= edgeThreshold)
+        {
+            return { EPointInFaceResult::OnEdge, 1 };
+        }
+        if (Abs(b0) <= edgeThreshold)
+        {
+            return { EPointInFaceResult::OnEdge, 2 };
+        }
+        if (Abs(c0) <= edgeThreshold)
+        {
+            return { EPointInFaceResult::OnEdge, 0 };
+        }
+
+        return { EPointInFaceResult::Inside };
+    }
+
+    template <class TVec>
+    constexpr TVec PointToLine(const TVec& p0, const TVec& p1, const TVec& p)
+    {
+        TVec a = p - p0;
+        TVec b = p1 - p0;
+        auto bb = TVec::Dot(b, b);
+        if (bb == 0) return TVec::Zero;
+        auto d = TVec::Dot(a, b) / bb;
+        d = Min(Max(d, 0.0f), 1.0f);
+        return -(a - b * d);
+    }
+
+    template <class TVec>
+    constexpr TVec PointToLine(const TLine<TVec>& line, const TVec& p)
+    {
+        return PointToLine<TVec>(line.Start, line.End, p);
+    }
+
+    template <class TVec>
+    constexpr typename TVec::ComponentT DistanceToLine(const TVec& p0, const TVec& p1, const TVec& p)
+    {
+        return PointToLine<TVec>(p0, p1, p).Length();
+    }
+
+    template <class TVec>
+    constexpr typename TVec::ComponentT DistanceToLine(const TLine<TVec>& line, const TVec& point)
+    {
+        return PointToLine<TVec>(line.Start, line.End, point).Length();
+    }
+
+    // Project vector a onto vector b.
+    template <class TVec>
+    constexpr TVec Project(const TVec& a, const TVec& b)
+    {
+        // Step 1: Vector b to get |b| (bc.X) and angle theta (bc.Y)
+        auto bc = Cordic::Vector(b.X, b.Y);
+
+        // Step 2: Rotate a by -theta (align b with x-axis)
+        auto ac = Cordic::Rotate(a.X, a.Y, -bc.Y);
+
+        // Step 4: Rotate projection back by +theta
+        return Cordic::Rotate<typename TVec::ComponentT>(ac.X, 0, bc.Y);
+    }
+
+    // Project vector a onto vector b and clamp the length of the resulting vector to (0, len).
+    template <class TVec>
+    constexpr TVec ProjectClamped(const TVec& a, const TVec& b, typename TVec::ComponentT len)
+    {
+        // Step 1: Vector b to get |b| (bc.X) and angle theta (bc.Y)
+        auto bc = Cordic::Vector(b.X, b.Y);
+
+        // Step 2: Rotate a by -theta (align b with x-axis)
+        auto ac = Cordic::Rotate(a.X, a.Y, -bc.Y);
+
+        // Step 3: Clamp the projected length
+        auto projLen = Clamp<typename TVec::ComponentT>(ac.X, 0, len);
+
+        // Step 4: Rotate projection back by +theta
+        return Cordic::Rotate<typename TVec::ComponentT>(projLen, 0, bc.Y);
+    }
+
+    // Project point p onto the vector defined by the line with points p0 and p1.
+    template <class TVec>
+    constexpr TVec Project(const TVec& p0, const TVec& p1, const TVec& p)
+    {
+        auto a = p - p0;
+        auto b = p1 - p0;
+        return p0 + Project(a, b);
+    }
+
+    // Project point p onto the vector defined by the line with points p0 and p1.
+    // Clamps the resulting point to the extents of the line.
+    template <class TVec>
+    constexpr TVec ProjectClamped(const TVec& p0, const TVec& p1, const TVec& p)
+    {
+        auto a = p - p0;
+        auto b = p1 - p0;
+        return p0 + ProjectClamped(a, b, b.Length());
+    }
+
+    // Project vector p onto the vector defined by the given line.
+    template <class TVec>
+    constexpr TVec Project(const TLine<TVec>& line, const TVec& p)
+    {
+        return Project(line.Start, line.End, p);
+    }
+
+    // Project vector p onto the vector defined by the given line.
+    // Clamps the resulting point to the extents of the line.
+    template <class TVec>
+    constexpr TVec ProjectClamped(const TLine<TVec>& line, const TVec& p)
+    {
+        return ProjectClamped(line.Start, line.End, p);
     }
 }

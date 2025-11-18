@@ -193,8 +193,13 @@ namespace Phoenix
                         continue;
                     }
 
+                    if (currEdgeIndex == twinEdgeIndex)
                     {
-                        PHX_ASSERT(currEdgeIndex != twinEdgeIndex);
+                        continue;
+                    }
+
+                    {
+                        // PHX_ASSERT(currEdgeIndex != twinEdgeIndex);
                         Node& neighborNode = FindOrAddNode(mesh, twinEdgeIndex);
 
                         if (neighborNode.Discarded)
@@ -280,6 +285,12 @@ namespace Phoenix
                     Node& node = Nodes[idx];
                     PathEdges.PushBack(idx);
                     idx = node.FromEdge;
+
+                    if (PathEdges.IsFull())
+                    {
+                        // This should be an error probably?
+                        return;
+                    }
                 }
             }
 
@@ -311,9 +322,9 @@ namespace Phoenix
         int32 RightIndex = 0;
         int32 PortalSide = 0;
         Distance Radius;
-        TFixedArray<TVec, 128> PathChainRhs;
-        TFixedArray<TVec, 128> PathChainLhs;
-        TFixedArray<TLine<TVec>, 128> PathDebugLines;
+        TFixedArray<TVec, 256> PathChainRhs;
+        TFixedArray<TVec, 256> PathChainLhs;
+        TFixedArray<TLine<TVec>, 256> PathDebugLines;
 
         void Initialize(const TMesh& mesh, const TMeshPath<TMesh>& path, Distance radius)
         {

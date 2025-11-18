@@ -54,6 +54,20 @@ namespace Phoenix
         Both = Incoming | Outgoing
     };
 
+    enum class EMeshInsertResult : uint8
+    {
+        Failed,
+        Succeeded,
+        Existed
+    };
+
+    template <class TIdx>
+    struct MeshInsertResult
+    {
+        EMeshInsertResult Status = EMeshInsertResult::Failed;
+        TIdx Index = Phoenix::Index<TIdx>::None;
+    };
+
     template <size_t NFaces, class TFaceData, class TVecComp_ = Distance, class TIdx = uint16>
     struct TFixedCDTMesh2
     {
@@ -62,7 +76,7 @@ namespace Phoenix
         using TFace = TMeshFace<TFaceData, TIdx>;
         using TVec = TVec2<TVecComp_>;
         using TVecComp = TVecComp_;
-        static constexpr TVecComp DefaultThreshold = 1E-3;
+        static constexpr TVecComp DefaultThreshold = 1E-2;
         static constexpr size_t Capacity = NFaces;
 
         // Resets the mesh clearing all vertices, edges and faces.
@@ -77,9 +91,15 @@ namespace Phoenix
         // Returns true if the index represents a valid vertex.
         bool IsValidVert(TIdx vertIndex) const;
 
-        // Inserts an index into the mesh and returns the new index.
-        // If there is already a vert in the mesh within the given threshold distance, that vertex's index is returned instead.
-        TIdx InsertVertex(const TVec& pt, const TVecComp& threshold = DefaultThreshold);
+        // Returns the index of a vertex in the mesh at the give pt.
+        TIdx FindVertex(const TVec& pt, const TVecComp& threshold = DefaultThreshold) const;
+
+        // Attempts to insert an vertex into the mesh.
+        // Returns:
+        //  - False if a vertex already exists in the mesh at that location. Check outIdx for the existing vertex index.
+        //  - False if the vertex buffer is full. In that case, outIdx will be -1.
+        //  - True if the vertex was added to the mesh. Check outIdx for the new vertex index.
+        MeshInsertResult<TIdx> InsertVertex(const TVec& pt, const TVecComp& threshold = DefaultThreshold);
 
         // Sets the position of a vertex.
         // Returns true if the index represents a valid vertex and the position is changed.
@@ -145,6 +165,9 @@ namespace Phoenix
         // Returns the index of a half-edge that exists in the mesh with the given vertex indices.
         TIdx FindHalfEdge(TIdx v0, TIdx v1) const;
 
+        // Finds the closest half-edge to a given position.
+        TIdx FindClosestHalfEdge(const TVec& pos, TVecComp& outDist) const;
+
         // Gets the vertex positions of a given edge given the index of one of the half-edges.
         bool GetEdgeVerts(TIdx halfEdgeIndex, TVec& outVertA, TVec& outVertB) const;
 
@@ -156,6 +179,13 @@ namespace Phoenix
 
         // Gets the magnitude of an edge given the index of one of the half-edges.
         auto GetEdgeLength(TIdx halfEdgeIndex) const;
+
+        // Returns the distance from a point to a given half-edge.
+        // Returns an unset value if the edge is invalid.
+        TOptional<TVecComp> GetDistanceToHalfEdge(TIdx halfEdgeIndex, const TVec& p) const;
+
+        // Projects a point onto the line that defines a half-edge.
+        TVec ProjectOntoHalfEdge(TIdx halfEdgeIndex, const TVec& p) const;
 
         // Returns true if either half-edge of a given edge is locked.
         // TODO (jfarris): IF ONE IS LOCKED THEN THEY BOTH SHOULD BE! but they aren't always for some reason...
@@ -199,7 +229,12 @@ namespace Phoenix
 
         // Inserts a new face into the mesh with the given vertex positions.
         // Assumes that (a,b,c) is CCW
-        TIdx InsertFace(const TVec& a, const TVec& b, const TVec& c, const TFaceData& data);
+        TIdx InsertFace(
+            const TVec& a,
+            const TVec& b,
+            const TVec& c,
+            const TFaceData& data,
+            TVecComp threshold = TVecComp::Epsilon);
 
         // Removes a face from the mesh.
         // Does not re-triangulate neighboring faces.
@@ -224,7 +259,7 @@ namespace Phoenix
         TIdx FindFaceContainingPoint(const TVec& pos) const;
 
         // Returns whether a point is inside, outside or on the edge of a given face.
-        PointInFaceResult<TIdx> IsPointInFace(TIdx f, const TVec& p) const;
+        PointInFaceResult<TIdx> IsPointInFace(TIdx f, const TVec& p, TVecComp edgeThreshold = TVecComp::Epsilon) const;
 
         void SplitFace(TIdx faceIndex, TIdx vertIndex, TIdx& outFace0, TIdx& outFace1, TIdx& outFace2);
 
@@ -260,7 +295,7 @@ namespace Phoenix
 
         void TriangulatePolygon(auto& chain, const TFaceData& faceData);
 
-        TIdx CDT_InsertPoint(const TVec& v, bool fixDelaunayConditions = true);
+        TIdx CDT_InsertPoint(const TVec& v, bool fixDelaunayConditions = true, TVecComp threshold = TVecComp::Epsilon);
 
         bool CDT_InsertEdge(const TLine<TVec>& line, bool fixDelaunayConditions = true);
 

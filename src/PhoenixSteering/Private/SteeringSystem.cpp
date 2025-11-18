@@ -3,6 +3,7 @@
 
 #include "BodyComponent.h"
 #include "FeatureECS.h"
+#include "FeatureNavigation.h"
 #include "Flags.h"
 #include "SteeringComponent.h"
 #include "SystemJob.h"
@@ -38,6 +39,12 @@ namespace SteeringDetail
                 const Transform2D& transform = transformComp.Transform;
                 const Vec2& currPos = transform.Position;
                 Vec2 steeringVel;
+
+                Pathfinding::PathResult result = Pathfinding::FeatureNavigation::PathTo(world, currPos, targetPos, bodyComp.Radius);
+                if (result.PathFound)
+                {
+                    targetPos = result.NextPoint;
+                }
 
                 if (HasAnyFlags(seek.Flags, ESeekFlags::Arrive) && seek.SlowingDistance > 0)
                 {

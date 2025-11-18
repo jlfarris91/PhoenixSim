@@ -347,7 +347,7 @@ namespace PhysicsSystemDetail
             {
                 for (const CollisionLine& line : scratchBlock.CollisionLines)
                 {
-                    Vec2 v = Line2::VectorToLine(line.Line, transformCompA->Transform.Position);
+                    Vec2 v = PointToLine(line.Line, transformCompA->Transform.Position);
                     Distance vLen = v.Length();
                     if (vLen != 0.0f && vLen < bodyCompA->Radius)
                     {

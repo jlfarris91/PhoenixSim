@@ -1,5 +1,5 @@
 ﻿
-#include "FeatureNavMesh.h"
+#include "FeatureNavigation.h"
 
 #include <cstdio>   // For snprintf
 
@@ -11,11 +11,11 @@
 using namespace Phoenix;
 using namespace Phoenix::Pathfinding;
 
-FeatureNavMesh::FeatureNavMesh()
+FeatureNavigation::FeatureNavigation()
 {
 }
 
-void FeatureNavMesh::RebuildNavMesh(WorldRef world)
+void FeatureNavigation::RebuildNavMesh(WorldRef world)
 {
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
 
@@ -30,18 +30,18 @@ void FeatureNavMesh::RebuildNavMesh(WorldRef world)
 
     for (const auto& point : block.DynamicPoints)
     {
-        block.DynamicNavMesh.CDT_InsertPoint(point);
+        block.DynamicNavMesh.CDT_InsertPoint(point, block.bFixDelaunayTriangulation);
     }
 
     for (const auto& edge : block.DynamicEdges)
     {
-        block.DynamicNavMesh.CDT_InsertEdge(edge);
+        block.DynamicNavMesh.CDT_InsertEdge(edge, block.bFixDelaunayTriangulation);
     }
 
     // block.DynamicNavMesh.RecalculateBVH();
 }
 
-void FeatureNavMesh::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
+void FeatureNavigation::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
 
@@ -56,7 +56,7 @@ void FeatureNavMesh::OnPreWorldUpdate(WorldRef world, const FeatureUpdateArgs& a
     }
 }
 
-bool FeatureNavMesh::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
+bool FeatureNavigation::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
 {
     IFeature::OnHandleWorldAction(world, action);
 
@@ -104,10 +104,10 @@ bool FeatureNavMesh::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
         auto pt1x = action.Action.Data[2].Distance;
         auto pt1y = action.Action.Data[3].Distance;
         auto r = action.Action.Data[4].Distance;
-        scratchBlock.MeshPath.FindPath(dynamicBlock.DynamicNavMesh, { pt0x, pt0y }, { pt1x, pt1y }, r, false);
+        scratchBlock.MeshPath.FindPath(dynamicBlock.DynamicNavMesh, { pt0x, pt0y }, { pt1x, pt1y }, r, dynamicBlock.bStepping);
         if (scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
         {
-            scratchBlock.MeshPath.ResolvePath(dynamicBlock.DynamicNavMesh, false);
+            scratchBlock.MeshPath.ResolvePath(dynamicBlock.DynamicNavMesh, dynamicBlock.bStepping);
         }
 
         return true;
@@ -135,7 +135,7 @@ bool FeatureNavMesh::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
 
         for (size_t i = 0; i < dynamicBlock.DynamicEdges.Num();)
         {
-            if (Line2::DistanceToLine(dynamicBlock.DynamicEdges[i], pos) < radius)
+            if (DistanceToLine(dynamicBlock.DynamicEdges[i], pos) < radius)
             {
                 dynamicBlock.DynamicEdges.RemoveAt(i);
                 removedAny = true;
@@ -151,10 +151,49 @@ bool FeatureNavMesh::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
         return true;
     }
 
+    if (action.Action.Verb == "mesh_set_fix_delaunay_triangulations"_n)
+    {
+        dynamicBlock.bFixDelaunayTriangulation = action.Action.Data[0].Bool;
+        RebuildNavMesh(world);
+    }
+
+    if (action.Action.Verb == "path_set_stepping"_n)
+    {
+        dynamicBlock.bStepping = action.Action.Data[0].Bool;
+    }
+
+    if (action.Action.Verb == "path_step"_n && dynamicBlock.bStepping)
+    {
+        auto r = action.Action.Data[0].Distance;
+        auto s = action.Action.Data[1].UInt32;
+        for (uint32 i = 0; i < s; ++i)
+        {
+            if (scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::Continue)
+            {
+                scratchBlock.MeshPath.Step(dynamicBlock.DynamicNavMesh);
+                if (scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+                {
+                    scratchBlock.MeshPath.ResolvePath(dynamicBlock.DynamicNavMesh, true);
+                    scratchBlock.MeshPath.Funnel.Initialize(dynamicBlock.DynamicNavMesh, scratchBlock.MeshPath, r);
+                    scratchBlock.MeshPath.Funnel.Step(dynamicBlock.DynamicNavMesh, scratchBlock.MeshPath);
+                    break;
+                }
+            }
+            else if (scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath)
+            {
+                if (scratchBlock.MeshPath.Funnel.Step(dynamicBlock.DynamicNavMesh, scratchBlock.MeshPath))
+                {
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
     return false;
 }
 
-void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
+void FeatureNavigation::OnDebugRender(WorldConstRef world, const IDebugState& state, IDebugRenderer& renderer)
 {
     IFeature::OnDebugRender(world, state, renderer);
 
@@ -283,19 +322,19 @@ void FeatureNavMesh::OnDebugRender(WorldConstRef world, const IDebugState& state
     }
 }
 
-NavMesh::TIndex FeatureNavMesh::InsertPoint(WorldRef world, const NavMesh::TVec& pt)
+NavMesh::TIndex FeatureNavigation::InsertPoint(WorldRef world, const NavMesh::TVec& pt)
 {
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     return block.DynamicNavMesh.CDT_InsertPoint(pt);
 }
 
-bool FeatureNavMesh::InsertEdge(WorldRef world, const NavMesh::TVec& start, const NavMesh::TVec& end)
+bool FeatureNavigation::InsertEdge(WorldRef world, const NavMesh::TVec& start, const NavMesh::TVec& end)
 {
     FeatureNavMeshDynamicBlock& block = world.GetBlockRef<FeatureNavMeshDynamicBlock>();
     return block.DynamicNavMesh.CDT_InsertEdge({ start, end });
 }
 
-PathResult FeatureNavMesh::PathTo(
+PathResult FeatureNavigation::PathTo(
     WorldConstRef world,
     const NavMesh::TVec& start,
     const NavMesh::TVec& goal,
@@ -306,10 +345,17 @@ PathResult FeatureNavMesh::PathTo(
 
     scratchBlock.MeshPath.FindPath(dynamicBlock.DynamicNavMesh, start, goal, radius, false);
 
-    return { scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath, scratchBlock.MeshPath.Path[1] };
+    scratchBlock.MeshPath.ResolvePath(dynamicBlock.DynamicNavMesh, false);
+
+    int32 nextPointIndex = (int32)scratchBlock.MeshPath.Path.Num() - 2;
+    nextPointIndex = Clamp<int32>(nextPointIndex, 0, scratchBlock.MeshPath.Path.Num() - 1);
+
+    const Vec2& nextPoint = scratchBlock.MeshPath.Path[nextPointIndex];
+
+    return { scratchBlock.MeshPath.LastStepResult == TMeshPath<>::EStepResult::FoundPath, nextPoint };
 }
 
-PathResult FeatureNavMesh::CanPathTo(
+PathResult FeatureNavigation::CanPathTo(
     WorldConstRef world,
     const NavMesh::TVec& start,
     const NavMesh::TVec& goal,

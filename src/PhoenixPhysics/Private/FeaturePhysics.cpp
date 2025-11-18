@@ -59,10 +59,10 @@ bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs
 
             if (entityId == 1)
             {
-                Steering::WanderComponent* wanderComp = FeatureECS::AddComponent<Steering::WanderComponent>(world, entityId);
-                wanderComp->WanderAngle = ((rand() % RAND_MAX) / (double)RAND_MAX) * DEG_360;
-                wanderComp->WanderRadius = 10.0;
-                wanderComp->MaxSpeed = 5.0;
+                // Steering::WanderComponent* wanderComp = FeatureECS::AddComponent<Steering::WanderComponent>(world, entityId);
+                // wanderComp->WanderAngle = ((rand() % RAND_MAX) / (double)RAND_MAX) * DEG_360;
+                // wanderComp->WanderRadius = 10.0;
+                // wanderComp->MaxSpeed = 5.0;
             }
             else
             {
