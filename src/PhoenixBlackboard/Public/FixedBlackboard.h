@@ -493,6 +493,7 @@ namespace Phoenix::Blackboard
                 {
                     return i;
                 }
+                ++i;
             }
 
             return Index<uint32>::None;
