@@ -322,11 +322,11 @@ namespace Phoenix
         size_t FindSlot(const TKey& key) const
         {
             size_t hash = Hash(key);
-            size_t index = hash & (Capacity - 1);
+            size_t index = hash % Capacity;
             size_t startIndex = index;
             while (Items[index].first != 0 && Items[index].first != key)
             {
-                index = (index + 1) & (Capacity - 1);
+                index = (index + 1) % Capacity;
                 if (index == startIndex)
                     break;
             }
