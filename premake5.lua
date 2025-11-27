@@ -21,6 +21,7 @@ workspace "Phoenix"
     group "Phoenix"
         project "PhoenixCore"
         project "PhoenixSim"
+        project "PhoenixLDS"
         project "PhoenixBlackboard"
         project "PhoenixECS"
         project "PhoenixPhysics"
@@ -153,6 +154,61 @@ project "PhoenixSim"
 
     links {
         "PhoenixCore"
+    }
+
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        runtime "Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "Off"
+        optimize "speed"
+
+    filter "configurations:ReleaseWithSymbols"
+        defines { "NDEBUG" }
+        runtime "Release"
+        symbols "On"
+        optimize "speed"
+        
+    filter {}
+
+    -- TODO (jfarris): fix
+    disablewarnings {
+        "4251", "4275"
+    }
+
+project "PhoenixLDS"
+    kind "StaticLib"
+    location (projects)
+
+    dependson { "PhoenixCore", "PhoenixSim" }
+
+    -- defines { "PHOENIX_DLL" }
+    -- defines { "PHOENIX_LDS_DLL_EXPORTS" }
+    defines { "PHX_PROFILE_ENABLE" }
+
+    files { 
+        "src/PhoenixLDS/**"
+    }
+
+    includedirs {
+        "src/PhoenixLDS/Public",
+        "src/PhoenixLDS/Private",
+        "src/PhoenixCore/Public",
+        "src/PhoenixSim/Public",
+    }
+
+    externalincludedirs {
+        ext,
+        ext .. "/nlohmann/*",
+    }
+
+    links {
+        "PhoenixCore",
+        "PhoenixSim"
     }
 
     filter "configurations:Debug"
@@ -409,6 +465,7 @@ project "TestApp"
     dependson {
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixLDS",
         "PhoenixECS",
         "PhoenixBlackboard",
         "PhoenixPhysics",
@@ -435,6 +492,7 @@ project "TestApp"
     includedirs {
         "src/PhoenixCore/Public",
         "src/PhoenixSim/Public",
+        "src/PhoenixLDS/Public",
         "src/PhoenixBlackboard/Public",
         "src/PhoenixECS/Public",
         "src/PhoenixPhysics/Public",
@@ -458,6 +516,7 @@ project "TestApp"
         "lua",
         "PhoenixCore",
         "PhoenixSim",
+        "PhoenixLDS",
         "PhoenixBlackboard",
         "PhoenixECS",
         "PhoenixPhysics",

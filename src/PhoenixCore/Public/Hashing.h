@@ -30,11 +30,10 @@ namespace Phoenix
             return hash;
         }
 
-        static hash32_t FNV1A32(const void* data, size_t length, hash32_t basis = basis32)
+        static constexpr hash32_t FNV1A32(const void* data, size_t length, hash32_t basis = basis32)
         {
             hash32_t hash = basis;
 
-            // Cannot be constexpr because of this cast
             auto chars = static_cast<const char*>(data);
             for (size_t i = 0; i < length; ++i)
             {
@@ -84,11 +83,10 @@ namespace Phoenix
             return hash;
         }
 
-        static hash64_t FNV1A64(const void* data, size_t length, hash64_t basis = basis64)
+        static constexpr hash64_t FNV1A64(const void* data, size_t length, hash64_t basis = basis64)
         {
             hash64_t hash = basis;
 
-            // Cannot be constexpr because of this cast
             auto chars = static_cast<const char*>(data);
             for (size_t i = 0; i < length; ++i)
             {

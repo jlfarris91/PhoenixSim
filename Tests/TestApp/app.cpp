@@ -21,11 +21,15 @@
 #include "MortonCode.h"
 
 // Phoenix features
+#include "FeatureLDS.h"
 #include "FeatureBlackboard.h"
 #include "FeatureECS.h"
 #include "FeatureNavMesh.h"
 #include "FeaturePhysics.h"
 #include "FeatureLua.h"
+
+// Remove me
+#include "FixedLDS.h"
 
 // SDL impl
 #include "SDL/SDLCamera.h"
@@ -35,13 +39,13 @@
 #include "SDL/SDLViewport.h"
 
 // Test App Tools
-#include "BodyComponent.h"
 #include "Tools/CameraTool.h"
 #include "Tools/EntityTool.h"
 #include "Tools/ImGuiPropertyGrid.h"
 #include "Tools/NavMeshTool.h"
 
 using namespace Phoenix;
+using namespace Phoenix::LDS;
 using namespace Phoenix::Blackboard;
 using namespace Phoenix::ECS;
 using namespace Phoenix::Physics;
@@ -161,6 +165,8 @@ void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
     {
         SetThreadPool("SimThreadPool", numThreads - 1, 1024);
     }
+
+    Test();
 
     InitSession();
 
