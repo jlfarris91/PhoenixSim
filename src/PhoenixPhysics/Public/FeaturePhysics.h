@@ -38,7 +38,7 @@ namespace Phoenix
 
         struct ContactPair
         {
-            uint64 Key;
+            uint64 Key = 0;
             ECS::TransformComponent* TransformA;
             BodyComponent* BodyA;
             ECS::TransformComponent* TransformB;
@@ -47,11 +47,12 @@ namespace Phoenix
 
         struct Contact
         {
-            uint32 ContactPair;
+            uint32 ContactPair = Index<uint32>::None;
+            uint8 RefCount = 0;
             Vec2 Normal;
-            Value EffMass;
-            Value Bias;
-            Value Impulse;
+            Value EffMass = 0;
+            Value Bias = 0;
+            Value Impulse = 0;
         };
 
         struct ContactPairHasher
@@ -72,8 +73,6 @@ namespace Phoenix
         struct PHOENIXSIM_API FeaturePhysicsDynamicBlock : BufferBlockBase
         {
             PHX_DECLARE_BLOCK_SCRATCH(FeaturePhysicsDynamicBlock)
-
-            bool bAllowSleep = true;
         };
 
         struct PHOENIXSIM_API FeaturePhysicsScratchBlock : BufferBlockBase
@@ -86,6 +85,10 @@ namespace Phoenix
             TFixedArray<ContactPair, PHX_PHS_MAX_CONTACTS> ContactPairs;
             TAtomic<uint32> ContactPairsCount = 0;
 
+            TFixedMap<uint64, uint32, PHX_PHS_MAX_CONTACTS> ContactPairSet;
+
+            int32 ContactFreeHead = INDEX_NONE;
+
             TFixedArray<Contact, PHX_PHS_MAX_CONTACTS> Contacts;
             TFixedArray<CollisionLine, 1000> CollisionLines;
         };
@@ -96,8 +99,6 @@ namespace Phoenix
                 FEATURE_WORLD_BLOCK(FeaturePhysicsDynamicBlock)
                 FEATURE_WORLD_BLOCK(FeaturePhysicsScratchBlock)
                 FEATURE_CHANNEL(FeatureChannels::HandleWorldAction)
-                PHX_REGISTER_PROPERTY(bool, DebugDrawContacts)
-                PHX_REGISTER_PROPERTY(bool, AllowSleep)
             PHX_FEATURE_END()
 
         public:
@@ -105,8 +106,6 @@ namespace Phoenix
             FeaturePhysics();
 
             void Initialize() override;
-
-            bool OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action) override;
 
             static void QueryEntitiesInRange(WorldConstRef& world, const Vec2& pos, Distance range, TArray<EntityBody>& outEntities);
 
@@ -117,12 +116,6 @@ namespace Phoenix
                 Value force);
 
             static void AddForce(WorldRef& world, ECS::EntityId entityId, const Vec2& force);
-
-            bool GetDebugDrawContacts() const;
-            void SetDebugDrawContacts(const bool& value);
-
-            bool GetAllowSleep() const;
-            void SetAllowSleep(const bool& value);
 
             TSharedPtr<PhysicsSystem> PhysicsSystem;
         };

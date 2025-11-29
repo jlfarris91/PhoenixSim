@@ -42,6 +42,9 @@ namespace Phoenix
             // The radius used for body separation and pathfinding.
             Distance Radius = 0;
 
+            // Accumulated over a frame and reset to 0 after integration.
+            Vec2 Force;
+
             // The amount of distance applied to the relative transform each step.
             Vec2 LinearVelocity = Vec2::Zero;
 

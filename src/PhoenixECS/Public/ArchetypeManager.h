@@ -494,12 +494,43 @@ namespace Phoenix
             }
 
             template <class ...TComponents>
+            void ForEachEntity(const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func) const
+            {
+                for (const TBlockHandle& handle : ArchetypeLists)
+                {
+                    const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
+                    if (list && query.PassesFilter(list->GetDefinition()))
+                    {
+                        list->template ForEachEntity<TComponents...>([&](EntityId entityId, TComponents ...components)
+                        {
+                            func(entityId, Forward<TComponents>(components)...);
+                        });
+                    }
+                }
+            }
+
+            template <class ...TComponents>
             void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
                 uint32 startingIndex = 0;
                 for (const TBlockHandle& handle : ArchetypeLists)
                 {
                     TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
+                    if (list && query.PassesFilter(list->GetDefinition()))
+                    {
+                        func(EntityComponentSpan<TComponents...>::FromList(*list, startingIndex));
+                        startingIndex += list->GetNumInstances();
+                    }
+                }
+            }
+
+            template <class ...TComponents>
+            void ForEachEntity(const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func) const
+            {
+                uint32 startingIndex = 0;
+                for (const TBlockHandle& handle : ArchetypeLists)
+                {
+                    const TArchetypeList* list = ArchetypeLists.template GetPtr<TArchetypeList>(handle);
                     if (list && query.PassesFilter(list->GetDefinition()))
                     {
                         func(EntityComponentSpan<TComponents...>::FromList(*list, startingIndex));

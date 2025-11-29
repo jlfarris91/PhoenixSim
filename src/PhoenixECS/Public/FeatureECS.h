@@ -105,6 +105,8 @@ namespace Phoenix
             // Unregisters an existing ECS system. Returns true if the system was removed.
             bool UnregisterSystem(const TSharedPtr<ISystem>& system);
 
+            const TArray<TSharedPtr<ISystem>>& GetSystems() const;
+
             //
             // Entity Management
             //
@@ -138,6 +140,30 @@ namespace Phoenix
             static void ForEachEntity(WorldRef world, const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
             {
                 FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+                if (!block)
+                {
+                    return;
+                }
+
+                return block->ArchetypeManager.ForEachEntity<TComponents...>(query, func);
+            }
+
+            template <class ...TComponents>
+            static void ForEachEntity(WorldConstRef world, const EntityQuery& query, const TEntityQueryFunc<TComponents...>& func)
+            {
+                const FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
+                if (!block)
+                {
+                    return;
+                }
+
+                return block->ArchetypeManager.ForEachEntity<TComponents...>(query, func);
+            }
+
+            template <class ...TComponents>
+            static void ForEachEntity(WorldConstRef world, const EntityQuery& query, const TEntityQueryBufferFunc<TComponents...>& func)
+            {
+                const FeatureECSDynamicBlock* block = world.GetBlock<FeatureECSDynamicBlock>();
                 if (!block)
                 {
                     return;

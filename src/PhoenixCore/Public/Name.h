@@ -61,11 +61,11 @@ namespace Phoenix
         char Debug[64] = {};
 #endif
     };
+}
 
-    PHOENIXCORE_API constexpr FName operator ""_n(const char* chars, size_t len)
-    {
-        return FName(chars, len);
-    }
+PHOENIXCORE_API constexpr Phoenix::FName operator ""_n(const char* chars, size_t len)
+{
+    return Phoenix::FName(chars, len);
 }
 
 template <>

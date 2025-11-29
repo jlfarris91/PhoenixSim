@@ -340,6 +340,11 @@ bool FeatureECS::UnregisterSystem(const TSharedPtr<ISystem>& system)
     return true;
 }
 
+const TArray<TSharedPtr<ISystem>>& FeatureECS::GetSystems() const
+{
+    return Systems;
+}
+
 bool FeatureECS::IsEntityValid(WorldConstRef world, EntityId entityId)
 {
     return GetEntityPtr(world, entityId) != nullptr;

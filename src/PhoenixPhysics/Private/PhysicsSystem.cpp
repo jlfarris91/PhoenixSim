@@ -56,6 +56,22 @@ namespace PhysicsSystemDetail
             });
     }
 
+    struct IntegrateVelocitiesJob : IBufferJob<TransformComponent&, BodyComponent&>
+    {
+        DeltaTime DeltaTime;
+
+        void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
+        {
+            PHX_PROFILE_ZONE_SCOPED_N("IntegrateVelocitiesJob");
+
+            for (auto && [entityIdA, index, transformCompA, bodyCompA] : span)
+            {
+                bodyCompA.LinearVelocity += bodyCompA.Force * bodyCompA.InvMass * DeltaTime;
+                bodyCompA.Force = Vec2::Zero;
+            }
+        }
+    };
+
     struct CalculateContactPairsJob : IBufferJob<TransformComponent&, BodyComponent&>
     {
         DeltaTime DeltaTime;
@@ -172,7 +188,7 @@ namespace PhysicsSystemDetail
             Distance vLen = v.Length();
             Distance rr = bodyCompA.Radius + bodyCompB.Radius;
 
-            constexpr Value baum = 0.3f;
+            constexpr Value baum = 0.1f;
             const Value slop = 0.01f * rr;
             Distance d = rr - vLen;
             Value bias = -baum * Max(0, d - slop) / dt;
@@ -180,7 +196,7 @@ namespace PhysicsSystemDetail
             contact.Normal = v.Normalized();
             contact.Bias = bias;
             contact.EffMass = OneDivBy(bodyCompA.InvMass + bodyCompB.InvMass);
-            contact.Impulse = 0;
+            // contact.Impulse = 0;
 
             SetFlagRef(bodyCompA.Flags, EBodyFlags::Awake, true);
             SetFlagRef(bodyCompB.Flags, EBodyFlags::Awake, true);
@@ -289,12 +305,11 @@ namespace PhysicsSystemDetail
     struct IntegrateJob : IBufferJob<TransformComponent&, BodyComponent&>
     {
         DeltaTime DeltaTime;
+        bool bAllowSleep;
 
         void Execute(const EntityComponentSpan<TransformComponent&, BodyComponent&>& span) override
         {
             PHX_PROFILE_ZONE_SCOPED_N("IntegrateJob");
-
-            FeaturePhysicsDynamicBlock& dynamicBlock = World->GetBlockRef<FeaturePhysicsDynamicBlock>();
 
             for (auto && [entityIdA, index, transformComp, bodyComp] : span)
             {
@@ -304,7 +319,7 @@ namespace PhysicsSystemDetail
                 }
                 else 
                 {
-                    if (dynamicBlock.bAllowSleep)
+                    if (bAllowSleep)
                     {
                         bool isMoving = bodyComp.LinearVelocity.Length() > Distance(1E-1);
                         if (isMoving)
@@ -365,7 +380,7 @@ namespace PhysicsSystemDetail
         }
     }
 
-    void OverlapSeparationTask2(WorldRef world, uint32 startIndex, uint32 count)
+    void OverlapSeparationTask2(WorldRef world, uint32 startIndex, uint32 count, Value penetrationThreshold, Value penetrationCorrection)
     {
         PHX_PROFILE_ZONE_SCOPED;
 
@@ -380,11 +395,13 @@ namespace PhysicsSystemDetail
             Distance d = v.Length();
             Distance rr = contactPair.BodyA->Radius + contactPair.BodyB->Radius;
             Distance pen = rr - d;
-            if (pen > 0.01)
+            if (pen > penetrationThreshold)
             {
-                Value correction = 0.01f * pen;
+                Value correction = penetrationCorrection * pen;
                 contactPair.TransformA->Transform.Position -= contact.Normal * correction * contactPair.BodyA->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
                 contactPair.TransformB->Transform.Position += contact.Normal * correction * contactPair.BodyB->InvMass / (contactPair.BodyA->InvMass + contactPair.BodyB->InvMass);
+                SetFlagRef(contactPair.BodyA->Flags, EBodyFlags::Awake, true);
+                SetFlagRef(contactPair.BodyB->Flags, EBodyFlags::Awake, true);
             }
         }
     }
@@ -410,42 +427,58 @@ void PhysicsSystem::OnPreWorldUpdate(WorldRef world, const SystemUpdateArgs& arg
 void PhysicsSystem::OnWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
 {
     PHX_PROFILE_ZONE_SCOPED;
+}
+
+void PhysicsSystem::OnPostWorldUpdate(WorldRef world, const SystemUpdateArgs& args)
+{
+    PHX_PROFILE_ZONE_SCOPED;
 
     DeltaTime dt = args.DeltaTime;
 
     FeaturePhysicsScratchBlock& scratchBlock = world.GetBlockRef<FeaturePhysicsScratchBlock>();
-    
-    // Determine contacts
-    {
-        PhysicsSystemDetail::CalculateContactPairsJob job;
-        job.DeltaTime = dt;
-        FeatureECS::ScheduleParallel(world, job);
-
-        WorldTaskQueue::Schedule(world, &PhysicsSystemDetail::ResolveContactPairsTask);
-
-        // CalculateContactsTask depends on scratchBlock.Contacts.Num() to be calculated by ResolveContactPairs
-        // TODO (jfarris): can we have tasks depend on the result of other tasks?
-        WorldTaskQueue::Flush(world);
-
-        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::CalculateContactsTask, dt);
-    }
-
-    // Multi-pass solver
-    for (uint32 i = 0; i < 6; ++i)
-    {
-        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::PGSTask, i);
-    }
 
     // Integrate velocities
-    PhysicsSystemDetail::IntegrateJob job;
-    job.DeltaTime = dt;
-    FeatureECS::ScheduleParallel(world, job);
-
-    // Multi-pass overlap separation
-    for (uint32 i = 0; i < 2; ++i)
     {
-        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.SortedEntities.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask);
-        WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask2);
+        PhysicsSystemDetail::IntegrateVelocitiesJob job;
+        job.DeltaTime = dt;
+        FeatureECS::ScheduleParallel(world, job);
+    }
+
+    for (uint32 iter = 0; iter < NumIterations; ++iter)
+    {
+        // Determine contacts
+        {
+            PhysicsSystemDetail::CalculateContactPairsJob job;
+            job.DeltaTime = dt;
+            FeatureECS::ScheduleParallel(world, job);
+
+            WorldTaskQueue::Schedule(world, &PhysicsSystemDetail::ResolveContactPairsTask);
+
+            // CalculateContactsTask depends on scratchBlock.Contacts.Num() to be calculated by ResolveContactPairs
+            // TODO (jfarris): can we have tasks depend on the result of other tasks?
+            WorldTaskQueue::Flush(world);
+
+            WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::CalculateContactsTask, dt);
+        }
+
+        // Multi-pass solver
+        for (uint32 i = 0; i < NumSolverSteps; ++i)
+        {
+            WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::PGSTask, i);
+        }
+
+        // Integrate velocities
+        PhysicsSystemDetail::IntegrateJob job;
+        job.DeltaTime = dt;
+        job.bAllowSleep = AllowSleep;
+        FeatureECS::ScheduleParallel(world, job);
+
+        // Multi-pass overlap separation
+        for (uint32 i = 0; i < NumSeparationSteps; ++i)
+        {
+            WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.SortedEntities.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask);
+            WorldTaskQueue::ScheduleParallelRange(world, scratchBlock.Contacts.Num(), 128, &PhysicsSystemDetail::OverlapSeparationTask2, PenetrationThreshold, PenetrationCorrection);
+        }
     }
 }
 
@@ -460,7 +493,7 @@ void PhysicsSystem::OnDebugRender(WorldConstRef world, const IDebugState& state,
         renderer.DrawLine(collisionLine.Line.Start, collisionLine.Line.End, Color(0, 255, 0));
     }
 
-    if (bDebugDrawContacts)
+    if (DebugDrawContacts)
     {
         for (const Contact& contact : scratchBlock.Contacts)
         {

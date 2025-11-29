@@ -2,12 +2,9 @@
 #include "FeaturePhysics.h"
 
 #include "BodyComponent.h"
-#include "Color.h"
-#include "Flags.h"
 #include "MortonCode.h"
 #include "Profiling.h"
 #include "Session.h"
-#include "../../PhoenixSteering/Public/SteeringComponent.h"
 
 using namespace Phoenix;
 using namespace Phoenix::ECS;
@@ -23,79 +20,6 @@ void FeaturePhysics::Initialize()
 
     TSharedPtr<FeatureECS> featureECS = Session->GetFeatureSet()->GetFeature<FeatureECS>();
     featureECS->RegisterSystem(PhysicsSystem);
-}
-
-bool FeaturePhysics::OnHandleWorldAction(WorldRef world, const FeatureActionArgs& action)
-{
-    IFeature::OnHandleWorldAction(world, action);
-
-    // TODO (jfarris): move this to script
-    if (action.Action.Verb == "spawn_entity"_n)
-    {   
-        for (uint32 i = 0; i < action.Action.Data[4].UInt32; ++i)
-        {
-            EntityId entityId = FeatureECS::AcquireEntity(world, action.Action.Data[0].Name);
-            if (entityId == EntityId::Invalid)
-                break;
-
-            TransformComponent* transformComp = FeatureECS::GetComponent<TransformComponent>(world, entityId);
-            PHX_ASSERT(transformComp);
-            transformComp->Transform.Position.X = action.Action.Data[1].Distance;
-            transformComp->Transform.Position.Y = action.Action.Data[2].Distance;
-            transformComp->Transform.Rotation = action.Action.Data[3].Degrees;
-
-            BodyComponent* bodyComp = FeatureECS::GetComponent<BodyComponent>(world, entityId);
-            bodyComp->CollisionMask = 1;
-            bodyComp->Radius = 0.6; // Lancer :)
-            bodyComp->InvMass = OneDivBy<Value>(1.0f);
-            bodyComp->LinearDamping = 5.f;
-            SetFlagRef(bodyComp->Flags, EBodyFlags::Awake, true);
-
-            Color color;
-            color.R = rand() % 255;
-            color.G = rand() % 255;
-            color.B = rand() % 255;
-            FeatureECS::SetBlackboardValue(world, entityId, "Color"_n, color);
-
-            if (entityId == 1)
-            {
-                // Steering::WanderComponent* wanderComp = FeatureECS::AddComponent<Steering::WanderComponent>(world, entityId);
-                // wanderComp->WanderAngle = ((rand() % RAND_MAX) / (double)RAND_MAX) * DEG_360;
-                // wanderComp->WanderRadius = 10.0;
-                // wanderComp->MaxSpeed = 5.0;
-            }
-            else
-            {
-                Steering::SeekComponent* seekComp = FeatureECS::AddComponent<Steering::SeekComponent>(world, entityId);
-                SetFlagRef(seekComp->Flags, Steering::ESeekFlags::Arrive, true); 
-                seekComp->TargetEntity = 1;
-                seekComp->SlowingDistance = 1;
-                seekComp->MaxSpeed = 5.0; 
-            }
-        }
-
-        return true;
-    }
-
-    if (action.Action.Verb == "push_entities_in_range"_n)
-    {
-        Vec2 pos = { action.Action.Data[0].Distance, action.Action.Data[1].Distance };
-        Distance range = action.Action.Data[2].Distance;
-        Value force = action.Action.Data[3].Distance;
-        AddExplosionForceToEntitiesInRange(world, pos, range, force);
-
-        return true;
-    }
-
-    if (action.Action.Verb == "set_allow_sleep"_n)
-    {
-        bool allowSleep = action.Action.Data[0].Bool;
-        world.GetBlockRef<FeaturePhysicsDynamicBlock>().bAllowSleep = allowSleep;
-
-        return true;
-    }
-
-    return false;
 }
 
 void FeaturePhysics::QueryEntitiesInRange(
@@ -141,8 +65,7 @@ void FeaturePhysics::AddExplosionForceToEntitiesInRange(WorldRef world, const Ve
         if (dist < range)
         {
             Value t = 1.0f - dist / range;
-            Value f = force / entityBody.BodyComponent->InvMass;
-            entityBody.BodyComponent->LinearVelocity += dir.Normalized() * f * t;
+            entityBody.BodyComponent->Force += dir.Normalized() * force * t;
         }
     }
 }
@@ -155,35 +78,5 @@ void FeaturePhysics::AddForce(WorldRef world, EntityId entityId, const Vec2& for
         return;
     }
 
-    bodyComponent->LinearVelocity += force;
-}
-
-bool FeaturePhysics::GetDebugDrawContacts() const
-{
-    return PhysicsSystem && PhysicsSystem->bDebugDrawContacts;
-}
-
-void FeaturePhysics::SetDebugDrawContacts(const bool& value)
-{
-    if (PhysicsSystem)
-    {
-        PhysicsSystem->bDebugDrawContacts = value;
-    }
-}
-
-bool FeaturePhysics::GetAllowSleep() const
-{
-    WorldSharedPtr worldPtr = Session->GetWorldManager()->GetPrimaryWorld();
-    if (!worldPtr) return false;
-    auto blockPtr = worldPtr->GetBlock<FeaturePhysicsDynamicBlock>();
-    if (!blockPtr) return false;
-    return blockPtr->bAllowSleep;
-}
-
-void FeaturePhysics::SetAllowSleep(const bool& value)
-{
-    Action action;
-    action.Verb = "set_allow_sleep"_n;
-    action.Data[0].Bool = value;
-    Session->QueueAction(action);
+    bodyComponent->Force += force;
 }

@@ -213,7 +213,7 @@ namespace Phoenix
             size_t i = FindSlot(key);
 
             // Slot is not occupied
-            if (Items[i].first == 0)
+            if (Items[i].first != key)
             {
                 return false;
             }

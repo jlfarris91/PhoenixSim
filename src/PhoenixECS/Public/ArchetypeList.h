@@ -88,7 +88,7 @@ namespace Phoenix
                 return Data;
             }
 
-            constexpr uint8* GetData() const
+            constexpr const uint8* GetData() const
             {
                 return Data;
             }
@@ -273,6 +273,22 @@ namespace Phoenix
 
             template <class ...TComponents>
             void ForEachEntity(TFunction<void(EntityId, TComponents...)>&& func)
+            {
+                for (uint32 i = 0; i < NumInstances; ++i)
+                {
+                    ArchetypeInstance* instance = GetEntityPtr(i);
+
+                    if (instance->EntityId == EntityId::Invalid)
+                    {
+                        continue;
+                    }
+
+                    func(instance->EntityId, GetComponentRef<TComponents>(i)...);
+                }
+            }
+
+            template <class ...TComponents>
+            void ForEachEntity(TFunction<void(EntityId, TComponents...)>&& func) const
             {
                 for (uint32 i = 0; i < NumInstances; ++i)
                 {
@@ -553,7 +569,7 @@ namespace Phoenix
             static EntityComponentSpan FromList(TArchetypeList& list, uint32 startingIndex)
             {
                 EntityComponentSpan span;
-                span.RawData = list.GetData();
+                span.RawData = const_cast<uint8*>(list.GetData());
                 span.StartingIndex = startingIndex;
                 span.InstanceCount = list.GetNumInstances();
                 span.Step = list.GetEntityTotalSize();

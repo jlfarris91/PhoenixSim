@@ -262,6 +262,19 @@ namespace Phoenix
             return Cordic::Rotate<T>(r, 0, a);
         }
 
+        enum class EPerpendicularDir : uint8
+        {
+            Clockwise,
+            CounterClockwise
+        };
+
+        constexpr static TVec2 Perpendicular(const TVec2& v, EPerpendicularDir dir = EPerpendicularDir::Clockwise)
+        {
+            return dir == EPerpendicularDir::Clockwise
+                   ? TVec2(v.Y, -v.X)
+                   : TVec2( -v.Y, v.X);
+        }
+
         T X = 0;
         T Y = 0;
     };

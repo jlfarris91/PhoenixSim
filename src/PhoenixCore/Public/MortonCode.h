@@ -138,11 +138,12 @@ namespace Phoenix
         return FromMortonCodeY(zcode);
     }
 
-    // Scales down to morton code space and reserves sign.
+    // Scales down to morton code space and preserves sign.
     PHOENIXCORE_API constexpr int32 ScaleToMortonCode(int32 x)
     {
-        int8 sign = x >= 0 ? 1 : -1; 
-        return (x * sign >> MortonCodeGridBits) * sign;
+        int8 sign = x >= 0 ? 1 : -1;
+        uint32 xu = x < 0 ? -x - 1 : x;
+        return (int32)(xu >> MortonCodeGridBits) * sign;
     }
 
     struct PHOENIXCORE_API MortonCodeAABB

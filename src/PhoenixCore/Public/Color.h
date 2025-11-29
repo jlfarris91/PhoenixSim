@@ -12,6 +12,7 @@ namespace Phoenix
         static const Color Red;
         static const Color Green;
         static const Color Blue;
+        static const Color Yellow;
 
         constexpr Color() = default;
         constexpr Color(uint8 rgb) : R(rgb), G(rgb), B(rgb), A(255) {}

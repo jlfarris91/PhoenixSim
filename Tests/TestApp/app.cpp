@@ -27,6 +27,7 @@
 #include "FeaturePhysics.h"
 #include "FeatureSteering.h"
 #include "FeatureLua.h"
+#include "TestFeature.h"
 
 // SDL impl
 #include "SDL/SDLCamera.h"
@@ -37,6 +38,7 @@
 
 // Test App Tools
 #include "BodyComponent.h"
+#include "SteeringComponent.h"
 #include "Tools/CameraTool.h"
 #include "Tools/EntityTool.h"
 #include "Tools/ImGuiPropertyGrid.h"
@@ -95,6 +97,7 @@ void InitSession()
     TSharedPtr<FeaturePhysics> physicsFeature = std::make_shared<FeaturePhysics>();
     TSharedPtr<FeatureSteering> steeringFeature = std::make_shared<FeatureSteering>();
     // TSharedPtr<FeatureLua> luaFeature = std::make_shared<FeatureLua>();
+    TSharedPtr<TestFeature> testFeature = std::make_shared<TestFeature>();
     
     SessionCtorArgs sessionArgs;
     sessionArgs.FeatureSetArgs.Features.push_back(blackboardFeature);
@@ -103,6 +106,7 @@ void InitSession()
     sessionArgs.FeatureSetArgs.Features.push_back(physicsFeature);
     sessionArgs.FeatureSetArgs.Features.push_back(steeringFeature);
     // sessionArgs.FeatureSetArgs.Features.push_back(luaFeature);
+    sessionArgs.FeatureSetArgs.Features.push_back(testFeature);
     sessionArgs.OnPostWorldUpdate = OnPostWorldUpdate;
 
     GSession = new Session(sessionArgs);
@@ -113,7 +117,7 @@ void InitSession()
 
     auto primaryWorld = worldManager->NewWorld("TestWorld"_n);
 
-    FeatureECS::RegisterArchetypeDefinition<TransformComponent, BodyComponent>(*primaryWorld, "Unit"_n);
+    FeatureECS::RegisterArchetypeDefinition<TransformComponent, BodyComponent, SteeringComponent, SeekComponent>(*primaryWorld, "Unit"_n);
     
     GSessionThread = new std::thread(UpdateSessionWorker);
 }
@@ -125,11 +129,11 @@ void UpdateSessionWorker()
     GSessionThreadWantsExit = false;
 
     SessionStepArgs stepArgs;
-    stepArgs.StepHz = 30;
+    stepArgs.StepHz = 120;
 
     while (!GSessionThreadWantsExit)
     {
-        FrameMarkNamed("Sim");
+        // FrameMarkNamed("Sim");
 
         GSession->Tick(stepArgs);
 
@@ -158,7 +162,7 @@ void DrawGrid();
 
 void OnAppInit(SDL_Window* window, SDL_Renderer* renderer)
 {
-    SetProfiler(&GTracyProfiler);
+    // SetProfiler(&GTracyProfiler);
 
     unsigned int numThreads = std::min(std::thread::hardware_concurrency(), 8u);
     if (numThreads > 1)
@@ -396,6 +400,22 @@ void OnAppRenderUI()
                 ImGui::Text("%u", ecsDynamicBlock.Tags.GetSize());
                                 
                 ImGui::EndTable();
+            }
+
+            if (ImGui::TreeNode("Systems:"))
+            {
+                TSharedPtr<FeatureECS> featureECS = GSession->GetFeatureSet()->GetFeature<FeatureECS>();
+
+                for (const TSharedPtr<ISystem>& system : featureECS->GetSystems())
+                {
+                    const auto& systemDescriptor = system->GetTypeDescriptor();
+                    if (ImGui::CollapsingHeader(systemDescriptor.DisplayName))
+                    {
+                        DrawPropertyGrid(system.get(), systemDescriptor);
+                    }
+                }
+
+                ImGui::TreePop();
             }
     
             if (ImGui::TreeNode("Archetypes:"))

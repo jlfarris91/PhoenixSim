@@ -34,6 +34,7 @@ namespace Phoenix
         virtual void DrawLine(const Vec2& v0, const Vec2& v1, const Color& color) = 0;
         virtual void DrawLine(const Line2& line, const Color& color) = 0;
         virtual void DrawLines(const Vec2* points, size_t num, const Color& color) = 0;
+        virtual void DrawRay(const Vec2& start, const Vec2& dir, const Color& color) = 0;
         virtual void DrawRect(const Vec2& min, const Vec2& max, const Color& color) = 0;
         virtual void DrawDebugText(const Vec2& pt, const char* str, size_t len, const Color& color) = 0;
 
